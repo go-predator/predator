@@ -3,10 +3,10 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-23 14:12:01
+ * @Modified: 2021-07-23 14:56:03
  */
 
-package http
+package predator
 
 import (
 	"encoding/json"

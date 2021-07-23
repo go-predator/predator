@@ -3,10 +3,10 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-23 14:17:50
+ * @Modified: 2021-07-23 14:59:48
  */
 
-package http
+package predator
 
 import (
 	"fmt"
@@ -14,14 +14,18 @@ import (
 	"strings"
 
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpproxy"
 )
 
 type Crawler struct {
-	UserAgent  string
-	retryCount uint
-	client     *fasthttp.Client
-	cookies    map[string]string
-	goCount    uint
+	UserAgent    string
+	retryCount   uint
+	client       *fasthttp.Client
+	cookies      map[string]string
+	goCount      uint
+	proxyURL     string
+	proxyURLPool []string
+	timeout      uint
 }
 
 // TODO: 代理、ua、headers、cookie、上下文通信、缓存接口
@@ -63,6 +67,20 @@ func (c Crawler) request(method, URL string, body []byte, headers map[string]str
 	}
 
 	resp := new(fasthttp.Response)
+
+	var proxy string
+	// 优先使用代理池，代理池为空时使用代理
+	if len(c.proxyURLPool) > 0 {
+		proxy = Shuffle(c.proxyURLPool)[0]
+	} else {
+		if c.proxyURL != "" {
+			proxy = c.proxyURL
+		}
+	}
+
+	if proxy != "" {
+		c.client.Dial = fasthttpproxy.FasthttpHTTPDialer(proxy)
+	}
 
 	if err := c.client.Do(req, resp); err != nil {
 		return nil, err
