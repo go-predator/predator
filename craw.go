@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-23 14:59:48
+ * @Modified: 2021-07-23 15:06:34
  */
 
 package predator
@@ -24,7 +24,7 @@ type Crawler struct {
 	cookies      map[string]string
 	goCount      uint
 	proxyURL     string
-	proxyURLPool []string
+	proxyURLPool []string // TODO: 当前只针对长效代理ip，需要添加代理 ip 替换或删除功能，不提供检查失效功能，由用户自己检查是否失效
 	timeout      uint
 }
 
