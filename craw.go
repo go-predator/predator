@@ -3,29 +3,46 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-23 15:06:34
+ * @Modified: 2021-07-24 21:57:33
  */
 
 package predator
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"strings"
+	"sync"
+	"sync/atomic"
 
+	pctx "github.com/thep0y/predator/context"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
 )
 
+type HandleRequest func(r *Request)
+type HandleResponse func(r *Response)
+
 type Crawler struct {
-	UserAgent    string
-	retryCount   uint
-	client       *fasthttp.Client
-	cookies      map[string]string
-	goCount      uint
-	proxyURL     string
-	proxyURLPool []string // TODO: 当前只针对长效代理ip，需要添加代理 ip 替换或删除功能，不提供检查失效功能，由用户自己检查是否失效
-	timeout      uint
+	lock          *sync.RWMutex
+	UserAgent     string
+	retryCount    uint
+	client        *fasthttp.Client
+	cookies       map[string]string
+	goCount       uint
+	proxyURL      string
+	proxyURLPool  []string // TODO: 当前只针对长效代理ip，需要添加代理 ip 替换或删除功能，不提供检查失效功能，由用户自己检查是否失效
+	timeout       uint
+	requestCount  uint32
+	responseCount uint32
+	// 在多协程中这个上下文管理可以用来退出或取消多个协程
+	Context context.Context
+
+	requestHandler []HandleRequest
+
+	// 响应后处理响应
+	responseHandler []HandleResponse
 }
 
 // TODO: 代理、ua、headers、cookie、上下文通信、缓存接口
@@ -41,33 +58,12 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 		op(c)
 	}
 
+	c.lock = &sync.RWMutex{}
+
 	return c
 }
 
-func (c Crawler) request(method, URL string, body []byte, headers map[string]string) (*fasthttp.Response, error) {
-	req := new(fasthttp.Request)
-	req.SetRequestURI(URL)
-	req.Header.SetMethod(method)
-	req.Header.Add("User-Agent", c.UserAgent)
-
-	if c.cookies != nil {
-		for k, v := range c.cookies {
-			req.Header.SetCookie(k, v)
-		}
-	}
-
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
-	}
-
-	if method == fasthttp.MethodPost {
-		req.SetBody(body)
-	}
-
-	resp := new(fasthttp.Response)
-
+func (c Crawler) chooseProxy() string {
 	var proxy string
 	// 优先使用代理池，代理池为空时使用代理
 	if len(c.proxyURLPool) > 0 {
@@ -77,23 +73,94 @@ func (c Crawler) request(method, URL string, body []byte, headers map[string]str
 			proxy = c.proxyURL
 		}
 	}
+	return proxy
+}
 
-	if proxy != "" {
-		c.client.Dial = fasthttpproxy.FasthttpHTTPDialer(proxy)
+func (c *Crawler) request(method, URL string, body []byte, headers map[string]string, ctx pctx.Context) error {
+	var err error
+
+	reqHeaders := new(fasthttp.RequestHeader)
+	reqHeaders.SetMethod(method)
+	reqHeaders.Set("User-Agent", c.UserAgent)
+	for k, v := range headers {
+		reqHeaders.Set(k, v)
 	}
+	if c.cookies != nil {
+		for k, v := range c.cookies {
+			reqHeaders.SetCookie(k, v)
+		}
+	}
+
+	if ctx == nil {
+		ctx, err = pctx.NewContext()
+		if err != nil {
+			return err
+		}
+	}
+
+	request := &Request{
+		URL:      URL,
+		Method:   method,
+		Headers:  reqHeaders,
+		Ctx:      ctx,
+		Body:     body,
+		ID:       atomic.AddUint32(&c.requestCount, 1),
+		crawler:  c,
+		ProxyURL: c.chooseProxy(),
+	}
+
+	c.processRequestHandler(request)
+
+	if request.abort {
+		return nil
+	}
+
+	req := new(fasthttp.Request)
+	req.Header = *request.Headers
+	req.SetRequestURI(request.URL)
+
+	if method == fasthttp.MethodPost {
+		req.SetBody(body)
+	}
+
+	if method == fasthttp.MethodPost && req.Header.Peek("Content-Type") == nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+
+	if req.Header.Peek("Accept") == nil {
+		req.Header.Set("Accept", "*/*")
+	}
+
+	if request.ProxyURL != "" {
+		c.client.Dial = fasthttpproxy.FasthttpHTTPDialer(request.ProxyURL)
+	}
+
+	resp := new(fasthttp.Response)
 
 	if err := c.client.Do(req, resp); err != nil {
-		return nil, err
+		return err
 	}
-	return resp, nil
+	atomic.AddUint32(&c.responseCount, 1)
+
+	response := &Response{
+		StatusCode: resp.StatusCode(),
+		Body:       resp.Body(),
+		Ctx:        ctx,
+		Request:    request,
+		Headers:    &resp.Header,
+	}
+
+	c.processResponseHandler(response)
+
+	return nil
 }
 
-func (c Crawler) Get(URL string, headers map[string]string) (*fasthttp.Response, error) {
-	return c.request(fasthttp.MethodGet, URL, nil, headers)
+func (c Crawler) Get(URL string) error {
+	return c.request(fasthttp.MethodGet, URL, nil, nil, nil)
 }
 
-func (c Crawler) Post(URL string, headers map[string]string, body []byte) (*fasthttp.Response, error) {
-	return c.request(fasthttp.MethodPost, URL, body, headers)
+func (c Crawler) Post(URL string, body []byte) error {
+	return c.request(fasthttp.MethodPost, URL, body, nil, nil)
 }
 
 func createMultipartBody(boundary string, data map[string]string) []byte {
@@ -125,13 +192,44 @@ func randomBoundary() string {
 	return s.String()
 }
 
-func (c Crawler) PostMultipart(URL string, requestData map[string]string, headers map[string]string) (*fasthttp.Response, error) {
-	if headers == nil {
-		headers = make(map[string]string)
-	}
+func (c Crawler) PostMultipart(URL string, requestData map[string]string) error {
+	headers := make(map[string]string)
 	boundary := randomBoundary()
 	headers["Content-Type"] = "multipart/form-data; boundary=---------------------------" + boundary
-
 	body := createMultipartBody(boundary, requestData)
-	return c.request(fasthttp.MethodPost, URL, body, headers)
+	return c.request(fasthttp.MethodPost, URL, body, headers, nil)
+}
+
+func (c *Crawler) BeforeRequest(f HandleRequest) {
+	c.lock.Lock()
+	if c.requestHandler == nil {
+		// 一个 ccrawler 不应该有太多处理请求的方法，这里设置为 5 个，
+		// 当不够时自动扩容
+		c.requestHandler = make([]HandleRequest, 0, 5)
+	}
+	c.requestHandler = append(c.requestHandler, f)
+	c.lock.Unlock()
+}
+
+func (c *Crawler) AfterResponse(f HandleResponse) {
+	c.lock.Lock()
+	if c.responseHandler == nil {
+		// 一个 ccrawler 不应该有太多处理请求的方法，这里设置为 5 个，
+		// 当不够时自动扩容
+		c.responseHandler = make([]HandleResponse, 0, 5)
+	}
+	c.responseHandler = append(c.responseHandler, f)
+	c.lock.Unlock()
+}
+
+func (c *Crawler) processRequestHandler(r *Request) {
+	for _, f := range c.requestHandler {
+		f(r)
+	}
+}
+
+func (c *Crawler) processResponseHandler(r *Response) {
+	for _, f := range c.responseHandler {
+		f(r)
+	}
 }
