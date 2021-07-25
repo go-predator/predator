@@ -3,7 +3,7 @@
  * @Email: email@example.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-07-24 22:03:54
+ * @Modified: 2021-07-25 08:43:31
  */
 
 package predator
@@ -31,4 +31,16 @@ type Response struct {
 // Save writes response body to disk
 func (r *Response) Save(fileName string) error {
 	return ioutil.WriteFile(fileName, r.Body, 0644)
+}
+
+func (r *Response) GetSetCookie() string {
+	return string(r.Headers.Peek("Set-Cookie"))
+}
+
+func (r *Response) ContentType() string {
+	return string(r.Headers.Peek("Content-Type"))
+}
+
+func (r *Response) String() string {
+	return string(r.Body)
 }

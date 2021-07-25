@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-24 21:57:33
+ * @Modified: 2021-07-25 10:05:23
  */
 
 package predator
@@ -12,13 +12,14 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	pctx "github.com/thep0y/predator/context"
+	"github.com/thep0y/predator/proxy"
 	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpproxy"
 )
 
 type HandleRequest func(r *Request)
@@ -132,7 +133,8 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 	}
 
 	if request.ProxyURL != "" {
-		c.client.Dial = fasthttpproxy.FasthttpHTTPDialer(request.ProxyURL)
+		// c.client.Dial = fasthttpproxy.FasthttpHTTPDialer(request.ProxyURL)
+		c.client.Dial = proxy.FasthttpHTTPDialer(request.ProxyURL)
 	}
 
 	resp := new(fasthttp.Response)
@@ -155,13 +157,26 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 	return nil
 }
 
+func createBody(requestData map[string]string) []byte {
+	if requestData == nil {
+		return nil
+	}
+	form := url.Values{}
+	for k, v := range requestData {
+		form.Add(k, v)
+	}
+	return []byte(form.Encode())
+}
+
 func (c Crawler) Get(URL string) error {
 	return c.request(fasthttp.MethodGet, URL, nil, nil, nil)
 }
 
-func (c Crawler) Post(URL string, body []byte) error {
-	return c.request(fasthttp.MethodPost, URL, body, nil, nil)
+func (c Crawler) Post(URL string, requestData map[string]string) error {
+	return c.request(fasthttp.MethodPost, URL, createBody(requestData), nil, nil)
 }
+
+type CustomRandomBoundary func() string
 
 func createMultipartBody(boundary string, data map[string]string) []byte {
 	dashBoundary := "-----------------------------" + boundary
@@ -192,9 +207,20 @@ func randomBoundary() string {
 	return s.String()
 }
 
-func (c Crawler) PostMultipart(URL string, requestData map[string]string) error {
+func (c Crawler) PostMultipart(URL string, requestData map[string]string, boundaryFunc ...CustomRandomBoundary) error {
+	if len(boundaryFunc) > 1 {
+		return fmt.Errorf("only one boundaryFunc can be passed in at most, but you pass in %d", len(boundaryFunc))
+	}
+
+	var boundary string
+	if len(boundaryFunc) == 0 {
+		boundary = randomBoundary()
+	} else {
+		boundary = boundaryFunc[0]()
+	}
+
 	headers := make(map[string]string)
-	boundary := randomBoundary()
+
 	headers["Content-Type"] = "multipart/form-data; boundary=---------------------------" + boundary
 	body := createMultipartBody(boundary, requestData)
 	return c.request(fasthttp.MethodPost, URL, body, headers, nil)
@@ -214,7 +240,7 @@ func (c *Crawler) BeforeRequest(f HandleRequest) {
 func (c *Crawler) AfterResponse(f HandleResponse) {
 	c.lock.Lock()
 	if c.responseHandler == nil {
-		// 一个 ccrawler 不应该有太多处理请求的方法，这里设置为 5 个，
+		// 一个 ccrawler 不应该有太多处理响应的方法，这里设置为 5 个，
 		// 当不够时自动扩容
 		c.responseHandler = make([]HandleResponse, 0, 5)
 	}

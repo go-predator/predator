@@ -3,10 +3,16 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-07-24 20:46:38
+ * @Modified: 2021-07-25 10:15:08
  */
 
 package predator
+
+import (
+	"strings"
+
+	"github.com/thep0y/go-logger/log"
+)
 
 type CrawlerOption func(*Crawler)
 
@@ -39,6 +45,13 @@ func WithRetry(count uint) CrawlerOption {
 // WithProxy 使用一个代理
 func WithProxy(proxyURL string) CrawlerOption {
 	return func(c *Crawler) {
+		if proxyURL[:5] == "socks" {
+			// TODO: 这个警告暂时这样处理
+			log.Warn("may not support socks proxy")
+		}
+		if strings.Contains(proxyURL, "//") {
+			proxyURL = strings.Split(proxyURL, "//")[1]
+		}
 		c.proxyURL = proxyURL
 	}
 }

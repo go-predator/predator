@@ -3,7 +3,7 @@
  * @Email: email@example.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-07-24 21:39:53
+ * @Modified: 2021-07-25 08:41:07
  */
 
 package predator
@@ -50,4 +50,8 @@ func (r *Request) New(method, URL string, body []byte) *Request {
 
 func (r *Request) Abort() {
 	r.abort = true
+}
+
+func (r *Request) SetContentType(contentType string) {
+	r.Headers.Set("Content-Type", contentType)
 }
