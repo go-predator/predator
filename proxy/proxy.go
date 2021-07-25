@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: proxy.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-25 10:11:13
+ * @Modified: 2021-07-25 11:44:54
  */
 
 package proxy
@@ -78,7 +78,7 @@ func FasthttpHTTPDialerTimeout(proxy string, timeout time.Duration) fasthttp.Dia
 		}
 		if res.Header.StatusCode() != 200 {
 			conn.Close()
-			return nil, fmt.Errorf("could not connect to proxy: %s status code: %d response: %s", proxy, res.Header.StatusCode(), res.Body())
+			return nil, fmt.Errorf("could not connect to proxy: %s status code: %d", proxy, res.Header.StatusCode())
 		}
 		return conn, nil
 	}

@@ -3,12 +3,14 @@
  * @Email: email@example.com
  * @File Name: read.go
  * @Created: 2021-07-24 08:56:04
- * @Modified: 2021-07-24 13:18:22
+ * @Modified: 2021-07-25 11:16:41
  */
 
 package context
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -83,4 +85,19 @@ func (r *rcontext) Length() int {
 		return true
 	})
 	return l
+}
+
+func (r *rcontext) String() string {
+	var s strings.Builder
+	s.WriteString("{")
+	r.Range(func(key, value interface{}) bool {
+		s.WriteString(`"`)
+		s.WriteString(key.(string))
+		s.WriteString(`": "`)
+		s.WriteString(fmt.Sprint(value))
+		s.WriteString(`", `)
+		return true
+	})
+	s.WriteString("}")
+	return s.String()
 }

@@ -3,7 +3,7 @@
  * @Email: email@example.com
  * @File Name: api.go
  * @Created: 2021-07-24 08:55:30
- * @Modified: 2021-07-24 13:23:05
+ * @Modified: 2021-07-25 11:17:50
  */
 
 package context
@@ -31,6 +31,8 @@ type Context interface {
 	Clear()
 	// Length 返回上下文的长度
 	Length() int
+	// String 将上下文转换为 json(非标准) 字符串
+	String() string
 }
 
 // 上下文类型

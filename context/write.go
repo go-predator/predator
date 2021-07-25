@@ -3,12 +3,14 @@
  * @Email: email@example.com
  * @File Name: write.go
  * @Created: 2021-07-24 08:56:16
- * @Modified: 2021-07-24 13:09:17
+ * @Modified: 2021-07-25 11:20:07
  */
 
 package context
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -81,4 +83,21 @@ func (w *wcontext) Length() int {
 	defer w.l.RUnlock()
 
 	return len(w.m)
+}
+
+func (w *wcontext) String() string {
+	w.l.RLock()
+	defer w.l.RUnlock()
+
+	var s strings.Builder
+	s.WriteString("{")
+	for k, v := range w.m {
+		s.WriteString(`"`)
+		s.WriteString(k)
+		s.WriteString(`": "`)
+		s.WriteString(fmt.Sprint(v))
+		s.WriteString(`", `)
+	}
+	s.WriteString("}")
+	return s.String()
 }
