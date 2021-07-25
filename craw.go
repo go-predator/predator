@@ -3,13 +3,14 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-25 11:04:00
+ * @Modified: 2021-07-25 12:18:18
  */
 
 package predator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -18,8 +19,8 @@ import (
 	"sync/atomic"
 
 	pctx "github.com/thep0y/predator/context"
-	"github.com/thep0y/predator/proxy"
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpproxy"
 )
 
 type HandleRequest func(r *Request)
@@ -47,6 +48,11 @@ type Crawler struct {
 }
 
 // TODO: 缓存接口、多进程
+
+var (
+	InvalidProxy    = errors.New("the proxy ip should contain the protocol")
+	UnknownProtocol = errors.New("only support http and socks5 protocol")
+)
 
 func NewCrawler(opts ...CrawlerOption) *Crawler {
 	c := new(Crawler)
@@ -133,8 +139,18 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 	}
 
 	if request.ProxyURL != "" {
-		// c.client.Dial = fasthttpproxy.FasthttpHTTPDialer(request.ProxyURL)
-		c.client.Dial = proxy.FasthttpHTTPDialer(request.ProxyURL)
+		// TODO: 对代理 url 的格式判断应该更严谨
+		if !strings.Contains(request.ProxyURL, "//") {
+			return InvalidProxy
+		}
+		addr := strings.Split(request.ProxyURL, "//")[1]
+		if request.ProxyURL[:4] == "http" {
+			c.client.Dial = fasthttpproxy.FasthttpHTTPDialer(addr)
+		} else if request.ProxyURL[:6] == "socks5" {
+			c.client.Dial = fasthttpproxy.FasthttpSocksDialer(addr)
+		} else {
+			return UnknownProtocol
+		}
 	}
 
 	resp := new(fasthttp.Response)
