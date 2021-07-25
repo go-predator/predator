@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-25 10:05:23
+ * @Modified: 2021-07-25 11:04:00
  */
 
 package predator
@@ -46,7 +46,7 @@ type Crawler struct {
 	responseHandler []HandleResponse
 }
 
-// TODO: 代理、ua、headers、cookie、上下文通信、缓存接口
+// TODO: 缓存接口、多进程
 
 func NewCrawler(opts ...CrawlerOption) *Crawler {
 	c := new(Crawler)
@@ -172,8 +172,8 @@ func (c Crawler) Get(URL string) error {
 	return c.request(fasthttp.MethodGet, URL, nil, nil, nil)
 }
 
-func (c Crawler) Post(URL string, requestData map[string]string) error {
-	return c.request(fasthttp.MethodPost, URL, createBody(requestData), nil, nil)
+func (c Crawler) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
+	return c.request(fasthttp.MethodPost, URL, createBody(requestData), nil, ctx)
 }
 
 type CustomRandomBoundary func() string
@@ -207,7 +207,7 @@ func randomBoundary() string {
 	return s.String()
 }
 
-func (c Crawler) PostMultipart(URL string, requestData map[string]string, boundaryFunc ...CustomRandomBoundary) error {
+func (c Crawler) PostMultipart(URL string, requestData map[string]string, ctx pctx.Context, boundaryFunc ...CustomRandomBoundary) error {
 	if len(boundaryFunc) > 1 {
 		return fmt.Errorf("only one boundaryFunc can be passed in at most, but you pass in %d", len(boundaryFunc))
 	}
@@ -223,7 +223,7 @@ func (c Crawler) PostMultipart(URL string, requestData map[string]string, bounda
 
 	headers["Content-Type"] = "multipart/form-data; boundary=---------------------------" + boundary
 	body := createMultipartBody(boundary, requestData)
-	return c.request(fasthttp.MethodPost, URL, body, headers, nil)
+	return c.request(fasthttp.MethodPost, URL, body, headers, ctx)
 }
 
 func (c *Crawler) BeforeRequest(f HandleRequest) {

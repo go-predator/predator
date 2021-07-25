@@ -3,7 +3,7 @@
  * @Email: email@example.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-07-25 08:41:07
+ * @Modified: 2021-07-25 10:56:51
  */
 
 package predator
@@ -54,4 +54,10 @@ func (r *Request) Abort() {
 
 func (r *Request) SetContentType(contentType string) {
 	r.Headers.Set("Content-Type", contentType)
+}
+
+func (r *Request) SetHeaders(headers map[string]string) {
+	for k, v := range headers {
+		r.Headers.Set(k, v)
+	}
 }
