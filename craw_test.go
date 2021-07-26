@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-25 10:18:42
+ * @Modified: 2021-07-26 11:23:35
  */
 
 package predator
@@ -41,13 +41,13 @@ func TestNewCrawler(t *testing.T) {
 	})
 	Convey("测试设置重试数量", t, func() {
 		count := 5
-		c := NewCrawler(WithRetry(uint(count)))
+		c := NewCrawler(WithRetry(uint32(count), func(r Response) bool { return true }))
 		So(c.retryCount, ShouldEqual, count)
 	})
 	Convey("测试设置代理", t, func() {
 		p := "http://localhost:5000"
 		c := NewCrawler(WithProxy(p))
-		So(c.proxyURL, ShouldEqual, "localhost:5000")
+		So(c.proxyURL, ShouldEqual, p)
 	})
 	Convey("测试设置代理池", t, func() {
 		pp := make([]string, 0, 5)
@@ -168,7 +168,7 @@ func TestRequest(t *testing.T) {
 
 		})
 
-		c.Post(ts.URL+"/login", requestData)
+		c.Post(ts.URL+"/login", requestData, nil)
 	})
 
 	Convey("测试 PostMultipart", t, func() {
@@ -192,7 +192,7 @@ func TestRequest(t *testing.T) {
 			So(reflect.DeepEqual(f.Form, requestData), ShouldBeTrue)
 		})
 
-		err := c.PostMultipart("https://httpbin.org/post", requestData)
+		err := c.PostMultipart("https://httpbin.org/post", requestData, nil)
 		So(err, ShouldBeNil)
 	})
 
@@ -201,7 +201,7 @@ func TestRequest(t *testing.T) {
 			IP string `json:"origin"`
 		}
 
-		ip := "http://115.59.245.65:45120"
+		ip := "http://14.134.203.22:45104"
 		c := NewCrawler(WithProxy(ip))
 
 		c.AfterResponse(func(r *Response) {
@@ -212,6 +212,28 @@ func TestRequest(t *testing.T) {
 
 		err := c.Get("https://httpbin.org/ip")
 		So(err, ShouldBeNil)
+	})
+}
+
+func TestRetry(t *testing.T) {
+	ts := server()
+	defer ts.Close()
+
+	Convey("测试对失败响应发起重试", t, func() {
+		cookie := map[string]string{"test": "ha"}
+		c := NewCrawler(
+			WithCookies(cookie),
+			WithRetry(5, func(r Response) bool {
+				return r.StatusCode != 200
+			}),
+		)
+
+		c.AfterResponse(func(r *Response) {
+			So(r.Request.NumberOfRetries(), ShouldEqual, 5)
+			So(r.StatusCode, ShouldNotEqual, 200)
+		})
+
+		c.Get(ts.URL + "/check_cookie")
 	})
 }
 
@@ -291,7 +313,7 @@ func TestJSON(t *testing.T) {
 				So(j.Msg, ShouldEqual, "unkown content type")
 			})
 
-			c.Post(ts.URL+"/json", nil)
+			c.Post(ts.URL+"/json", nil, nil)
 		})
 	})
 
@@ -311,6 +333,6 @@ func TestJSON(t *testing.T) {
 			So(j.Msg, ShouldEqual, "ok")
 		})
 
-		c.Post(ts.URL+"/json", nil)
+		c.Post(ts.URL+"/json", nil, nil)
 	})
 }

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-07-25 12:20:56
+ * @Modified: 2021-07-26 10:29:55
  */
 
 package predator
@@ -29,10 +29,13 @@ func WithConcurrent(count uint) CrawlerOption {
 	}
 }
 
-// WithRetry 请求失败时重试多少次
-func WithRetry(count uint) CrawlerOption {
+type RetryConditions func(r Response) bool
+
+// WithRetry 请求失败时重试多少次，什么条件的响应是请求失败
+func WithRetry(count uint32, cond RetryConditions) CrawlerOption {
 	return func(c *Crawler) {
 		c.retryCount = count
+		c.retryConditions = cond
 	}
 }
 

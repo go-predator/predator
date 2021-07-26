@@ -12,7 +12,7 @@ import "github.com/thep0y/predator"
 
 
 func main() {
-  crawler := predator.NewCrawler(
+	crawler := predator.NewCrawler(
 		predator.WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0"),
 		predator.WithCookies(map[string]string{"JSESSIONID": cookie}),
 		predator.WithProxy(ip),
@@ -22,7 +22,7 @@ func main() {
 
 创建`Crawler`时有一些可选项用来功能增强。所有可选项参考[predator/options.go](https://github.com/thep0y/predator/blob/main/options.go)。
 
-> 多协程和请求重试没有完成，虽然有这两个可选项，但暂时无意义
+> 多协程没有完成，虽然有这个可选项，但暂时无意义
 
 #### 2 发送 Get 请求
 
@@ -35,30 +35,30 @@ crawler.Get("http://www.baidu.com")
 ```go
 // BeforeRequest 可以在发送请求前，对请求进行一些修补
 crawler.BeforeRequest(func(r *predator.Request) {
-  headers := map[string]string{
-    "Accept":           "*/*",
-    "Accept-Language":  "zh-CN",
-    "Accept-Encoding":  "gzip, deflate",
-    "X-Requested-With": "XMLHttpRequest",
-    "Origin":           "http://example.com",
-  }
+	headers := map[string]string{
+		"Accept":           "*/*",
+		"Accept-Language":  "zh-CN",
+		"Accept-Encoding":  "gzip, deflate",
+		"X-Requested-With": "XMLHttpRequest",
+		"Origin":           "http://example.com",
+	}
 
-  r.SetHeaders(headers)
+	r.SetHeaders(headers)
   
-  // 请求和响应之间的上下文传递
-  r.Ctx.Put("id", 10)
-  r.Ctx.Put("name", "tom")
+	// 请求和响应之间的上下文传递，上下文见下面的上下文示例
+	r.Ctx.Put("id", 10)
+	r.Ctx.Put("name", "tom")
 })
 
 crawler.AfterResponse(func(r *predator.Response) {
-  // 从请求发送的上下文中取值
-  id := r.Ctx.GetAny("id").(int)
-  name := r.Ctx.Get("name")
+	// 从请求发送的上下文中取值
+	id := r.Ctx.GetAny("id").(int)
+	name := r.Ctx.Get("name")
 	
- 	// 对于 json 响应，建议使用 gjson 进行处理
-  body := gjson.ParseBytes(r.Body)
-  amount := body.Get("amount").Int()
-  types := body.Get("types").Array()
+	// 对于 json 响应，建议使用 gjson 进行处理
+	body := gjson.ParseBytes(r.Body)
+	amount := body.Get("amount").Int()
+	types := body.Get("types").Array()
 })
 
 // 请求语句要在 BeforeRequest 和 AfterResponse 后面调用
@@ -72,35 +72,32 @@ crawler.Get("http://www.baidu.com")
 ```go
 // BeforeRequest 可以在发送请求前，对请求进行一些修补
 crawler.BeforeRequest(func(r *predator.Request) {
-  headers := map[string]string{
-    "Accept":           "*/*",
-    "Accept-Language":  "zh-CN",
-    "Accept-Encoding":  "gzip, deflate",
-    "X-Requested-With": "XMLHttpRequest",
-    "Origin":           "http://example.com",
-  }
+	headers := map[string]string{
+		"Accept":           "*/*",
+		"Accept-Language":  "zh-CN",
+		"Accept-Encoding":  "gzip, deflate",
+		"X-Requested-With": "XMLHttpRequest",
+		"Origin":           "http://example.com",
+	}
 
-  r.SetHeaders(headers)
-  
-  // 请求和响应之间的上下文传递
-  r.Ctx.Put("id", 10)
-  r.Ctx.Put("name", "tom")
+	r.SetHeaders(headers)
 })
 
 crawler.AfterResponse(func(r *predator.Response) {
-  // 从请求发送的上下文中取值
-  id := r.Ctx.GetAny("id").(int)
-  name := r.Ctx.Get("name")
+	// 从请求发送的上下文中取值
+	id := r.Ctx.GetAny("id").(int)
+	name := r.Ctx.Get("name")
 	
- 	// 对于 json 响应，建议使用 gjson 进行处理
-  body := gjson.ParseBytes(r.Body)
-  amount := body.Get("amount").Int()
-  types := body.Get("types").Array()
+	// 对于 json 响应，建议使用 gjson 进行处理
+	body := gjson.ParseBytes(r.Body)
+	amount := body.Get("amount").Int()
+	types := body.Get("types").Array()
 })
 
 
 body := map[string]string{"foo": "bar"}
 
+// 在 Post 请求中，应该将关键参数用这种方式放进上下文
 ctx, _ := context.NewContext()
 ctx.Put("id", 10)
 ctx.Put("name", "tom")
@@ -134,8 +131,9 @@ func buildRequestBody(queryID string, page uint) map[string]string {
 
 func parsePerPage(u, queryID string, cty, page uint) error {
 	// 创造请求体
-  body := buildRequestBody(queryID, page)
+	body := buildRequestBody(queryID, page)
 
+    // 将请求体中的关键参数传入上下文
 	ctx, _ := context.NewContext()
 	ctx.Put("cty", cty)
 	ctx.Put("qid", queryID)
@@ -166,11 +164,11 @@ func Run() {
 		log.Debugf("分类 [ %d ] 有 %d 条结果", cty, total)
 	})
 	
-  // 请求多个分类的第一页内容
+	// 请求多个分类的第一页内容
 	var wg sync.WaitGroup
 	for cty, qid := range TypesID {
 		wg.Add(1)
-		go func(cty uint qid string) {
+		go func(cty uint, qid string) {
 			defer wg.Done()
 
 			err := parsePerPage(u, qid, cty, 1)
@@ -183,11 +181,22 @@ func Run() {
 }
 ```
 
-基本的使用就是这些了。
+#### 5 上下文
+
+上下文是一个接口，我实现了两种上下文：
+
+- *ReadOp*：基于`sync.Map`实现，适用于读取上下文较多的场景
+- *WriteOp*：用`map`实现，适用于读写频频率相差不大或写多于读的场景，这是默认采用的上下文
+
+爬虫中如果遇到了读远多于写时就应该换`ReadOp`了，如下代码所示：
+
+```go
+ctx, err := NewContext(context.ReadOp)
+```
 
 ### 目标
 
-- [ ] 完成对失败响应的重新请求，直到重试了传入的重试次数时才算最终请求失败
+- [x] 完成对失败响应的重新请求，直到重试了传入的重试次数时才算最终请求失败
 - [ ] 识别因代理失效而造成的请求失败。当使用代理池时，代理池中剔除此代理；当使用单个代理时，终止整个爬虫程序
 - [ ] 定义缓存接口，并完成一种或多种缓存
 - [ ] 协程池，实现在多协程时对每个 goroutine 的复用，避免重复创建

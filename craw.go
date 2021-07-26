@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-25 12:18:18
+ * @Modified: 2021-07-26 11:24:22
  */
 
 package predator
@@ -27,17 +27,19 @@ type HandleRequest func(r *Request)
 type HandleResponse func(r *Response)
 
 type Crawler struct {
-	lock          *sync.RWMutex
-	UserAgent     string
-	retryCount    uint
-	client        *fasthttp.Client
-	cookies       map[string]string
-	goCount       uint
-	proxyURL      string
-	proxyURLPool  []string // TODO: 当前只针对长效代理ip，需要添加代理 ip 替换或删除功能，不提供检查失效功能，由用户自己检查是否失效
-	timeout       uint
-	requestCount  uint32
-	responseCount uint32
+	lock       *sync.RWMutex
+	UserAgent  string
+	retryCount uint32
+	// 重试条件，返回结果为 true 时触发重试
+	retryConditions RetryConditions
+	client          *fasthttp.Client
+	cookies         map[string]string
+	goCount         uint
+	proxyURL        string
+	proxyURLPool    []string // TODO: 当前只针对长效代理ip，需要添加代理 ip 替换或删除功能，不提供检查失效功能，由用户自己检查是否失效
+	timeout         uint
+	requestCount    uint32
+	responseCount   uint32
 	// 在多协程中这个上下文管理可以用来退出或取消多个协程
 	Context context.Context
 
@@ -122,26 +124,35 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 		return nil
 	}
 
+	var response *Response
+
+	response, err = c.do(request)
+	if err != nil {
+		return err
+	}
+
+	c.processResponseHandler(response)
+
+	return nil
+}
+
+func (c *Crawler) do(request *Request) (*Response, error) {
 	req := new(fasthttp.Request)
 	req.Header = *request.Headers
 	req.SetRequestURI(request.URL)
 
-	if method == fasthttp.MethodPost {
-		req.SetBody(body)
+	if request.Method == fasthttp.MethodPost {
+		req.SetBody(request.Body)
 	}
 
-	if method == fasthttp.MethodPost && req.Header.Peek("Content-Type") == nil {
+	if request.Method == fasthttp.MethodPost && req.Header.Peek("Content-Type") == nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	}
-
-	if req.Header.Peek("Accept") == nil {
-		req.Header.Set("Accept", "*/*")
 	}
 
 	if request.ProxyURL != "" {
 		// TODO: 对代理 url 的格式判断应该更严谨
 		if !strings.Contains(request.ProxyURL, "//") {
-			return InvalidProxy
+			return nil, InvalidProxy
 		}
 		addr := strings.Split(request.ProxyURL, "//")[1]
 		if request.ProxyURL[:4] == "http" {
@@ -149,28 +160,37 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 		} else if request.ProxyURL[:6] == "socks5" {
 			c.client.Dial = fasthttpproxy.FasthttpSocksDialer(addr)
 		} else {
-			return UnknownProtocol
+			return nil, UnknownProtocol
 		}
+	}
+
+	if req.Header.Peek("Accept") == nil {
+		req.Header.Set("Accept", "*/*")
 	}
 
 	resp := new(fasthttp.Response)
 
 	if err := c.client.Do(req, resp); err != nil {
-		return err
+		return nil, err
 	}
 	atomic.AddUint32(&c.responseCount, 1)
 
 	response := &Response{
 		StatusCode: resp.StatusCode(),
 		Body:       resp.Body(),
-		Ctx:        ctx,
+		Ctx:        request.Ctx,
 		Request:    request,
 		Headers:    &resp.Header,
 	}
 
-	c.processResponseHandler(response)
+	if c.retryCount > 0 && request.retryCounter < c.retryCount {
+		if c.retryConditions(*response) {
+			atomic.AddUint32(&request.retryCounter, 1)
+			return c.do(request)
+		}
+	}
 
-	return nil
+	return response, nil
 }
 
 func createBody(requestData map[string]string) []byte {

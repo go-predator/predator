@@ -3,7 +3,7 @@
  * @Email: email@example.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-07-25 10:56:51
+ * @Modified: 2021-07-26 10:23:04
  */
 
 package predator
@@ -31,8 +31,11 @@ type Request struct {
 	// 每个请求可以单独设置一个代理 ip，当前仅限于 http 代理
 	ProxyURL string
 	// 中断本次请求
-	abort   bool
+	abort bool
+	// 基于原 crawler 重试或发出新请求
 	crawler *Crawler
+	// 重试计数器
+	retryCounter uint32
 }
 
 // New 使用原始请求的上下文创建一个新的请求
@@ -60,4 +63,8 @@ func (r *Request) SetHeaders(headers map[string]string) {
 	for k, v := range headers {
 		r.Headers.Set(k, v)
 	}
+}
+
+func (r Request) NumberOfRetries() uint32 {
+	return r.retryCounter
 }
