@@ -15,7 +15,7 @@ func main() {
 	crawler := predator.NewCrawler(
 		predator.WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0"),
 		predator.WithCookies(map[string]string{"JSESSIONID": cookie}),
-		predator.WithProxy(ip),
+		predator.WithProxy(ip), // 或者使有代理池 predator.WithProxy([]string)
 	)
 }
 ```
