@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-26 11:23:35
+ * @Modified: 2021-07-27 13:14:33
  */
 
 package predator
@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/tidwall/gjson"
 )
 
 func TestNewCrawler(t *testing.T) {
@@ -44,11 +45,7 @@ func TestNewCrawler(t *testing.T) {
 		c := NewCrawler(WithRetry(uint32(count), func(r Response) bool { return true }))
 		So(c.retryCount, ShouldEqual, count)
 	})
-	Convey("测试设置代理", t, func() {
-		p := "http://localhost:5000"
-		c := NewCrawler(WithProxy(p))
-		So(c.proxyURL, ShouldEqual, p)
-	})
+
 	Convey("测试设置代理池", t, func() {
 		pp := make([]string, 0, 5)
 		for i := 1; i <= 5; i++ {
@@ -196,21 +193,79 @@ func TestRequest(t *testing.T) {
 		So(err, ShouldBeNil)
 	})
 
-	Convey("测试代理 ip 是否生效", t, func() {
+}
+
+func TestProxy(t *testing.T) {
+	ts := server()
+	defer ts.Close()
+
+	validIP := "http://222.37.130.224:46603"
+	u := "http://pv.sohu.com/cityjson?ie=utf-8"
+
+	Convey("测试有效代理", t, func() {
 		type TestResponse struct {
 			IP string `json:"origin"`
 		}
-
-		ip := "http://14.134.203.22:45104"
-		c := NewCrawler(WithProxy(ip))
+		c := NewCrawler(WithProxy(validIP))
 
 		c.AfterResponse(func(r *Response) {
-			var j TestResponse
-			json.Unmarshal(r.Body, &j)
-			So(j.IP, ShouldEqual, strings.Split(strings.Split(ip, "//")[1], ":")[0])
+			body := r.String()[19:]
+			body = body[:len(body)-1]
+			ip := gjson.Parse(body).Get("cip").String()
+
+			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
 		})
 
-		err := c.Get("https://httpbin.org/ip")
+		c.Get(u)
+	})
+
+	Convey("测试代理池为空时 panic", t, func() {
+		defer func() {
+			if err := recover(); err != nil {
+				So(err.(error), ShouldEqual, EmptyProxyPoolError)
+			}
+		}()
+
+		type TestResponse struct {
+			IP string `json:"origin"`
+		}
+		ips := []string{
+			"http://14.134.203.22:45104",
+			"http://14.134.204.22:45105",
+			"http://14.134.205.22:45106",
+			"http://14.134.206.22:45107",
+			"http://14.134.207.22:45108",
+			"http://14.134.208.22:45109",
+		}
+		c := NewCrawler(WithProxyPool(ips))
+
+		c.Get(u)
+	})
+
+	Convey("测试删除代理池中某个或某些无效代理", t, func() {
+		type TestResponse struct {
+			IP string `json:"origin"`
+		}
+		// TODO: 写一个代理池的测试用例，池中有效和无效代理全都要有
+		ips := []string{
+			"http://14.134.204.22:45105",
+			validIP,
+			"http://14.134.205.22:45106",
+			"http://14.134.206.22:45107",
+			"http://27.29.155.141:45118",
+			"http://14.134.208.22:45109",
+		}
+		c := NewCrawler(WithProxyPool(ips))
+
+		c.AfterResponse(func(r *Response) {
+			body := r.String()[19:]
+			body = body[:len(body)-1]
+			ip := gjson.Parse(body).Get("cip").String()
+			So(c.ProxyPoolAmount(), ShouldBeLessThanOrEqualTo, len(ips))
+			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
+		})
+
+		err := c.Get(u)
 		So(err, ShouldBeNil)
 	})
 }

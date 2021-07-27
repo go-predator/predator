@@ -3,14 +3,13 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-26 11:24:22
+ * @Modified: 2021-07-27 13:20:03
  */
 
 package predator
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -20,7 +19,6 @@ import (
 
 	pctx "github.com/thep0y/predator/context"
 	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpproxy"
 )
 
 type HandleRequest func(r *Request)
@@ -35,7 +33,6 @@ type Crawler struct {
 	client          *fasthttp.Client
 	cookies         map[string]string
 	goCount         uint
-	proxyURL        string
 	proxyURLPool    []string // TODO: 当前只针对长效代理ip，需要添加代理 ip 替换或删除功能，不提供检查失效功能，由用户自己检查是否失效
 	timeout         uint
 	requestCount    uint32
@@ -51,11 +48,6 @@ type Crawler struct {
 
 // TODO: 缓存接口、多进程
 
-var (
-	InvalidProxy    = errors.New("the proxy ip should contain the protocol")
-	UnknownProtocol = errors.New("only support http and socks5 protocol")
-)
-
 func NewCrawler(opts ...CrawlerOption) *Crawler {
 	c := new(Crawler)
 
@@ -70,19 +62,6 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 	c.lock = &sync.RWMutex{}
 
 	return c
-}
-
-func (c Crawler) chooseProxy() string {
-	var proxy string
-	// 优先使用代理池，代理池为空时使用代理
-	if len(c.proxyURLPool) > 0 {
-		proxy = Shuffle(c.proxyURLPool)[0]
-	} else {
-		if c.proxyURL != "" {
-			proxy = c.proxyURL
-		}
-	}
-	return proxy
 }
 
 func (c *Crawler) request(method, URL string, body []byte, headers map[string]string, ctx pctx.Context) error {
@@ -108,14 +87,13 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 	}
 
 	request := &Request{
-		URL:      URL,
-		Method:   method,
-		Headers:  reqHeaders,
-		Ctx:      ctx,
-		Body:     body,
-		ID:       atomic.AddUint32(&c.requestCount, 1),
-		crawler:  c,
-		ProxyURL: c.chooseProxy(),
+		URL:     URL,
+		Method:  method,
+		Headers: reqHeaders,
+		Ctx:     ctx,
+		Body:    body,
+		ID:      atomic.AddUint32(&c.requestCount, 1),
+		crawler: c,
 	}
 
 	c.processRequestHandler(request)
@@ -149,19 +127,8 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	if request.ProxyURL != "" {
-		// TODO: 对代理 url 的格式判断应该更严谨
-		if !strings.Contains(request.ProxyURL, "//") {
-			return nil, InvalidProxy
-		}
-		addr := strings.Split(request.ProxyURL, "//")[1]
-		if request.ProxyURL[:4] == "http" {
-			c.client.Dial = fasthttpproxy.FasthttpHTTPDialer(addr)
-		} else if request.ProxyURL[:6] == "socks5" {
-			c.client.Dial = fasthttpproxy.FasthttpSocksDialer(addr)
-		} else {
-			return nil, UnknownProtocol
-		}
+	if c.ProxyPoolAmount() > 0 {
+		c.client.Dial = c.DialWithProxy()
 	}
 
 	if req.Header.Peek("Accept") == nil {
@@ -171,7 +138,14 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 	resp := new(fasthttp.Response)
 
 	if err := c.client.Do(req, resp); err != nil {
-		return nil, err
+		if p, ok := isProxyInvalid(err); ok {
+			err = c.removeInvalidProxy(p)
+			if err != nil {
+				panic(err)
+			}
+
+			return c.do(request)
+		}
 	}
 	atomic.AddUint32(&c.responseCount, 1)
 
@@ -294,4 +268,42 @@ func (c *Crawler) processResponseHandler(r *Response) {
 	for _, f := range c.responseHandler {
 		f(r)
 	}
+}
+
+// removeInvalidProxy 只有在使用代理池且当前请求使用的代理来自于代理池时，才能真正删除失效代理
+func (c *Crawler) removeInvalidProxy(proxy string) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	if c.ProxyPoolAmount() == 0 {
+		return EmptyProxyPoolError
+	}
+
+	targetIndex := -1
+	for i, p := range c.proxyURLPool {
+		addr := strings.Split(p, "//")[1]
+		if addr == proxy {
+			targetIndex = i
+			break
+		}
+	}
+
+	if targetIndex >= 0 {
+		c.proxyURLPool = append(
+			c.proxyURLPool[:targetIndex],
+			c.proxyURLPool[targetIndex+1:]...,
+		)
+
+		if len(c.proxyURLPool) == 0 {
+			return EmptyProxyPoolError
+		}
+	}
+
+	// 在池和 ip 都不能匹配时，这个代理 ip 肯定是用户在 BeforeRequest 中传入的，
+	// 既然用户传入了代理，其必然是只想通过代理进行爬虫，所以一样报错
+	return nil
+}
+
+func (c Crawler) ProxyPoolAmount() int {
+	return len(c.proxyURLPool)
 }

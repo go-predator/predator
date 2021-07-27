@@ -3,7 +3,7 @@
  * @Email: email@example.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-07-26 10:23:04
+ * @Modified: 2021-07-27 13:31:48
  */
 
 package predator
@@ -28,7 +28,7 @@ type Request struct {
 	Body []byte
 	// 唯一标识
 	ID uint32
-	// 每个请求可以单独设置一个代理 ip，当前仅限于 http 代理
+	// TODO: 这个属性只能用来查询使用的代理，不能设置，但这有必要吗？
 	ProxyURL string
 	// 中断本次请求
 	abort bool

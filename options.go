@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-07-26 10:29:55
+ * @Modified: 2021-07-27 11:04:16
  */
 
 package predator
@@ -40,9 +40,16 @@ func WithRetry(count uint32, cond RetryConditions) CrawlerOption {
 }
 
 // WithProxy 使用一个代理
+// func WithProxy(proxyURL string) CrawlerOption {
+// 	return func(c *Crawler) {
+// 		c.proxyURL = proxyURL
+// 	}
+// }
+
+// WithProxy 使用一个代理
 func WithProxy(proxyURL string) CrawlerOption {
 	return func(c *Crawler) {
-		c.proxyURL = proxyURL
+		c.proxyURLPool = []string{proxyURL}
 	}
 }
 
