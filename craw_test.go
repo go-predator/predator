@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-27 13:14:33
+ * @Modified: 2021-07-27 13:49:25
  */
 
 package predator
@@ -199,7 +199,7 @@ func TestProxy(t *testing.T) {
 	ts := server()
 	defer ts.Close()
 
-	validIP := "http://222.37.130.224:46603"
+	validIP := "http://120.38.18.39:45124"
 	u := "http://pv.sohu.com/cityjson?ie=utf-8"
 
 	Convey("测试有效代理", t, func() {
