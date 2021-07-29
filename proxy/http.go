@@ -1,9 +1,9 @@
 /*
- * @Author: Ryan Wong
+ * @Author: thepoy
  * @Email: thepoy@163.com
  * @File Name: http.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-27 12:22:50
+ * @Modified: 2021-07-29 15:03:30
  */
 
 package proxy

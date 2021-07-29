@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
- * @Email: email@example.com
+ * @Email: thepoy@163.com
  * @File Name: write.go
  * @Created: 2021-07-24 08:56:16
- * @Modified: 2021-07-25 11:20:07
+ * @Modified: 2021-07-29 14:13:39
  */
 
 package context

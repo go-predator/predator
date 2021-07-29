@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
- * @Email: email@example.com
+ * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-07-25 08:43:31
+ * @Modified: 2021-07-29 14:11:39
  */
 
 package predator

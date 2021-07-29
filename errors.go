@@ -1,3 +1,11 @@
+/*
+ * @Author: thepoy
+ * @Email: thepoy@163.com
+ * @File Name: errors.go
+ * @Created: 2021-07-23 09:22:36
+ * @Modified: 2021-07-29 14:14:58
+ */
+
 package predator
 
 import (

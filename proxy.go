@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
- * @Email: email@example.com
+ * @Email: thepoy@163.com
  * @File Name: proxy.go
  * @Created: 2021-07-27 12:15:35
- * @Modified: 2021-07-27 12:22:07
+ * @Modified: 2021-07-29 14:54:19
  */
 
 package predator

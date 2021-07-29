@@ -1,9 +1,9 @@
 /*
- * @Author: Ryan Wong
+ * @Author: thepoy
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-27 13:49:25
+ * @Modified: 2021-07-29 15:12:20
  */
 
 package predator
@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/thep0y/predator/html"
 	"github.com/tidwall/gjson"
 )
 
@@ -89,6 +90,23 @@ func server() *httptest.Server {
 		}
 		w.WriteHeader(200)
 		w.Write([]byte("ok"))
+	})
+
+	mux.HandleFunc("/html", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<!DOCTYPE html>
+<html>
+<head>
+<title>Test Page</title>
+</head>
+<body>
+<h1>Hello World</h1>
+<p class="description">This is a 1</p>
+<p class="description">This is a 2</p>
+<p class="description">This is a 3</p>
+</body>
+</html>
+		`))
 	})
 
 	mux.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
@@ -199,19 +217,17 @@ func TestProxy(t *testing.T) {
 	ts := server()
 	defer ts.Close()
 
-	validIP := "http://120.38.18.39:45124"
-	u := "http://pv.sohu.com/cityjson?ie=utf-8"
+	validIP := "http://123.73.209.237:46603"
+	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
 
 	Convey("测试有效代理", t, func() {
-		type TestResponse struct {
-			IP string `json:"origin"`
-		}
-		c := NewCrawler(WithProxy(validIP))
+		c := NewCrawler(
+			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.55"),
+			WithProxy(validIP),
+		)
 
 		c.AfterResponse(func(r *Response) {
-			body := r.String()[19:]
-			body = body[:len(body)-1]
-			ip := gjson.Parse(body).Get("cip").String()
+			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
 
 			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
 		})
@@ -258,9 +274,7 @@ func TestProxy(t *testing.T) {
 		c := NewCrawler(WithProxyPool(ips))
 
 		c.AfterResponse(func(r *Response) {
-			body := r.String()[19:]
-			body = body[:len(body)-1]
-			ip := gjson.Parse(body).Get("cip").String()
+			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
 			So(c.ProxyPoolAmount(), ShouldBeLessThanOrEqualTo, len(ips))
 			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
 		})
@@ -389,5 +403,68 @@ func TestJSON(t *testing.T) {
 		})
 
 		c.Post(ts.URL+"/json", nil, nil)
+	})
+}
+
+func TestParseHTML(t *testing.T) {
+	ts := server()
+	defer ts.Close()
+
+	Convey("测试 HTML 解析", t, func() {
+		crawl := NewCrawler()
+
+		Convey("测试解析整体 HTML", func() {
+			crawl.ParseHTML("body", func(he *html.HTMLElement) {
+				h, err := he.OuterHTML()
+				So(err, ShouldBeNil)
+				So(h, ShouldEqual, `<body>
+<h1>Hello World</h1>
+<p class="description">This is a 1</p>
+<p class="description">This is a 2</p>
+<p class="description">This is a 3</p>
+
+
+		</body>`)
+			})
+		})
+
+		Convey("测试解析内部 HTML", func() {
+			crawl.ParseHTML("body", func(he *html.HTMLElement) {
+				h, err := he.InnerHTML()
+				So(err, ShouldBeNil)
+				So(h, ShouldEqual, `
+<h1>Hello World</h1>
+<p class="description">This is a 1</p>
+<p class="description">This is a 2</p>
+<p class="description">This is a 3</p>
+
+
+		`)
+			})
+		})
+
+		Convey("测试解析内部文本", func() {
+			crawl.ParseHTML("title", func(he *html.HTMLElement) {
+				So(he.Text(), ShouldEqual, "Test Page")
+			})
+		})
+
+		Convey("测试获取属性", func() {
+			crawl.ParseHTML("p", func(he *html.HTMLElement) {
+				attr := he.Attr("class")
+				So(attr, ShouldEqual, "description")
+			})
+		})
+
+		Convey("测试查找子元素", func() {
+			crawl.ParseHTML("body", func(he *html.HTMLElement) {
+				So(he.FirstChild("p").Attr("class"), ShouldEqual, "description")
+				So(he.Child("p", 2).Text(), ShouldEqual, "This is a 2")
+				So(he.ChildAttr("p", "class"), ShouldEqual, "description")
+				So(len(he.ChildrenAttr("p", "class")), ShouldEqual, 3)
+			})
+		})
+
+		crawl.Get(ts.URL + "/html")
 	})
 }

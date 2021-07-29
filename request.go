@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
- * @Email: email@example.com
+ * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-07-27 13:31:48
+ * @Modified: 2021-07-29 14:11:45
  */
 
 package predator
@@ -11,7 +11,7 @@ package predator
 import (
 	"sync/atomic"
 
-	ctx "github.com/thep0y/predator/context"
+	pctx "github.com/thep0y/predator/context"
 	"github.com/valyala/fasthttp"
 )
 
@@ -23,7 +23,7 @@ type Request struct {
 	// 请求头
 	Headers *fasthttp.RequestHeader
 	// 请求和响应之间共享的上下文
-	Ctx ctx.Context
+	Ctx pctx.Context
 	// 请求体
 	Body []byte
 	// 唯一标识
@@ -67,4 +67,12 @@ func (r *Request) SetHeaders(headers map[string]string) {
 
 func (r Request) NumberOfRetries() uint32 {
 	return r.retryCounter
+}
+
+func (r Request) Get(u string) error {
+	return r.crawler.Get(u)
+}
+
+func (r Request) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
+	return r.crawler.Post(URL, requestData, ctx)
 }

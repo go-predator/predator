@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
- * @Email: email@example.com
+ * @Email: thepoy@163.com
  * @File Name: tools.go
  * @Created: 2021-07-23 14:55:04
- * @Modified: 2021-07-27 13:52:45
+ * @Modified: 2021-07-29 14:14:32
  */
 
 package tools

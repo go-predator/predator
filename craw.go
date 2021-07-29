@@ -1,9 +1,9 @@
 /*
- * @Author: Ryan Wong
+ * @Author: thepoy
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-27 13:20:03
+ * @Modified: 2021-07-29 14:49:13
  */
 
 package predator
@@ -17,12 +17,22 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/PuerkitoBio/goquery"
 	pctx "github.com/thep0y/predator/context"
+	"github.com/thep0y/predator/html"
 	"github.com/valyala/fasthttp"
 )
 
+// 方法
 type HandleRequest func(r *Request)
 type HandleResponse func(r *Response)
+type HandleHTML func(he *html.HTMLElement)
+
+// 结构体
+type HTMLParser struct {
+	Selector string
+	Handle   HandleHTML
+}
 
 type Crawler struct {
 	lock       *sync.RWMutex
@@ -44,6 +54,8 @@ type Crawler struct {
 
 	// 响应后处理响应
 	responseHandler []HandleResponse
+	// 响应后处理 html
+	htmlHandler []*HTMLParser
 }
 
 // TODO: 缓存接口、多进程
@@ -63,6 +75,8 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	return c
 }
+
+/************************* http 请求方法 ****************************/
 
 func (c *Crawler) request(method, URL string, body []byte, headers map[string]string, ctx pctx.Context) error {
 	var err error
@@ -110,6 +124,11 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 	}
 
 	c.processResponseHandler(response)
+
+	err = c.processHTMLHandler(response)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -217,6 +236,8 @@ func randomBoundary() string {
 	return s.String()
 }
 
+/************************* 公共注册方法 ****************************/
+
 func (c Crawler) PostMultipart(URL string, requestData map[string]string, ctx pctx.Context, boundaryFunc ...CustomRandomBoundary) error {
 	if len(boundaryFunc) > 1 {
 		return fmt.Errorf("only one boundaryFunc can be passed in at most, but you pass in %d", len(boundaryFunc))
@@ -247,6 +268,17 @@ func (c *Crawler) BeforeRequest(f HandleRequest) {
 	c.lock.Unlock()
 }
 
+func (c *Crawler) ParseHTML(selector string, f HandleHTML) {
+	c.lock.Lock()
+	if c.htmlHandler == nil {
+		// 一个 ccrawler 不应该有太多处理 html 的方法，这里设置为 5 个，
+		// 当不够时自动扩容
+		c.htmlHandler = make([]*HTMLParser, 0, 5)
+	}
+	c.htmlHandler = append(c.htmlHandler, &HTMLParser{selector, f})
+	c.lock.Unlock()
+}
+
 func (c *Crawler) AfterResponse(f HandleResponse) {
 	c.lock.Lock()
 	if c.responseHandler == nil {
@@ -258,6 +290,12 @@ func (c *Crawler) AfterResponse(f HandleResponse) {
 	c.lock.Unlock()
 }
 
+func (c Crawler) ProxyPoolAmount() int {
+	return len(c.proxyURLPool)
+}
+
+/************************* 私有注册方法 ****************************/
+
 func (c *Crawler) processRequestHandler(r *Request) {
 	for _, f := range c.requestHandler {
 		f(r)
@@ -268,6 +306,28 @@ func (c *Crawler) processResponseHandler(r *Response) {
 	for _, f := range c.responseHandler {
 		f(r)
 	}
+}
+
+func (c *Crawler) processHTMLHandler(r *Response) error {
+	if len(c.htmlHandler) == 0 || !strings.Contains(strings.ToLower(r.ContentType()), "html") {
+		return nil
+	}
+
+	doc, err := html.ParseHTML(r.Body)
+	if err != nil {
+		return err
+	}
+
+	for _, parser := range c.htmlHandler {
+		i := 0
+		doc.Find(parser.Selector).Each(func(_ int, s *goquery.Selection) {
+			for _, n := range s.Nodes {
+				parser.Handle(html.NewHTMLElementFromSelectionNode(s, n, i))
+				i++
+			}
+		})
+	}
+	return nil
 }
 
 // removeInvalidProxy 只有在使用代理池且当前请求使用的代理来自于代理池时，才能真正删除失效代理
@@ -302,8 +362,4 @@ func (c *Crawler) removeInvalidProxy(proxy string) error {
 	// 在池和 ip 都不能匹配时，这个代理 ip 肯定是用户在 BeforeRequest 中传入的，
 	// 既然用户传入了代理，其必然是只想通过代理进行爬虫，所以一样报错
 	return nil
-}
-
-func (c Crawler) ProxyPoolAmount() int {
-	return len(c.proxyURLPool)
 }

@@ -1,9 +1,9 @@
 /*
- * @Author: Ryan Wong
+ * @Author: thepoy
  * @Email: thepoy@163.com
  * @File Name: socks5.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-27 12:16:13
+ * @Modified: 2021-07-29 14:12:27
  */
 
 package proxy
