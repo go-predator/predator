@@ -218,7 +218,7 @@ crawl.ParseHTML("body", func(he *html.HTMLElement) {
 	he.LastChild("p")
 	// 第 2 个匹配的子元素
 	he.Child("p", 2)
-	// 每一个匹配的子元素的属性
+	// 第一个匹配的子元素的属性
 	he.ChildAttr("p", "class")
 	// 所有匹配到的子元素的属性切片
 	he.ChildrenAttr("p", "class")
