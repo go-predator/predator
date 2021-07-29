@@ -204,11 +204,11 @@ ctx, err := NewContext(context.ReadOp)
 crawl := NewCrawler()
 
 crawl.ParseHTML("body", func(he *html.HTMLElement) {
-    // 元素内部 HTML
+	// 元素内部 HTML
 	h, err := he.InnerHTML()
 	// 元素整体 HTML
 	h, err := he.OuterHTML()
-    // 元素内的文本（包括子元素的文本）
+	// 元素内的文本（包括子元素的文本）
 	he.Text()
 	// 元素的属性
 	he.Attr("class")
@@ -230,7 +230,7 @@ crawl.ParseHTML("body", func(he *html.HTMLElement) {
 ```go
 c := NewCrawler(
 	// 使用此 option 时自动使用指定数量的协程池发出请求，不使用此 option 则默认使用同步方式请求
-    // 设置的数量不宜过少，也不宜过多，请自行测试设置不同数量时的效率
+	// 设置的数量不宜过少，也不宜过多，请自行测试设置不同数量时的效率
 	WithConcurrency(30),
 )
 
