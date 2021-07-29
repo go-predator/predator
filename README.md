@@ -22,8 +22,6 @@ func main() {
 
 创建`Crawler`时有一些可选项用来功能增强。所有可选项参考[predator/options.go](https://github.com/thep0y/predator/blob/main/options.go)。
 
-> 多协程没有完成，虽然有这个可选项，但暂时无意义
-
 #### 2 发送 Get 请求
 
 ```go
@@ -193,6 +191,77 @@ func Run() {
 ```go
 ctx, err := NewContext(context.ReadOp)
 ```
+
+#### 6 处理 HTML
+
+爬虫的结果大体可分为两种，一是 HTML 响应，另一种是 JSON 格式的响应。
+
+与 JSON 相比，HTML 需要更多的代码处理。
+
+本框架对 HTML 处理进行了一些函数封装，能方便地通过 css selector 进行元素的查找，可以提取元素中的属性和文本等。
+
+```go
+crawl := NewCrawler()
+
+crawl.ParseHTML("body", func(he *html.HTMLElement) {
+    // 元素内部 HTML
+	h, err := he.InnerHTML()
+	// 元素整体 HTML
+	h, err := he.OuterHTML()
+    // 元素内的文本（包括子元素的文本）
+	he.Text()
+	// 元素的属性
+	he.Attr("class")
+	// 第一个匹配的子元素
+	he.FirstChild("p")
+	// 最后一个匹配的子元素
+	he.LastChild("p")
+	// 第 2 个匹配的子元素
+	he.Child("p", 2)
+	// 每一个匹配的子元素的属性
+	he.ChildAttr("p", "class")
+	// 所有匹配到的子元素的属性切片
+	he.ChildrenAttr("p", "class")
+}
+```
+
+#### 7 异步 / 多协程请求
+
+```go
+c := NewCrawler(
+	// 使用此 option 时自动使用指定数量的协程池发出请求，不使用此 option 则默认使用同步方式请求
+    // 设置的数量不宜过少，也不宜过多，请自行测试设置不同数量时的效率
+	WithConcurrency(30),
+)
+
+crawler.AfterResponse(func(r *predator.Response) {
+	// handle response
+})
+
+for i := 0; i < 10; i++ {
+	c.Post(ts.URL+"/post", map[string]string{
+		"id": fmt.Sprint(i + 1),
+	}, nil)
+}
+```
+
+#### 8 关于 JSON
+
+本来想着封装一个 JSON 包用来快速处理 JSON 响应，但是想了一两天也没想出个好办法来，因为我能想到的，[gjson](https://github.com/tidwall/gjson)都已经解决了。
+
+对于 JSON 响应，能用`gjson`处理就不要老想着反序列化了。对于爬虫而言，反序列化是不明智的选择。
+
+当然，如果你确实有反序列化的需求，也不要用标准库，使用封装的 JSON 包中的序列化和反序列化方法比标准库性能高。
+
+```GO
+import "github.com/thep0y/predator/json"
+
+json.Marshal()
+json.Unmarshal()
+json.UnmarshalFromString()
+```
+
+对付 JSON 响应，当前足够用了。
 
 ### 目标
 
