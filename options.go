@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-07-29 14:15:18
+ * @Modified: 2021-07-29 22:33:40
  */
 
 package predator
@@ -22,10 +22,14 @@ func WithCookies(cookies map[string]string) CrawlerOption {
 	}
 }
 
-// WithConcurrent 使用多少个协程，用于创建协程池
-func WithConcurrent(count uint) CrawlerOption {
+// WithConcurrency 使用并发，参数为要创建的协程池数量
+func WithConcurrency(count uint64) CrawlerOption {
 	return func(c *Crawler) {
-		c.goCount = count
+		p, err := NewPool(count)
+		if err != nil {
+			panic(err)
+		}
+		c.goPool = p
 	}
 }
 

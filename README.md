@@ -15,7 +15,7 @@ func main() {
 	crawler := predator.NewCrawler(
 		predator.WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0"),
 		predator.WithCookies(map[string]string{"JSESSIONID": cookie}),
-		predator.WithProxy(ip), // 或者使有代理池 predator.WithProxyPool([]string)
+		predator.WithProxy(ip), // 或者使用代理池 predator.WithProxyPool([]string)
 	)
 }
 ```
@@ -202,6 +202,6 @@ ctx, err := NewContext(context.ReadOp)
 - [x] HTML 页面解析。方便定位查找元素
 - [x] json 扩展，用来处理、筛选 json 响应的数据，原生 json 库不适合用在爬虫上
 	- 暂时没想到如何封装便捷好用的 json ，当前 json 包中只能算是使用示例
-- [ ] 协程池，实现在多协程时对每个 goroutine 的复用，避免重复创建
+- [x] 协程池，实现在多协程时对每个 goroutine 的复用，避免重复创建
 - [ ] 定义缓存接口，并完成一种或多种缓存
 - [ ] 数据库管理接口，用来保存爬虫数据，并完成一种或多种数据库的管理

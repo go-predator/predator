@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-29 15:12:20
+ * @Modified: 2021-07-29 23:05:29
  */
 
 package predator
@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thep0y/predator/html"
@@ -38,8 +39,8 @@ func TestNewCrawler(t *testing.T) {
 	})
 	Convey("测试设置指定并发数量", t, func() {
 		count := 10
-		c := NewCrawler(WithConcurrent(uint(count)))
-		So(c.goCount, ShouldEqual, count)
+		c := NewCrawler(WithConcurrency(uint64(count)))
+		So(c.goPool.GetCap(), ShouldEqual, count)
 	})
 	Convey("测试设置重试数量", t, func() {
 		count := 5
@@ -137,6 +138,18 @@ func server() *httptest.Server {
 			if _, err := ww.Write([]byte{0x41}); err != nil {
 				return
 			}
+		}
+	})
+
+	mux.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(r.FormValue("id")))
+
+			// 随机休眠几秒用于测试并发
+			// rand.Seed(time.Now().UnixNano())
+			// time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+			return
 		}
 	})
 
@@ -466,5 +479,52 @@ func TestParseHTML(t *testing.T) {
 		})
 
 		crawl.Get(ts.URL + "/html")
+	})
+}
+
+func timeCost() func() {
+	start := time.Now()
+	return func() {
+		tc := time.Since(start)
+		fmt.Printf("time cost = %v\n", tc)
+	}
+}
+
+func TestConcurrency(t *testing.T) {
+	ts := server()
+	defer ts.Close()
+
+	Convey("测试并发和同步耗时", t, func() {
+		Convey("并发", func() {
+			start := time.Now()
+			c := NewCrawler(
+				WithConcurrency(30),
+			)
+
+			for i := 0; i < 10; i++ {
+				err := c.Post(ts.URL+"/post", map[string]string{
+					"id": fmt.Sprint(i + 1),
+				}, nil)
+				So(err, ShouldBeNil)
+			}
+
+			delta := time.Since(start)
+			t.Log(delta)
+		})
+
+		Convey("同步", func() {
+			start := time.Now()
+			c := NewCrawler()
+
+			for i := 0; i < 10; i++ {
+				err := c.Post(ts.URL+"/post", map[string]string{
+					"id": fmt.Sprint(i + 1),
+				}, nil)
+				So(err, ShouldBeNil)
+			}
+
+			delta := time.Since(start)
+			t.Log(delta)
+		})
 	})
 }

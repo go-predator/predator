@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-29 14:49:13
+ * @Modified: 2021-07-29 22:35:08
  */
 
 package predator
@@ -42,7 +42,7 @@ type Crawler struct {
 	retryConditions RetryConditions
 	client          *fasthttp.Client
 	cookies         map[string]string
-	goCount         uint
+	goPool          *Pool
 	proxyURLPool    []string // TODO: 当前只针对长效代理ip，需要添加代理 ip 替换或删除功能，不提供检查失效功能，由用户自己检查是否失效
 	timeout         uint
 	requestCount    uint32
@@ -57,8 +57,6 @@ type Crawler struct {
 	// 响应后处理 html
 	htmlHandler []*HTMLParser
 }
-
-// TODO: 缓存接口、多进程
 
 func NewCrawler(opts ...CrawlerOption) *Crawler {
 	c := new(Crawler)
@@ -110,6 +108,24 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 		crawler: c,
 	}
 
+	if c.goPool != nil {
+		task := &Task{c, request}
+		err = c.goPool.Put(task)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	err = c.prepare(request)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Crawler) prepare(request *Request) error {
 	c.processRequestHandler(request)
 
 	if request.abort {
@@ -118,7 +134,7 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 
 	var response *Response
 
-	response, err = c.do(request)
+	response, err := c.do(request)
 	if err != nil {
 		return err
 	}
