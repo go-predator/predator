@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: craw_test.go (c) 2021
+ * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-30 18:13:30
+ * @Modified: 2021-07-30 22:14:29
  */
 
 package predator
@@ -537,8 +537,8 @@ func TestConcurrency(t *testing.T) {
 }
 
 func TestCache(t *testing.T) {
-	Convey("测试缓存", t, func() {
-		uri := "/Volumes/mac盘/temp/test-cache.sqlite"
+	Convey("测试 SQLite 缓存", t, func() {
+		uri := "/tmp/test-cache.sqlite"
 		Convey("测试不压缩", func() {
 			defer timeCost()()
 			c := NewCrawler(
@@ -577,6 +577,71 @@ func TestCache(t *testing.T) {
 				// WithCache(nil, false),
 			)
 
+			c.BeforeRequest(func(r *Request) {
+				r.Ctx.Put("key", 999)
+			})
+
+			c.AfterResponse(func(r *Response) {
+				t.Log(r.FromCache)
+				val := r.Ctx.GetAny("key").(int)
+				So(val, ShouldEqual, 999)
+			})
+
+			for i := 0; i < 3; i++ {
+				err := c.Get("http://www.baidu.com")
+				So(err, ShouldBeNil)
+			}
+			// 测试环境中清除缓存，生产环境慎重清除，
+			// cache 作为私有变量，你想清除也清除不了，
+			// 除非你自己修改源码
+			c.cache.Clear()
+		})
+	})
+
+	Convey("测试 MySQL 缓存", t, func() {
+		Convey("测试不压缩", func() {
+			defer timeCost()()
+			c := NewCrawler(
+				WithCache(&cache.MySQLCache{
+					Host:     "127.0.0.1",
+					Port:     "3306",
+					Database: "predator",
+					Username: "root",
+					Password: "123456",
+				}, false),
+			)
+
+			c.BeforeRequest(func(r *Request) {
+				r.Ctx.Put("key", 999)
+			})
+
+			c.AfterResponse(func(r *Response) {
+				t.Log(r.FromCache)
+				val := r.Ctx.GetAny("key").(int)
+				So(val, ShouldEqual, 999)
+			})
+
+			for i := 0; i < 3; i++ {
+				err := c.Get("http://www.baidu.com")
+				So(err, ShouldBeNil)
+			}
+			// 测试环境中清除缓存，生产环境慎重清除，
+			// cache 作为私有变量，你想清除也清除不了，
+			// 除非你自己修改源码
+			c.cache.Clear()
+		})
+
+		Convey("测试压缩", func() {
+			defer timeCost()()
+			c := NewCrawler(
+				WithCache(&cache.MySQLCache{
+					Host:     "127.0.0.1",
+					Port:     "3306",
+					Database: "predator",
+					Username: "root",
+					Password: "123456",
+				}, true),
+			)
 			c.BeforeRequest(func(r *Request) {
 				r.Ctx.Put("key", 999)
 			})

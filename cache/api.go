@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: api.go (c) 2021
+ * @File Name: api.go
  * @Created: 2021-07-24 22:19:44
- * @Modified: 2021-07-30 17:49:17
+ * @Modified: 2021-07-30 22:09:25
  */
 
 package cache
@@ -24,7 +24,7 @@ type Cache interface {
 }
 
 type CacheModel struct {
-	Key   string `gorm:"unique"`
+	Key   string `gorm:"primaryKey"`
 	Value []byte
 }
 
