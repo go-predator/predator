@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go (c) 2021
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-30 09:52:54
+ * @Modified: 2021-07-30 17:36:43
  */
 
 package predator
@@ -18,8 +18,10 @@ import (
 	"sync/atomic"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/thep0y/predator/cache"
 	pctx "github.com/thep0y/predator/context"
 	"github.com/thep0y/predator/html"
+	"github.com/thep0y/predator/json"
 	"github.com/valyala/fasthttp"
 )
 
@@ -49,6 +51,9 @@ type Crawler struct {
 	responseCount   uint32
 	// 在多协程中这个上下文管理可以用来退出或取消多个协程
 	Context context.Context
+
+	// 缓存
+	cache cache.Cache
 
 	requestHandler []HandleRequest
 
@@ -128,28 +133,78 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 	return nil
 }
 
-func (c *Crawler) prepare(request *Request) error {
+func (c *Crawler) prepare(request *Request) (err error) {
 	c.processRequestHandler(request)
 
 	if request.abort {
-		return nil
+		return
 	}
 
 	var response *Response
 
-	response, err := c.do(request)
+	key, err := request.Hash()
 	if err != nil {
 		return err
 	}
 
+	if c.cache != nil {
+		response, err = c.checkCache(key)
+		if err != nil {
+			return
+		}
+	}
+
+	// 缓存中取到的响应为空时才发出请求
+	if response == nil {
+		response, err = c.do(request)
+		if err != nil {
+			return
+		}
+
+		// 将得到的响应保存到缓存中
+		// TODO: 此处是否用一个 goroutine 完成？
+		if c.cache != nil {
+			cacheVal, err := response.Marshal()
+			if err != nil {
+				return err
+			}
+
+			if cacheVal != nil {
+				err = c.cache.Cache(key, cacheVal)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		response.Request = request
+		response.Ctx = request.Ctx
+	}
+
+	// 处理响应
 	c.processResponseHandler(response)
 
 	err = c.processHTMLHandler(response)
 	if err != nil {
-		return err
+		return
 	}
 
-	return nil
+	return
+}
+
+func (c *Crawler) checkCache(key string) (*Response, error) {
+	var err error
+	cachedBody, ok := c.cache.IsCached(key)
+	if !ok {
+		return nil, nil
+	}
+	var resp Response
+	err = json.Unmarshal(cachedBody, &resp)
+	if err != nil {
+		return nil, err
+	}
+	resp.FromCache = true
+	return &resp, nil
 }
 
 func (c *Crawler) do(request *Request) (*Response, error) {
@@ -256,8 +311,6 @@ func randomBoundary() string {
 	return s.String()
 }
 
-/************************* 公共注册方法 ****************************/
-
 func (c *Crawler) PostMultipart(URL string, requestData map[string]string, ctx pctx.Context, boundaryFunc ...CustomRandomBoundary) error {
 	if len(boundaryFunc) > 1 {
 		return fmt.Errorf("only one boundaryFunc can be passed in at most, but you pass in %d", len(boundaryFunc))
@@ -276,6 +329,8 @@ func (c *Crawler) PostMultipart(URL string, requestData map[string]string, ctx p
 	body := createMultipartBody(boundary, requestData)
 	return c.request(fasthttp.MethodPost, URL, body, headers, ctx)
 }
+
+/************************* 公共注册方法 ****************************/
 
 func (c *Crawler) BeforeRequest(f HandleRequest) {
 	c.lock.Lock()

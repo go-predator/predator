@@ -1,18 +1,24 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: response.go
+ * @File Name: response.go (c) 2021
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-07-29 14:11:39
+ * @Modified: 2021-07-30 17:56:02
  */
 
 package predator
 
 import (
+	"errors"
 	"io/ioutil"
 
 	ctx "github.com/thep0y/predator/context"
+	"github.com/thep0y/predator/json"
 	"github.com/valyala/fasthttp"
+)
+
+var (
+	IncorrectResponse = errors.New("the response status code is not 200 or 201")
 )
 
 type Response struct {
@@ -21,11 +27,13 @@ type Response struct {
 	// 二进制请求体
 	Body []byte
 	// 请求和响应之间共享的上下文
-	Ctx ctx.Context
+	Ctx ctx.Context `json:"-"`
 	// 响应对应的请求
-	Request *Request
+	Request *Request `json:"-"`
 	// 响应头
 	Headers *fasthttp.ResponseHeader
+	// 是否从缓存中取得的响应
+	FromCache bool
 }
 
 // Save writes response body to disk
@@ -43,4 +51,11 @@ func (r *Response) ContentType() string {
 
 func (r *Response) String() string {
 	return string(r.Body)
+}
+
+func (r Response) Marshal() ([]byte, error) {
+	if r.StatusCode != fasthttp.StatusOK && r.StatusCode != fasthttp.StatusCreated {
+		return nil, IncorrectResponse
+	}
+	return json.Marshal(r)
 }

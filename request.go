@@ -1,17 +1,21 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: request.go
+ * @File Name: request.go (c) 2021
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-07-29 14:11:45
+ * @Modified: 2021-07-30 17:55:02
  */
 
 package predator
 
 import (
+	"crypto/sha1"
+	"fmt"
+	"strings"
 	"sync/atomic"
 
 	pctx "github.com/thep0y/predator/context"
+	"github.com/thep0y/predator/json"
 	"github.com/valyala/fasthttp"
 )
 
@@ -28,8 +32,6 @@ type Request struct {
 	Body []byte
 	// 唯一标识
 	ID uint32
-	// TODO: 这个属性只能用来查询使用的代理，不能设置，但这有必要吗？
-	ProxyURL string
 	// 中断本次请求
 	abort bool
 	// 基于原 crawler 重试或发出新请求
@@ -75,4 +77,36 @@ func (r Request) Get(u string) error {
 
 func (r Request) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
 	return r.crawler.Post(URL, requestData, ctx)
+}
+
+type cacheRequest struct {
+	// 访问的链接
+	URL string
+	// 请求方法
+	Method string
+	// 请求体
+	Body []byte
+}
+
+func (r Request) Marshal() ([]byte, error) {
+
+	cr := &cacheRequest{
+		URL:    r.URL,
+		Method: r.Method,
+		Body:   r.Body,
+	}
+
+	return json.Marshal(cr)
+}
+
+func (r Request) Hash() (string, error) {
+	var s strings.Builder
+
+	s.WriteString(r.URL)
+	s.WriteString(r.Method)
+	for _, b := range r.Body {
+		s.WriteByte(b)
+	}
+
+	return fmt.Sprintf("%x", sha1.Sum([]byte(s.String()))), nil
 }

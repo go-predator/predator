@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: errors_test.go
+ * @File Name: errors_test.go (c) 2021
  * @Created: 2021-07-27 11:24:13
- * @Modified: 2021-07-29 14:11:55
+ * @Modified: 2021-07-30 17:15:10
  */
 
 package predator

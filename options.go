@@ -1,12 +1,14 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: options.go
+ * @File Name: options.go (c) 2021
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-07-29 22:33:40
+ * @Modified: 2021-07-30 16:39:31
  */
 
 package predator
+
+import "github.com/thep0y/predator/cache"
 
 type CrawlerOption func(*Crawler)
 
@@ -54,5 +56,20 @@ func WithProxy(proxyURL string) CrawlerOption {
 func WithProxyPool(proxyURLs []string) CrawlerOption {
 	return func(c *Crawler) {
 		c.proxyURLPool = proxyURLs
+	}
+}
+
+// WithCache 使用缓存，可以选择是否压缩缓存的响应
+func WithCache(cc cache.Cache, compressed bool) CrawlerOption {
+	return func(c *Crawler) {
+		if cc == nil {
+			cc = &cache.SqliteCache{}
+			cc.Compressed(compressed)
+			err := cc.Init()
+			if err != nil {
+				panic(err)
+			}
+		}
+		c.cache = cc
 	}
 }
