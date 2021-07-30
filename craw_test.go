@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go (c) 2021
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-30 17:51:05
+ * @Modified: 2021-07-30 18:13:30
  */
 
 package predator
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/thep0y/predator/cache"
 	"github.com/thep0y/predator/html"
 	"github.com/tidwall/gjson"
 )
@@ -537,10 +538,14 @@ func TestConcurrency(t *testing.T) {
 
 func TestCache(t *testing.T) {
 	Convey("测试缓存", t, func() {
+		uri := "/Volumes/mac盘/temp/test-cache.sqlite"
 		Convey("测试不压缩", func() {
 			defer timeCost()()
 			c := NewCrawler(
-				WithCache(nil, false),
+				WithCache(&cache.SqliteCache{
+					URI: uri,
+				}, false),
+				// WithCache(nil, false),
 			)
 
 			c.BeforeRequest(func(r *Request) {
@@ -566,7 +571,10 @@ func TestCache(t *testing.T) {
 		Convey("测试压缩", func() {
 			defer timeCost()()
 			c := NewCrawler(
-				WithCache(nil, true),
+				WithCache(&cache.SqliteCache{
+					URI: uri,
+				}, false),
+				// WithCache(nil, false),
 			)
 
 			c.BeforeRequest(func(r *Request) {

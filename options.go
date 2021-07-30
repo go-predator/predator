@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go (c) 2021
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-07-30 16:39:31
+ * @Modified: 2021-07-30 18:10:38
  */
 
 package predator
@@ -64,11 +64,11 @@ func WithCache(cc cache.Cache, compressed bool) CrawlerOption {
 	return func(c *Crawler) {
 		if cc == nil {
 			cc = &cache.SqliteCache{}
-			cc.Compressed(compressed)
-			err := cc.Init()
-			if err != nil {
-				panic(err)
-			}
+		}
+		cc.Compressed(compressed)
+		err := cc.Init()
+		if err != nil {
+			panic(err)
 		}
 		c.cache = cc
 	}
