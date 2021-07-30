@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: craw.go
+ * @File Name: craw.go (c) 2021
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-29 22:35:08
+ * @Modified: 2021-07-30 09:52:54
  */
 
 package predator
@@ -71,6 +71,8 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	c.lock = &sync.RWMutex{}
 
+	c.Context = context.Background()
+
 	return c
 }
 
@@ -104,6 +106,7 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 		Headers: reqHeaders,
 		Ctx:     ctx,
 		Body:    body,
+		// 不论请求是否成功，请求计数器都加 1
 		ID:      atomic.AddUint32(&c.requestCount, 1),
 		crawler: c,
 	}
@@ -182,6 +185,7 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 			return c.do(request)
 		}
 	}
+	// 只统计服务器响应成功的响应数量
 	atomic.AddUint32(&c.responseCount, 1)
 
 	response := &Response{
@@ -213,11 +217,11 @@ func createBody(requestData map[string]string) []byte {
 	return []byte(form.Encode())
 }
 
-func (c Crawler) Get(URL string) error {
+func (c *Crawler) Get(URL string) error {
 	return c.request(fasthttp.MethodGet, URL, nil, nil, nil)
 }
 
-func (c Crawler) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
+func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
 	return c.request(fasthttp.MethodPost, URL, createBody(requestData), nil, ctx)
 }
 
@@ -254,7 +258,7 @@ func randomBoundary() string {
 
 /************************* 公共注册方法 ****************************/
 
-func (c Crawler) PostMultipart(URL string, requestData map[string]string, ctx pctx.Context, boundaryFunc ...CustomRandomBoundary) error {
+func (c *Crawler) PostMultipart(URL string, requestData map[string]string, ctx pctx.Context, boundaryFunc ...CustomRandomBoundary) error {
 	if len(boundaryFunc) > 1 {
 		return fmt.Errorf("only one boundaryFunc can be passed in at most, but you pass in %d", len(boundaryFunc))
 	}

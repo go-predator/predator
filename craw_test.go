@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: craw_test.go
+ * @File Name: craw_test.go (c) 2021
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-29 23:05:29
+ * @Modified: 2021-07-30 09:51:43
  */
 
 package predator
@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -500,6 +501,11 @@ func TestConcurrency(t *testing.T) {
 			c := NewCrawler(
 				WithConcurrency(30),
 			)
+
+			c.AfterResponse(func(r *Response) {
+				// t.Log(atomic.LoadUint32(&r.Request.ID))
+				t.Log(atomic.LoadUint32(&c.responseCount))
+			})
 
 			for i := 0; i < 10; i++ {
 				err := c.Post(ts.URL+"/post", map[string]string{
