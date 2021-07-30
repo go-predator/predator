@@ -11,6 +11,7 @@ require (
 	github.com/valyala/fasthttp v1.28.0
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 	gorm.io/driver/mysql v1.1.1
+	gorm.io/driver/postgres v1.1.0
 	gorm.io/driver/sqlite v1.1.4
 	gorm.io/gorm v1.21.12
 )
