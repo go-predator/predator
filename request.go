@@ -1,16 +1,18 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: request.go (c) 2021
+ * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-07-30 17:55:02
+ * @Modified: 2021-07-31 12:50:18
  */
 
 package predator
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"fmt"
+	"sort"
 	"strings"
 	"sync/atomic"
 
@@ -30,6 +32,8 @@ type Request struct {
 	Ctx pctx.Context
 	// 请求体
 	Body []byte
+	// 原始请求体，以后根据需要改成 map[string]interface{}
+	bodyMap map[string]string
 	// 唯一标识
 	ID uint32
 	// 中断本次请求
@@ -88,12 +92,40 @@ type cacheRequest struct {
 	Body []byte
 }
 
-func (r Request) Marshal() ([]byte, error) {
+func marshalPostBody(body map[string]string) []byte {
+	keys := make([]string, 0, len(body))
+	for k := range body {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 
+	var b bytes.Buffer
+
+	b.WriteString("{")
+	for i, k := range keys {
+		if i > 0 {
+			b.WriteString(`, `)
+		}
+		b.WriteString(`"`)
+		b.WriteString(k)
+		b.WriteString(`": `)
+		b.WriteString(`"`)
+		b.WriteString(body[k])
+		b.WriteString(`"`)
+	}
+	b.WriteString("}")
+
+	return b.Bytes()
+}
+
+func (r Request) Marshal() ([]byte, error) {
 	cr := &cacheRequest{
 		URL:    r.URL,
 		Method: r.Method,
-		Body:   r.Body,
+	}
+
+	if r.Method == fasthttp.MethodPost {
+		cr.Body = marshalPostBody(r.bodyMap)
 	}
 
 	return json.Marshal(cr)

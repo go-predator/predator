@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-31 09:20:12
+ * @Modified: 2021-07-31 12:36:23
  */
 
 package predator
@@ -83,7 +83,7 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 /************************* http 请求方法 ****************************/
 
-func (c *Crawler) request(method, URL string, body []byte, headers map[string]string, ctx pctx.Context) error {
+func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]string, headers map[string]string, ctx pctx.Context) error {
 	var err error
 
 	reqHeaders := new(fasthttp.RequestHeader)
@@ -111,6 +111,7 @@ func (c *Crawler) request(method, URL string, body []byte, headers map[string]st
 		Headers: reqHeaders,
 		Ctx:     ctx,
 		Body:    body,
+		bodyMap: bodyMap,
 		// 不论请求是否成功，请求计数器都加 1
 		ID:      atomic.AddUint32(&c.requestCount, 1),
 		crawler: c,
@@ -273,11 +274,11 @@ func createBody(requestData map[string]string) []byte {
 }
 
 func (c *Crawler) Get(URL string) error {
-	return c.request(fasthttp.MethodGet, URL, nil, nil, nil)
+	return c.request(fasthttp.MethodGet, URL, nil, nil, nil, nil)
 }
 
 func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
-	return c.request(fasthttp.MethodPost, URL, createBody(requestData), nil, ctx)
+	return c.request(fasthttp.MethodPost, URL, createBody(requestData), requestData, nil, ctx)
 }
 
 type CustomRandomBoundary func() string
@@ -327,7 +328,7 @@ func (c *Crawler) PostMultipart(URL string, requestData map[string]string, ctx p
 
 	headers["Content-Type"] = "multipart/form-data; boundary=---------------------------" + boundary
 	body := createMultipartBody(boundary, requestData)
-	return c.request(fasthttp.MethodPost, URL, body, headers, ctx)
+	return c.request(fasthttp.MethodPost, URL, body, requestData, headers, ctx)
 }
 
 /************************* 公共方法 ****************************/
