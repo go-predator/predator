@@ -113,71 +113,7 @@ crawler.Post("http://www.baidu.com", body, nil)
 
 `multipart/form-data`方法需要使用专门的`PostMultipart`方法，只是当前请求体只支持`map[string]string`，没有别的原因，因为我只用到这种类型，如果以后有别的需求，再改成`map[string]interface{}`。
 
-我在爬某网站时的示例如下：
-
-```go
-func buildRequestBody(queryID string, page uint) map[string]string {
-	return map[string]string{
-		"id":                queryID,
-		"filter":            "",
-		"page":              fmt.Sprint(page),
-		"size":              "30",
-		"language":          "CN",
-		"industryFlag":      "1",
-	}
-}
-
-func parsePerPage(u, queryID string, cty, page uint) error {
-	// 创造请求体
-	body := buildRequestBody(queryID, page)
-
-	// 将请求体中的关键参数传入上下文
-	ctx, _ := context.NewContext()
-	ctx.Put("cty", cty)
-	ctx.Put("qid", queryID)
-	ctx.Put("page", page)
-
-	return crawler.PostMultipart(u, body, ctx)
-}
-
-func Run() {
-	crawler.BeforeRequest(func(r *predator.Request) {
-		header := map[string]string{
-			"Accept":           "*/*",
-			"Accept-Language":  "zh-CN",
-			"Accept-Encoding":  "gzip, deflate",
-			"X-Requested-With": "XMLHttpRequest",
-			"Origin":           "http://jszl.patsev.com",
-			"Referer":          "http://jszl.patsev.com/pldb/route/hostingplatform/search/searchIndex",
-		}
-
-		r.SetHeaders(headers)
-	})
-
-	crawler.AfterResponse(func(r *predator.Response) {
-		cty := r.Ctx.GetAny("cty").(uint)
-
-		total := gjson.ParseBytes(r.Body).Get("total").Int()
-
-		log.Debugf("分类 [ %d ] 有 %d 条结果", cty, total)
-	})
-	
-	// 请求多个分类的第一页内容
-	var wg sync.WaitGroup
-	for cty, qid := range TypesID {
-		wg.Add(1)
-		go func(cty uint, qid string) {
-			defer wg.Done()
-
-			err := parsePerPage(u, qid, cty, 1)
-			if err != nil {
-				log.Errorf("分类 [ id=%d ] 爬取第一页时失败：%s", cty, err)
-			}
-		}(cty, qid)
-	}
-	wg.Wait()
-}
-```
+参考示例：https://github.com/thep0y/predator/blob/main/example/multipart/main.go
 
 #### 5 上下文
 
@@ -234,7 +170,7 @@ c := NewCrawler(
 	WithConcurrency(30),
 )
 
-crawler.AfterResponse(func(r *predator.Response) {
+c.AfterResponse(func(r *predator.Response) {
 	// handle response
 })
 
@@ -243,6 +179,8 @@ for i := 0; i < 10; i++ {
 		"id": fmt.Sprint(i + 1),
 	}, nil)
 }
+
+c.Wait()
 ```
 
 #### 8 使用缓存
