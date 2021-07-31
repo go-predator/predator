@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-07-31 12:50:18
+ * @Modified: 2021-07-31 13:03:50
  */
 
 package predator
@@ -13,7 +13,6 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"sort"
-	"strings"
 	"sync/atomic"
 
 	pctx "github.com/thep0y/predator/context"
@@ -132,13 +131,9 @@ func (r Request) Marshal() ([]byte, error) {
 }
 
 func (r Request) Hash() (string, error) {
-	var s strings.Builder
-
-	s.WriteString(r.URL)
-	s.WriteString(r.Method)
-	for _, b := range r.Body {
-		s.WriteByte(b)
+	cacheBody, err := r.Marshal()
+	if err != nil {
+		return "", err
 	}
-
-	return fmt.Sprintf("%x", sha1.Sum([]byte(s.String()))), nil
+	return fmt.Sprintf("%x", sha1.Sum(cacheBody)), nil
 }
