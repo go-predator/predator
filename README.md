@@ -294,7 +294,7 @@ c := NewCrawler(
 c := NewCrawler(
 	WithCache(&cache.SQLiteCache{
 		URI: uri,  // uri 为数据库存放的位置，尽量加上后缀名 .sqlite
-	}, tru),
+	}, true),
 )
 // 也可以使用默认值。WithCache 的第一个为 nil 时，
 // 默认使用 SQLite 作为缓存，且会将缓存保存在当前
