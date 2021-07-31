@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-30 22:41:35
+ * @Modified: 2021-07-31 09:24:52
  */
 
 package predator
@@ -536,6 +536,29 @@ func TestConcurrency(t *testing.T) {
 	})
 }
 
+func testCache(c *Crawler, t *testing.T) {
+	c.BeforeRequest(func(r *Request) {
+		r.Ctx.Put("key", 999)
+	})
+
+	c.AfterResponse(func(r *Response) {
+		if r.Request.ID == 1 {
+			So(r.FromCache, ShouldBeFalse)
+		} else {
+			So(r.FromCache, ShouldBeTrue)
+		}
+		val := r.Ctx.GetAny("key").(int)
+		So(val, ShouldEqual, 999)
+	})
+
+	for i := 0; i < 3; i++ {
+		err := c.Get("http://www.baidu.com")
+		So(err, ShouldBeNil)
+	}
+	// 测试环境中清除缓存，生产环境慎重清除，
+	c.ClearCache()
+}
+
 func TestCache(t *testing.T) {
 	Convey("测试 SQLite 缓存", t, func() {
 		uri := "/tmp/test-cache.sqlite"
@@ -548,24 +571,7 @@ func TestCache(t *testing.T) {
 				// WithCache(nil, false),
 			)
 
-			c.BeforeRequest(func(r *Request) {
-				r.Ctx.Put("key", 999)
-			})
-
-			c.AfterResponse(func(r *Response) {
-				t.Log(r.FromCache)
-				val := r.Ctx.GetAny("key").(int)
-				So(val, ShouldEqual, 999)
-			})
-
-			for i := 0; i < 3; i++ {
-				err := c.Get("http://www.baidu.com")
-				So(err, ShouldBeNil)
-			}
-			// 测试环境中清除缓存，生产环境慎重清除，
-			// cache 作为私有变量，你想清除也清除不了，
-			// 除非你自己修改源码
-			c.cache.Clear()
+			testCache(c, t)
 		})
 
 		Convey("测试压缩", func() {
@@ -577,24 +583,7 @@ func TestCache(t *testing.T) {
 				// WithCache(nil, false),
 			)
 
-			c.BeforeRequest(func(r *Request) {
-				r.Ctx.Put("key", 999)
-			})
-
-			c.AfterResponse(func(r *Response) {
-				t.Log(r.FromCache)
-				val := r.Ctx.GetAny("key").(int)
-				So(val, ShouldEqual, 999)
-			})
-
-			for i := 0; i < 3; i++ {
-				err := c.Get("http://www.baidu.com")
-				So(err, ShouldBeNil)
-			}
-			// 测试环境中清除缓存，生产环境慎重清除，
-			// cache 作为私有变量，你想清除也清除不了，
-			// 除非你自己修改源码
-			c.cache.Clear()
+			testCache(c, t)
 		})
 	})
 
@@ -611,24 +600,7 @@ func TestCache(t *testing.T) {
 				}, false),
 			)
 
-			c.BeforeRequest(func(r *Request) {
-				r.Ctx.Put("key", 999)
-			})
-
-			c.AfterResponse(func(r *Response) {
-				t.Log(r.FromCache)
-				val := r.Ctx.GetAny("key").(int)
-				So(val, ShouldEqual, 999)
-			})
-
-			for i := 0; i < 3; i++ {
-				err := c.Get("http://www.baidu.com")
-				So(err, ShouldBeNil)
-			}
-			// 测试环境中清除缓存，生产环境慎重清除，
-			// cache 作为私有变量，你想清除也清除不了，
-			// 除非你自己修改源码
-			c.cache.Clear()
+			testCache(c, t)
 		})
 
 		Convey("测试压缩", func() {
@@ -642,24 +614,8 @@ func TestCache(t *testing.T) {
 					Password: "123456",
 				}, true),
 			)
-			c.BeforeRequest(func(r *Request) {
-				r.Ctx.Put("key", 999)
-			})
 
-			c.AfterResponse(func(r *Response) {
-				t.Log(r.FromCache)
-				val := r.Ctx.GetAny("key").(int)
-				So(val, ShouldEqual, 999)
-			})
-
-			for i := 0; i < 3; i++ {
-				err := c.Get("http://www.baidu.com")
-				So(err, ShouldBeNil)
-			}
-			// 测试环境中清除缓存，生产环境慎重清除，
-			// cache 作为私有变量，你想清除也清除不了，
-			// 除非你自己修改源码
-			c.cache.Clear()
+			testCache(c, t)
 		})
 	})
 
@@ -676,24 +632,7 @@ func TestCache(t *testing.T) {
 				}, false),
 			)
 
-			c.BeforeRequest(func(r *Request) {
-				r.Ctx.Put("key", 999)
-			})
-
-			c.AfterResponse(func(r *Response) {
-				t.Log(r.FromCache)
-				val := r.Ctx.GetAny("key").(int)
-				So(val, ShouldEqual, 999)
-			})
-
-			for i := 0; i < 3; i++ {
-				err := c.Get("http://www.baidu.com")
-				So(err, ShouldBeNil)
-			}
-			// 测试环境中清除缓存，生产环境慎重清除，
-			// cache 作为私有变量，你想清除也清除不了，
-			// 除非你自己修改源码
-			c.cache.Clear()
+			testCache(c, t)
 		})
 
 		Convey("测试压缩", func() {
@@ -707,24 +646,32 @@ func TestCache(t *testing.T) {
 					Password: "123456",
 				}, true),
 			)
-			c.BeforeRequest(func(r *Request) {
-				r.Ctx.Put("key", 999)
-			})
 
-			c.AfterResponse(func(r *Response) {
-				t.Log(r.FromCache)
-				val := r.Ctx.GetAny("key").(int)
-				So(val, ShouldEqual, 999)
-			})
+			testCache(c, t)
+		})
+	})
 
-			for i := 0; i < 3; i++ {
-				err := c.Get("http://www.baidu.com")
-				So(err, ShouldBeNil)
-			}
-			// 测试环境中清除缓存，生产环境慎重清除，
-			// cache 作为私有变量，你想清除也清除不了，
-			// 除非你自己修改源码
-			c.cache.Clear()
+	Convey("测试 Redis 缓存", t, func() {
+		Convey("测试不压缩", func() {
+			defer timeCost()()
+			c := NewCrawler(
+				WithCache(&cache.RedisCache{
+					Addr: "localhost:6379",
+				}, false),
+			)
+
+			testCache(c, t)
+		})
+
+		Convey("测试压缩", func() {
+			defer timeCost()()
+			c := NewCrawler(
+				WithCache(&cache.RedisCache{
+					Addr: "localhost:6379",
+				}, true),
+			)
+
+			testCache(c, t)
 		})
 	})
 }

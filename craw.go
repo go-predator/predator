@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: craw.go (c) 2021
+ * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-30 17:36:43
+ * @Modified: 2021-07-31 09:20:12
  */
 
 package predator
@@ -328,6 +328,15 @@ func (c *Crawler) PostMultipart(URL string, requestData map[string]string, ctx p
 	headers["Content-Type"] = "multipart/form-data; boundary=---------------------------" + boundary
 	body := createMultipartBody(boundary, requestData)
 	return c.request(fasthttp.MethodPost, URL, body, headers, ctx)
+}
+
+/************************* 公共方法 ****************************/
+
+func (c *Crawler) ClearCache() error {
+	if c.cache == nil {
+		return NoCacheSet
+	}
+	return c.cache.Clear()
 }
 
 /************************* 公共注册方法 ****************************/
