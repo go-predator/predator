@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: pool.go
  * @Created: 2021-07-29 22:30:37
- * @Modified: 2021-07-29 22:32:40
+ * @Modified: 2021-07-31 16:04:26
  */
 
 package predator
@@ -111,6 +111,8 @@ func (p *Pool) Put(task *Task) error {
 	return nil
 }
 
+var before, end uint32
+
 func (p *Pool) run() {
 	p.incRunning()
 
@@ -133,10 +135,12 @@ func (p *Pool) run() {
 				if !ok {
 					return
 				}
+
 				task.crawler.prepare(task.req)
 			}
 		}
 	}()
+
 }
 
 func (p *Pool) setStatus(status int64) bool {

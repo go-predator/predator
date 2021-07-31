@@ -3,12 +3,16 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-07-31 11:36:12
+ * @Modified: 2021-07-31 16:00:57
  */
 
 package predator
 
-import "github.com/thep0y/predator/cache"
+import (
+	"sync"
+
+	"github.com/thep0y/predator/cache"
+)
 
 type CrawlerOption func(*Crawler)
 
@@ -32,6 +36,7 @@ func WithConcurrency(count uint64) CrawlerOption {
 			panic(err)
 		}
 		c.goPool = p
+		c.wg = new(sync.WaitGroup)
 	}
 }
 

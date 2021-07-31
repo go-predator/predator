@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-31 12:36:23
+ * @Modified: 2021-07-31 16:03:00
  */
 
 package predator
@@ -61,6 +61,8 @@ type Crawler struct {
 	responseHandler []HandleResponse
 	// 响应后处理 html
 	htmlHandler []*HTMLParser
+
+	wg *sync.WaitGroup
 }
 
 func NewCrawler(opts ...CrawlerOption) *Crawler {
@@ -118,6 +120,7 @@ func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]st
 	}
 
 	if c.goPool != nil {
+		c.wg.Add(1)
 		task := &Task{c, request}
 		err = c.goPool.Put(task)
 		if err != nil {
@@ -135,6 +138,10 @@ func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]st
 }
 
 func (c *Crawler) prepare(request *Request) (err error) {
+	if c.goPool != nil {
+		defer c.wg.Done()
+	}
+
 	c.processRequestHandler(request)
 
 	if request.abort {
@@ -171,10 +178,12 @@ func (c *Crawler) prepare(request *Request) (err error) {
 			}
 
 			if cacheVal != nil {
+				c.lock.Lock()
 				err = c.cache.Cache(key, cacheVal)
 				if err != nil {
 					return err
 				}
+				c.lock.Unlock()
 			}
 		}
 	} else {
@@ -377,6 +386,11 @@ func (c *Crawler) AfterResponse(f HandleResponse) {
 
 func (c Crawler) ProxyPoolAmount() int {
 	return len(c.proxyURLPool)
+}
+
+func (c *Crawler) Wait() {
+	c.wg.Wait()
+	c.goPool.Close()
 }
 
 /************************* 私有注册方法 ****************************/
