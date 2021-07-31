@@ -245,7 +245,64 @@ for i := 0; i < 10; i++ {
 }
 ```
 
-#### 8 关于 JSON
+#### 8 使用缓存
+
+默认情况下，缓存是不启用的，所有的请求都直接放行。
+
+已经实现的缓存：
+
+- MySQL
+- PostgreSQL
+- Redis
+- SQLite3
+
+缓存接口中有一个方法`Compressed(yes bool)`用来压缩响应的，毕竟有时，响应长度非常长，直接保存的数据库中会影响插入和查询时的性能。
+
+这四个接口的使用方法示例：
+
+```go
+// MySQL
+c := NewCrawler(
+	WithCache(&cache.MySQLCache{
+		Host:     "127.0.0.1",
+		Port:     "3306",
+		Database: "predator",
+		Username: "root",
+		Password: "123456",
+	}, false), // false 为关闭压缩，true 为开启压缩，下同
+)
+
+// PostgreSQL
+c := NewCrawler(
+	WithCache(&cache.PostgreSQLCache{
+		Host:     "127.0.0.1",
+		Port:     "54322",
+		Database: "predator",
+		Username: "postgres",
+		Password: "123456",
+	}, false),
+)
+
+// Redis
+c := NewCrawler(
+	WithCache(&cache.RedisCache{
+		Addr: "localhost:6379",
+	}, true),
+)
+
+// SQLite3
+c := NewCrawler(
+	WithCache(&cache.SQLiteCache{
+		URI: uri,  // uri 为数据库存放的位置，尽量加上后缀名 .sqlite
+	}, tru),
+)
+// 也可以使用默认值。WithCache 的第一个为 nil 时，
+// 默认使用 SQLite 作为缓存，且会将缓存保存在当前
+// 目录下的 predator-cache.sqlite 中
+c := NewCrawler(WithCache(nil, true))
+```
+
+#### 9 关于 JSON
 
 本来想着封装一个 JSON 包用来快速处理 JSON 响应，但是想了一两天也没想出个好办法来，因为我能想到的，[gjson](https://github.com/tidwall/gjson)都已经解决了。
 
@@ -276,5 +333,7 @@ json.UnmarshalFromString()
   - 默认使用 sqlite3 进行缓存，可以使用已实现的其他缓存数据库，也可以自己实现缓存接口
   - 可用缓存存储有 SQLite3、MySQL、PostgreSQL、Redis
   - 因为采用持久化缓存，所以不实现以内存作为缓存，如果需要请自行根据缓存接口实现
-- [ ] 数据库管理接口，用来保存爬虫数据，并完成一种或多种数据库的管理
+- [x] 数据库管理接口，用来保存爬虫数据，并完成一种或多种数据库的管理
+	- SQL 数据库接口已实现了，NoSQL 接口与 SQL 差别较大，就不实现了，如果有使用 NoSQL 的需求，请自己实现
+	- 数据库接口没有封装在 Crawler 方法中，根据需要使用，一般场景下够用，复杂场景中仍然需要自己重写数据库管理
 - [ ] 增加对 robots.txt 的判断，默认遵守 robots.txt 规则，但可以选择忽略

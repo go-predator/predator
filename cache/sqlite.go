@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: sqlite.go
  * @Created: 2021-07-24 22:20:47
- * @Modified: 2021-07-30 21:57:51
+ * @Modified: 2021-07-31 11:36:14
  */
 
 package cache
@@ -16,13 +16,13 @@ import (
 	"gorm.io/gorm"
 )
 
-type SqliteCache struct {
+type SQLiteCache struct {
 	URI        string
 	db         *dao.Sqlite
 	compressed bool
 }
 
-func (sc *SqliteCache) Init() error {
+func (sc *SQLiteCache) Init() error {
 	if sc.URI == "" {
 		sc.URI = "predator-cache.sqlite"
 	}
@@ -41,7 +41,7 @@ func (sc *SqliteCache) Init() error {
 	return nil
 }
 
-func (sc *SqliteCache) IsCached(key string) ([]byte, bool) {
+func (sc *SQLiteCache) IsCached(key string) ([]byte, bool) {
 	var cache CacheModel
 	err := sc.db.SelectOneWithWhere(&cache, "`key` = ?", key)
 	if err != nil {
@@ -64,7 +64,7 @@ func (sc *SqliteCache) IsCached(key string) ([]byte, bool) {
 	return nil, false
 }
 
-func (sc *SqliteCache) Cache(key string, val []byte) error {
+func (sc *SQLiteCache) Cache(key string, val []byte) error {
 	// 这里不能用 CheckCache，因为 value 值很长，获取 Value 和解压过程耗时较长
 	var count int
 	err := sc.db.DB.Model(&CacheModel{}).Select("COUNT(*)").Where("`key` = ?", key).Scan(&count).Error
@@ -85,10 +85,10 @@ func (sc *SqliteCache) Cache(key string, val []byte) error {
 	return nil
 }
 
-func (sc *SqliteCache) Clear() error {
+func (sc *SQLiteCache) Clear() error {
 	return sc.db.Truncate(&CacheModel{})
 }
 
-func (sc *SqliteCache) Compressed(yes bool) {
+func (sc *SQLiteCache) Compressed(yes bool) {
 	sc.compressed = yes
 }

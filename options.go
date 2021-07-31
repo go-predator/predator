@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-07-30 21:43:24
+ * @Modified: 2021-07-31 11:36:12
  */
 
 package predator
@@ -63,7 +63,7 @@ func WithProxyPool(proxyURLs []string) CrawlerOption {
 func WithCache(cc cache.Cache, compressed bool) CrawlerOption {
 	return func(c *Crawler) {
 		if cc == nil {
-			cc = &cache.SqliteCache{}
+			cc = &cache.SQLiteCache{}
 		}
 		cc.Compressed(compressed)
 		err := cc.Init()

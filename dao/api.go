@@ -3,12 +3,14 @@
  * @Email: thepoy@163.com
  * @File Name: api.go
  * @Created: 2021-07-24 22:20:09
- * @Modified: 2021-07-30 21:44:57
+ * @Modified: 2021-07-31 11:24:02
  */
 
 package dao
 
 import "errors"
+
+// 如查需要使用事务，需要用户自己用事务实现 Database 接口
 
 type Database interface {
 	Init() error
@@ -41,8 +43,6 @@ type Database interface {
 	// 清空表
 	Truncate(model interface{}) error
 }
-
-// 如查需要使用事务，需要用户自己用事务实现 Database 接口
 
 var (
 	URIRequiredError = errors.New("uri is required")

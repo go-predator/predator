@@ -10,6 +10,7 @@ require (
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/tidwall/gjson v1.8.1
 	github.com/valyala/fasthttp v1.28.0
+	go.mongodb.org/mongo-driver v1.7.0
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 	gorm.io/driver/mysql v1.1.1
 	gorm.io/driver/postgres v1.1.0

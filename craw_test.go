@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-31 09:24:52
+ * @Modified: 2021-07-31 11:42:00
  */
 
 package predator
@@ -555,7 +555,7 @@ func testCache(c *Crawler, t *testing.T) {
 		err := c.Get("http://www.baidu.com")
 		So(err, ShouldBeNil)
 	}
-	// 测试环境中清除缓存，生产环境慎重清除，
+	// 测试环境中清除缓存，生产环境慎重清除
 	c.ClearCache()
 }
 
@@ -565,7 +565,7 @@ func TestCache(t *testing.T) {
 		Convey("测试不压缩", func() {
 			defer timeCost()()
 			c := NewCrawler(
-				WithCache(&cache.SqliteCache{
+				WithCache(&cache.SQLiteCache{
 					URI: uri,
 				}, false),
 				// WithCache(nil, false),
@@ -577,7 +577,7 @@ func TestCache(t *testing.T) {
 		Convey("测试压缩", func() {
 			defer timeCost()()
 			c := NewCrawler(
-				WithCache(&cache.SqliteCache{
+				WithCache(&cache.SQLiteCache{
 					URI: uri,
 				}, false),
 				// WithCache(nil, false),
