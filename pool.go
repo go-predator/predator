@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: pool.go
+ * @File Name: pool.go (c) 2021
  * @Created: 2021-07-29 22:30:37
- * @Modified: 2021-07-31 16:04:26
+ * @Modified: 2021-07-31 20:30:55
  */
 
 package predator
@@ -15,8 +15,6 @@ import (
 	"sync/atomic"
 	"time"
 )
-
-// TODO: 处理每个完整的请求和响应
 
 // errors
 var (

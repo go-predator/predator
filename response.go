@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go (c) 2021
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-07-30 17:56:02
+ * @Modified: 2021-08-01 10:30:20
  */
 
 package predator
@@ -11,6 +11,7 @@ package predator
 import (
 	"errors"
 	"io/ioutil"
+	"sync"
 
 	ctx "github.com/thep0y/predator/context"
 	"github.com/thep0y/predator/json"
@@ -31,7 +32,7 @@ type Response struct {
 	// 响应对应的请求
 	Request *Request `json:"-"`
 	// 响应头
-	Headers *fasthttp.ResponseHeader
+	Headers fasthttp.ResponseHeader
 	// 是否从缓存中取得的响应
 	FromCache bool
 }
@@ -53,9 +54,44 @@ func (r *Response) String() string {
 	return string(r.Body)
 }
 
+func (r *Response) Reset() {
+	r.StatusCode = 0
+	r.Body = r.Body[:0]
+	ctx.ReleaseCtx(r.Ctx)
+	ReleaseRequest(r.Request)
+	r.Headers.Reset()
+	r.FromCache = false
+}
+
 func (r Response) Marshal() ([]byte, error) {
 	if r.StatusCode != fasthttp.StatusOK && r.StatusCode != fasthttp.StatusCreated {
 		return nil, IncorrectResponse
 	}
 	return json.Marshal(r)
+}
+
+var (
+	responsePool sync.Pool
+)
+
+// AcquireResponse returns an empty Response instance from response pool.
+//
+// The returned Response instance may be passed to ReleaseResponse when it is
+// no longer needed. This allows Response recycling, reduces GC pressure
+// and usually improves performance.
+func AcquireResponse() *Response {
+	v := responsePool.Get()
+	if v == nil {
+		return &Response{}
+	}
+	return v.(*Response)
+}
+
+// ReleaseResponse returns resp acquired via AcquireResponse to response pool.
+//
+// It is forbidden accessing resp and/or its' members after returning
+// it to response pool.
+func ReleaseResponse(resp *Response) {
+	resp.Reset()
+	responsePool.Put(resp)
 }

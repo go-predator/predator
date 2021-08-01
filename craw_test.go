@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: craw_test.go
+ * @File Name: craw_test.go (c) 2021
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-31 11:42:00
+ * @Modified: 2021-08-01 09:36:27
  */
 
 package predator
@@ -228,7 +228,7 @@ func TestRequest(t *testing.T) {
 
 }
 
-func TestProxy(t *testing.T) {
+func TestHTTPProxy(t *testing.T) {
 	ts := server()
 	defer ts.Close()
 
@@ -277,7 +277,6 @@ func TestProxy(t *testing.T) {
 		type TestResponse struct {
 			IP string `json:"origin"`
 		}
-		// TODO: 写一个代理池的测试用例，池中有效和无效代理全都要有
 		ips := []string{
 			"http://14.134.204.22:45105",
 			validIP,
@@ -292,6 +291,28 @@ func TestProxy(t *testing.T) {
 			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
 			So(c.ProxyPoolAmount(), ShouldBeLessThanOrEqualTo, len(ips))
 			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
+		})
+
+		err := c.Get(u)
+		So(err, ShouldBeNil)
+	})
+}
+
+func TestSocks5Proxy(t *testing.T) {
+	proxyIP := "socks5://222.37.211.49:46601"
+	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
+
+	Convey("测试有效代理", t, func() {
+		c := NewCrawler(
+			WithProxy(proxyIP),
+		)
+
+		c.AfterResponse(func(r *Response) {
+			t.Log(r)
+
+			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
+
+			So(ip, ShouldEqual, strings.Split(strings.Split(proxyIP, "//")[1], ":")[0])
 		})
 
 		err := c.Get(u)

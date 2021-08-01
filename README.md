@@ -96,7 +96,7 @@ crawler.AfterResponse(func(r *predator.Response) {
 body := map[string]string{"foo": "bar"}
 
 // 在 Post 请求中，应该将关键参数用这种方式放进上下文
-ctx, _ := context.NewContext()
+ctx, _ := context.AcquireCtx()
 ctx.Put("id", 10)
 ctx.Put("name", "tom")
 
@@ -120,12 +120,12 @@ crawler.Post("http://www.baidu.com", body, nil)
 上下文是一个接口，我实现了两种上下文：
 
 - *ReadOp*：基于`sync.Map`实现，适用于读取上下文较多的场景
-- *WriteOp*：用`map`实现，适用于读写频频率相差不大或写多于读的场景，这是默认采用的上下文
+- *WriteOp*：用`map`实现，适用于读写频率相差不大或写多于读的场景，这是默认采用的上下文
 
 爬虫中如果遇到了读远多于写时就应该换`ReadOp`了，如下代码所示：
 
 ```go
-ctx, err := NewContext(context.ReadOp)
+ctx, err := AcquireCtx(context.ReadOp)
 ```
 
 #### 6 处理 HTML
@@ -194,7 +194,7 @@ c.Wait()
 - Redis
 - SQLite3
 
-缓存接口中有一个方法`Compressed(yes bool)`用来压缩响应的，毕竟有时，响应长度非常长，直接保存的数据库中会影响插入和查询时的性能。
+缓存接口中有一个方法`Compressed(yes bool)`用来压缩响应的，毕竟有时，响应长度非常长，直接保存到数据库中会影响插入和查询时的性能。
 
 这四个接口的使用方法示例：
 
@@ -240,7 +240,17 @@ c := NewCrawler(
 c := NewCrawler(WithCache(nil, true))
 ```
 
-#### 9 关于 JSON
+#### 9 代理
+
+支持 HTTP 代理和 Socks5 代理。
+
+使用代理时需要加上协议，如：
+
+```go
+WithProxyPool([]string{"http://ip:port", "socks5://ip:port"})
+```
+
+#### 10 关于 JSON
 
 本来想着封装一个 JSON 包用来快速处理 JSON 响应，但是想了一两天也没想出个好办法来，因为我能想到的，[gjson](https://github.com/tidwall/gjson)都已经解决了。
 
@@ -274,4 +284,6 @@ json.UnmarshalFromString()
 - [x] 数据库管理接口，用来保存爬虫数据，并完成一种或多种数据库的管理
 	- SQL 数据库接口已实现了，NoSQL 接口与 SQL 差别较大，就不实现了，如果有使用 NoSQL 的需求，请自己实现
 	- 数据库接口没有封装在 Crawler 方法中，根据需要使用，一般场景下够用，复杂场景中仍然需要自己重写数据库管理
+- [ ] 添加日志
+- [ ] 为`Request`和`Response`的请求体`Body`添加池管理，减少 GC 次数
 - [ ] 增加对 robots.txt 的判断，默认遵守 robots.txt 规则，但可以选择忽略

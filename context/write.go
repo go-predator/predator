@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: write.go
+ * @File Name: write.go (c) 2021
  * @Created: 2021-07-24 08:56:16
- * @Modified: 2021-07-29 14:13:39
+ * @Modified: 2021-08-01 10:03:40
  */
 
 package context
@@ -74,7 +74,10 @@ func (w *wcontext) ForEach(f func(key string, val interface{}) interface{}) []in
 
 func (w *wcontext) Clear() {
 	w.l.Lock()
-	w.m = make(map[string]interface{})
+	// 不需要释放内存，而是应该复用内存，频繁地申请内存是不必要的
+	for k := range w.m {
+		delete(w.m, k)
+	}
 	w.l.Unlock()
 }
 

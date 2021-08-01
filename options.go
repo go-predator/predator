@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: options.go
+ * @File Name: options.go (c) 2021
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-07-31 16:00:57
+ * @Modified: 2021-07-31 20:18:24
  */
 
 package predator

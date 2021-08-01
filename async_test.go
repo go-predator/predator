@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: async_test.go
+ * @File Name: async_test.go (c) 2021
  * @Created: 2021-07-31 13:14:09
- * @Modified: 2021-07-31 16:12:25
+ * @Modified: 2021-08-01 10:38:47
  */
 
 package predator
@@ -52,7 +52,9 @@ func testAsync(crawler *Crawler, t *testing.T) {
 	})
 
 	crawler.AfterResponse(func(r *Response) {
-
+		qid := r.Ctx.Get("qid")
+		page := r.Ctx.GetAny("page").(int)
+		t.Logf("qid=%s page=%d", qid, page)
 	})
 
 	// 请求多个分类的第一页内容

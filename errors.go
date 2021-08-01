@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: errors.go
+ * @File Name: errors.go (c) 2021
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-31 09:19:56
+ * @Modified: 2021-08-01 08:31:07
  */
 
 package predator
@@ -24,8 +24,19 @@ var (
 )
 
 func isProxyInvalid(err error) (string, bool) {
+	if len(err.Error()) < 26 {
+		return "", false
+	}
+
+	// http proxy expired or invalid
 	if err.Error()[:26] == "cannot connect to proxy ip" {
 		re := regexp.MustCompile(`cannot connect to proxy ip \[ (.+?) \] -> .+?`)
+		return re.FindAllStringSubmatch(err.Error(), 1)[0][1], true
+	}
+
+	// socks5 proxy expired or invalid
+	if err.Error()[:17] == "socks connect tcp" {
+		re := regexp.MustCompile("socks connect tcp (.+?)->.+?")
 		return re.FindAllStringSubmatch(err.Error(), 1)[0][1], true
 	}
 

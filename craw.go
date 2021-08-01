@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: craw.go
+ * @File Name: craw.go (c) 2021
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-07-31 16:03:00
+ * @Modified: 2021-08-01 10:55:01
  */
 
 package predator
@@ -25,34 +25,44 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-// 方法
+// HandleRequest is used to patch the request
 type HandleRequest func(r *Request)
+
+// HandleResponse is used to handle the response
 type HandleResponse func(r *Response)
+
+// HandleHTML is used to process html
 type HandleHTML func(he *html.HTMLElement)
 
-// 结构体
+// HTMLParser is used to parse html
 type HTMLParser struct {
 	Selector string
 	Handle   HandleHTML
 }
 
+// CustomRandomBoundary generates a custom boundary
+type CustomRandomBoundary func() string
+
+// Crawler is the provider of crawlers
 type Crawler struct {
-	lock       *sync.RWMutex
+	lock *sync.RWMutex
+	// UserAgent is the User-Agent string used by HTTP requests
 	UserAgent  string
 	retryCount uint32
-	// 重试条件，返回结果为 true 时触发重试
+	// Retry conditions, the crawler will retry only
+	// if it returns true
 	retryConditions RetryConditions
 	client          *fasthttp.Client
 	cookies         map[string]string
 	goPool          *Pool
-	proxyURLPool    []string // TODO: 当前只针对长效代理ip，需要添加代理 ip 替换或删除功能，不提供检查失效功能，由用户自己检查是否失效
+	proxyURLPool    []string
 	timeout         uint
 	requestCount    uint32
 	responseCount   uint32
 	// 在多协程中这个上下文管理可以用来退出或取消多个协程
 	Context context.Context
 
-	// 缓存
+	// Cache successful response
 	cache cache.Cache
 
 	requestHandler []HandleRequest
@@ -65,6 +75,7 @@ type Crawler struct {
 	wg *sync.WaitGroup
 }
 
+// NewCrawler creates a new Crawler instance with some CrawlerOptions
 func NewCrawler(opts ...CrawlerOption) *Crawler {
 	c := new(Crawler)
 
@@ -101,23 +112,22 @@ func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]st
 	}
 
 	if ctx == nil {
-		ctx, err = pctx.NewContext()
+		ctx, err = pctx.AcquireCtx()
 		if err != nil {
 			return err
 		}
 	}
 
-	request := &Request{
-		URL:     URL,
-		Method:  method,
-		Headers: reqHeaders,
-		Ctx:     ctx,
-		Body:    body,
-		bodyMap: bodyMap,
-		// 不论请求是否成功，请求计数器都加 1
-		ID:      atomic.AddUint32(&c.requestCount, 1),
-		crawler: c,
-	}
+	request := AcquireRequest()
+
+	request.URL = URL
+	request.Method = method
+	request.Headers = reqHeaders
+	request.Ctx = ctx
+	request.Body = body
+	request.bodyMap = bodyMap
+	request.ID = atomic.AddUint32(&c.requestCount, 1)
+	request.crawler = c
 
 	if c.goPool != nil {
 		c.wg.Add(1)
@@ -162,15 +172,15 @@ func (c *Crawler) prepare(request *Request) (err error) {
 		}
 	}
 
-	// 缓存中取到的响应为空时才发出请求
+	// A new request is issued when there
+	// is no response from the cache
 	if response == nil {
 		response, err = c.do(request)
 		if err != nil {
 			return
 		}
 
-		// 将得到的响应保存到缓存中
-		// TODO: 此处是否用一个 goroutine 完成？
+		// Save the response from the request to the cache
 		if c.cache != nil {
 			cacheVal, err := response.Marshal()
 			if err != nil {
@@ -191,13 +201,15 @@ func (c *Crawler) prepare(request *Request) (err error) {
 		response.Ctx = request.Ctx
 	}
 
-	// 处理响应
 	c.processResponseHandler(response)
 
 	err = c.processHTMLHandler(response)
 	if err != nil {
 		return
 	}
+
+	// 这里不需要调用 ReleaseRequest，因为 ReleaseResponse 中执行了 ReleaseRequest 方法
+	ReleaseResponse(response)
 
 	return
 }
@@ -218,7 +230,7 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 }
 
 func (c *Crawler) do(request *Request) (*Response, error) {
-	req := new(fasthttp.Request)
+	req := fasthttp.AcquireRequest()
 	req.Header = *request.Headers
 	req.SetRequestURI(request.URL)
 
@@ -238,7 +250,7 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 		req.Header.Set("Accept", "*/*")
 	}
 
-	resp := new(fasthttp.Response)
+	resp := fasthttp.AcquireResponse()
 
 	if err := c.client.Do(req, resp); err != nil {
 		if p, ok := isProxyInvalid(err); ok {
@@ -246,20 +258,25 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 			if err != nil {
 				panic(err)
 			}
-
 			return c.do(request)
+		} else {
+			panic(err)
 		}
 	}
-	// 只统计服务器响应成功的响应数量
+	// Only count successful responses
 	atomic.AddUint32(&c.responseCount, 1)
+	// release req
+	fasthttp.ReleaseRequest(req)
 
 	response := &Response{
 		StatusCode: resp.StatusCode(),
 		Body:       resp.Body(),
 		Ctx:        request.Ctx,
 		Request:    request,
-		Headers:    &resp.Header,
+		Headers:    resp.Header,
 	}
+	// release resp
+	fasthttp.ReleaseResponse(resp)
 
 	if c.retryCount > 0 && request.retryCounter < c.retryCount {
 		if c.retryConditions(*response) {
@@ -282,17 +299,18 @@ func createBody(requestData map[string]string) []byte {
 	return []byte(form.Encode())
 }
 
+// Get is used to send GET requests
 func (c *Crawler) Get(URL string) error {
 	return c.request(fasthttp.MethodGet, URL, nil, nil, nil, nil)
 }
 
+// Post is used to send POST requests
 func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
 	return c.request(fasthttp.MethodPost, URL, createBody(requestData), requestData, nil, ctx)
 }
 
-type CustomRandomBoundary func() string
-
 func createMultipartBody(boundary string, data map[string]string) []byte {
+	// TODO: Multipart 请求体没这么简单，还有很大的改进空间
 	dashBoundary := "-----------------------------" + boundary
 
 	var buffer strings.Builder
@@ -321,11 +339,14 @@ func randomBoundary() string {
 	return s.String()
 }
 
+// PostMultipart
 func (c *Crawler) PostMultipart(URL string, requestData map[string]string, ctx pctx.Context, boundaryFunc ...CustomRandomBoundary) error {
 	if len(boundaryFunc) > 1 {
 		return fmt.Errorf("only one boundaryFunc can be passed in at most, but you pass in %d", len(boundaryFunc))
 	}
 
+	// TODO: 不同网站，对于减号的数量要求也不一样，需要交由用户自定义。
+	// 以 Content-Type 中的减号数量为准，body 中的减号数量比 Content-Type 多 2 个
 	var boundary string
 	if len(boundaryFunc) == 0 {
 		boundary = randomBoundary()
@@ -342,6 +363,7 @@ func (c *Crawler) PostMultipart(URL string, requestData map[string]string, ctx p
 
 /************************* 公共方法 ****************************/
 
+// ClearCache will clear all cache
 func (c *Crawler) ClearCache() error {
 	if c.cache == nil {
 		return NoCacheSet
@@ -351,6 +373,8 @@ func (c *Crawler) ClearCache() error {
 
 /************************* 公共注册方法 ****************************/
 
+// BeforeRequest used to process requests, such as
+// setting headers, passing context, etc.
 func (c *Crawler) BeforeRequest(f HandleRequest) {
 	c.lock.Lock()
 	if c.requestHandler == nil {
@@ -362,6 +386,8 @@ func (c *Crawler) BeforeRequest(f HandleRequest) {
 	c.lock.Unlock()
 }
 
+// ParseHTML can parse html to find the data you need,
+// and process the data
 func (c *Crawler) ParseHTML(selector string, f HandleHTML) {
 	c.lock.Lock()
 	if c.htmlHandler == nil {
@@ -373,6 +399,8 @@ func (c *Crawler) ParseHTML(selector string, f HandleHTML) {
 	c.lock.Unlock()
 }
 
+// AfterResponse is used to process the response, this
+// method should be used for the response body in non-html format
 func (c *Crawler) AfterResponse(f HandleResponse) {
 	c.lock.Lock()
 	if c.responseHandler == nil {
@@ -384,10 +412,13 @@ func (c *Crawler) AfterResponse(f HandleResponse) {
 	c.lock.Unlock()
 }
 
+// ProxyPoolAmount returns the number of proxies in
+// the proxy pool
 func (c Crawler) ProxyPoolAmount() int {
 	return len(c.proxyURLPool)
 }
 
+// Wait waits for the end of all concurrent tasks
 func (c *Crawler) Wait() {
 	c.wg.Wait()
 	c.goPool.Close()

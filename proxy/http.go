@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: http.go
+ * @File Name: http.go (c) 2021
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-07-29 15:03:30
+ * @Modified: 2021-07-31 22:11:53
  */
 
 package proxy

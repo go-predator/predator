@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: read.go
+ * @File Name: read.go (c) 2021
  * @Created: 2021-07-24 08:56:04
- * @Modified: 2021-07-29 14:13:36
+ * @Modified: 2021-08-01 10:00:34
  */
 
 package context
@@ -47,35 +47,23 @@ func (r *rcontext) GetAndDelete(key string) interface{} {
 }
 
 func (r *rcontext) Delete(key string) {
-	r.GetAndDelete(key)
+	r.Map.Delete(key)
 }
 
 func (r *rcontext) ForEach(f func(key string, val interface{}) interface{}) []interface{} {
-	// 因为 sync.Map 不能使用 len 方法计算长度，所以此处创建一个中间变量 temp 用来记录
-	temp := make(map[string]interface{})
-
+	result := make([]interface{}, 0, r.Length())
 	r.Range(func(key, value interface{}) bool {
-		temp[key.(string)] = value
+		result = append(result, f(key.(string), value))
 		return true
 	})
-
-	result := make([]interface{}, 0, len(temp))
-	for k, v := range temp {
-		result = append(result, f(k, v))
-	}
 	return result
 }
 
 func (r *rcontext) Clear() {
-	temp := make(map[string]interface{})
 	r.Range(func(key, value interface{}) bool {
-		temp[key.(string)] = value
+		r.Map.Delete(key)
 		return true
 	})
-
-	for k := range temp {
-		r.Delete(k)
-	}
 }
 
 func (r *rcontext) Length() int {

@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: api.go
+ * @File Name: api.go (c) 2021
  * @Created: 2021-07-24 08:55:30
- * @Modified: 2021-07-29 14:13:29
+ * @Modified: 2021-08-01 10:11:23
  */
 
 package context
@@ -46,7 +46,34 @@ const (
 	WriteOp
 )
 
-// NewContext 返回一个上下文实例
+var ctxPool sync.Pool
+
+// AcquireCtx returns an empty Context instance from context pool.
+//
+// The returned Context instance may be passed to ReleaseCtx when it is
+// no longer needed. This allows Context recycling, reduces GC pressure
+// and usually improves performance.
+func AcquireCtx(ops ...CtxOp) (Context, error) {
+	if len(ops) > 1 {
+		return nil, fmt.Errorf("only 1 op can be passed in as most, but you passed %d ops", len(ops))
+	}
+	v := ctxPool.Get()
+	if v == nil {
+		return NewContext(ops...)
+	}
+	return v.(Context), nil
+}
+
+// ReleaseCtx returns ctx acquired via AcquireCtx to Context pool.
+//
+// It is forbidden accessing ctx and/or its' members after returning
+// it to Context pool.
+func ReleaseCtx(ctx Context) {
+	ctx.Clear()
+	ctxPool.Put(ctx)
+}
+
+// NewContext returns a new Context instance
 func NewContext(ops ...CtxOp) (Context, error) {
 	if len(ops) > 1 {
 		return nil, fmt.Errorf("only 1 op can be passed in as most, but you passed %d ops", len(ops))

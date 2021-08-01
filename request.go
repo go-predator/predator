@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: request.go
+ * @File Name: request.go (c) 2021
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-07-31 13:03:50
+ * @Modified: 2021-08-01 10:15:49
  */
 
 package predator
@@ -13,6 +13,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"sort"
+	"sync"
 	"sync/atomic"
 
 	pctx "github.com/thep0y/predator/context"
@@ -136,4 +137,43 @@ func (r Request) Hash() (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%x", sha1.Sum(cacheBody)), nil
+}
+
+func (r *Request) Reset() {
+	r.URL = ""
+	r.Method = ""
+	r.Headers.Reset()
+	pctx.ReleaseCtx(r.Ctx)
+	r.Body = r.Body[:0]
+	r.bodyMap = nil
+	r.ID = 0
+	r.abort = false
+	r.crawler = nil
+	r.retryCounter = 0
+}
+
+var (
+	requestPool sync.Pool
+)
+
+// AcquireRequest returns an empty Request instance from request pool.
+//
+// The returned Request instance may be passed to ReleaseRequest when it is
+// no longer needed. This allows Request recycling, reduces GC pressure
+// and usually improves performance.
+func AcquireRequest() *Request {
+	v := requestPool.Get()
+	if v == nil {
+		return &Request{}
+	}
+	return v.(*Request)
+}
+
+// ReleaseRequest returns req acquired via AcquireRequest to request pool.
+//
+// It is forbidden accessing req and/or its' members after returning
+// it to request pool.
+func ReleaseRequest(req *Request) {
+	req.Reset()
+	requestPool.Put(req)
 }
