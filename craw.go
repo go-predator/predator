@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go (c) 2021
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-08-01 10:55:01
+ * @Modified: 2021-08-01 13:10:39
  */
 
 package predator
@@ -18,10 +18,12 @@ import (
 	"sync/atomic"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/rs/zerolog"
 	"github.com/thep0y/predator/cache"
 	pctx "github.com/thep0y/predator/context"
 	"github.com/thep0y/predator/html"
 	"github.com/thep0y/predator/json"
+	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
 )
 
@@ -73,6 +75,8 @@ type Crawler struct {
 	htmlHandler []*HTMLParser
 
 	wg *sync.WaitGroup
+
+	log zerolog.Logger
 }
 
 // NewCrawler creates a new Crawler instance with some CrawlerOptions
@@ -114,8 +118,10 @@ func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]st
 	if ctx == nil {
 		ctx, err = pctx.AcquireCtx()
 		if err != nil {
+			c.log.Error().Caller().Err(err)
 			return err
 		}
+		c.log.Debug().Msg("acquired a new context")
 	}
 
 	request := AcquireRequest()
@@ -134,6 +140,7 @@ func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]st
 		task := &Task{c, request}
 		err = c.goPool.Put(task)
 		if err != nil {
+			c.log.Error().Caller().Err(err)
 			return err
 		}
 		return nil
@@ -160,9 +167,12 @@ func (c *Crawler) prepare(request *Request) (err error) {
 
 	var response *Response
 
-	key, err := request.Hash()
+	var key string
+
+	key, err = request.Hash()
 	if err != nil {
-		return err
+		c.log.Error().Caller().Err(err)
+		return
 	}
 
 	if c.cache != nil {
@@ -172,10 +182,11 @@ func (c *Crawler) prepare(request *Request) (err error) {
 		}
 	}
 
+	var rawResp *fasthttp.Response
 	// A new request is issued when there
 	// is no response from the cache
 	if response == nil {
-		response, err = c.do(request)
+		response, rawResp, err = c.do(request)
 		if err != nil {
 			return
 		}
@@ -184,6 +195,7 @@ func (c *Crawler) prepare(request *Request) (err error) {
 		if c.cache != nil {
 			cacheVal, err := response.Marshal()
 			if err != nil {
+				c.log.Error().Caller().Err(err)
 				return err
 			}
 
@@ -191,6 +203,7 @@ func (c *Crawler) prepare(request *Request) (err error) {
 				c.lock.Lock()
 				err = c.cache.Cache(key, cacheVal)
 				if err != nil {
+					c.log.Error().Caller().Err(err)
 					return err
 				}
 				c.lock.Unlock()
@@ -210,6 +223,12 @@ func (c *Crawler) prepare(request *Request) (err error) {
 
 	// 这里不需要调用 ReleaseRequest，因为 ReleaseResponse 中执行了 ReleaseRequest 方法
 	ReleaseResponse(response)
+	c.log.Debug().Msg("crawler response is released")
+	if rawResp != nil {
+		// 原始响应应该在自定义响应之后释放，不然一些字段的值会出错
+		fasthttp.ReleaseResponse(rawResp)
+		c.log.Debug().Msg("fasthttp response is released")
+	}
 
 	return
 }
@@ -223,13 +242,14 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 	var resp Response
 	err = json.Unmarshal(cachedBody, &resp)
 	if err != nil {
+		c.log.Error().Caller().Err(err)
 		return nil, err
 	}
 	resp.FromCache = true
 	return &resp, nil
 }
 
-func (c *Crawler) do(request *Request) (*Response, error) {
+func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	req := fasthttp.AcquireRequest()
 	req.Header = *request.Headers
 	req.SetRequestURI(request.URL)
@@ -256,13 +276,17 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 		if p, ok := isProxyInvalid(err); ok {
 			err = c.removeInvalidProxy(p)
 			if err != nil {
-				panic(err)
+				c.log.Fatal().Caller().Err(err)
 			}
 			return c.do(request)
 		} else {
-			panic(err)
+			c.log.Fatal().Caller().Err(err)
 		}
 	}
+
+	pid := gjson.ParseBytes(resp.Body()).Get("form.id").String()
+	c.log.Debug().Caller().Msgf("原始响应中的 pid=%s", pid)
+
 	// Only count successful responses
 	atomic.AddUint32(&c.responseCount, 1)
 	// release req
@@ -276,7 +300,7 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 		Headers:    resp.Header,
 	}
 	// release resp
-	fasthttp.ReleaseResponse(resp)
+	// fasthttp.ReleaseResponse(resp)
 
 	if c.retryCount > 0 && request.retryCounter < c.retryCount {
 		if c.retryConditions(*response) {
@@ -285,7 +309,7 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 		}
 	}
 
-	return response, nil
+	return response, resp, nil
 }
 
 func createBody(requestData map[string]string) []byte {
