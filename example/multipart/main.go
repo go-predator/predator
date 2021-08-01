@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: main.go
+ * @File Name: main.go (c) 2021
  * @Created: 2021-07-31 11:50:11
- * @Modified: 2021-07-31 16:25:51
+ * @Modified: 2021-08-01 18:54:54
  */
 
 package main
@@ -11,9 +11,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/thep0y/go-logger/log"
 	"github.com/thep0y/predator"
 	"github.com/thep0y/predator/context"
+	"github.com/thep0y/predator/log"
 	"github.com/tidwall/gjson"
 )
 
@@ -35,20 +35,26 @@ func parsePerPage(c *predator.Crawler, u, queryID string, page int) error {
 	body := buildRequestBody(queryID, page)
 
 	// 将请求体中的关键参数传入上下文
-	ctx, _ := context.NewContext()
+	ctx, _ := context.AcquireCtx()
 	ctx.Put("qid", queryID)
 	ctx.Put("page", page)
-
 	return c.PostMultipart(u, body, ctx)
 }
 
 func main() {
+
+	logOp := &predator.LogOp{}
+	logOp.SetLevel(log.INFO)
+	// logOp.ToConsole()
+	// logOp.ToFile("test.log")
+	logOp.ToConsoleAndFile("test.log")
 
 	crawler := predator.NewCrawler(
 		predator.WithCache(nil, true),
 		predator.WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0"),
 		// 设置 20 个并发池
 		predator.WithConcurrency(20),
+		predator.WithLogger(logOp),
 	)
 
 	crawler.BeforeRequest(func(r *predator.Request) {
@@ -59,16 +65,19 @@ func main() {
 		}
 
 		r.SetHeaders(headers)
-
-		log.Debugf("请求第 %v 页", r.Ctx.GetAny("page"))
 	})
 
 	crawler.AfterResponse(func(r *predator.Response) {
 		qid := r.Ctx.Get("qid")
+		if qid == "" {
+			panic("没有从上下文中读取到数据")
+		}
 
 		id := gjson.ParseBytes(r.Body).Get("form.id").String()
 
-		log.Debugf("响应是否正确：%v，响应来自缓存：%v", id == qid, r.FromCache)
+		if id != qid {
+			fmt.Printf("qid=%s, id=%s, 响应是否正确：%v，响应来自缓存：%v\n", qid, id, id == qid, r.FromCache)
+		}
 
 	})
 
@@ -76,10 +85,12 @@ func main() {
 	for i := 0; i < 100; i++ {
 		err := parsePerPage(crawler, "https://httpbin.org/post", fmt.Sprint(i+100), i+1)
 		if err != nil {
-			log.Error("爬取失败：", err)
+			fmt.Println("爬取失败：", err)
 		}
 	}
 
 	// 使用并发请求时，需要等待全部任务完成，否则会有一个池容量的任务丢失
 	crawler.Wait()
+
+	crawler.ClearCache()
 }

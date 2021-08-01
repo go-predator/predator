@@ -8,9 +8,9 @@ require (
 	github.com/json-iterator/go v1.1.11
 	github.com/klauspost/compress v1.12.2
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/rs/zerolog v1.15.0
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/stretchr/testify v1.6.1 // indirect
-	github.com/thep0y/go-logger v1.1.1
 	github.com/tidwall/gjson v1.8.1
 	github.com/valyala/fasthttp v1.28.0
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e

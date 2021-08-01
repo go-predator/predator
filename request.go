@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go (c) 2021
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-08-01 10:15:49
+ * @Modified: 2021-08-01 12:24:42
  */
 
 package predator
@@ -143,9 +143,8 @@ func (r *Request) Reset() {
 	r.URL = ""
 	r.Method = ""
 	r.Headers.Reset()
-	pctx.ReleaseCtx(r.Ctx)
 	r.Body = r.Body[:0]
-	r.bodyMap = nil
+	r.bodyMap = make(map[string]string)
 	r.ID = 0
 	r.abort = false
 	r.crawler = nil

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go (c) 2021
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-08-01 13:10:39
+ * @Modified: 2021-08-01 23:01:46
  */
 
 package predator
@@ -23,7 +23,6 @@ import (
 	pctx "github.com/thep0y/predator/context"
 	"github.com/thep0y/predator/html"
 	"github.com/thep0y/predator/json"
-	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
 )
 
@@ -95,12 +94,22 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	c.Context = context.Background()
 
+	c.log.Info().
+		Bool("concurrent", c.goPool != nil).
+		Msg("concurrent state")
+
 	return c
 }
 
 /************************* http 请求方法 ****************************/
 
 func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]string, headers map[string]string, ctx pctx.Context) error {
+	defer func() {
+		if err := recover(); err != nil {
+			c.log.Fatal().Err(fmt.Errorf("Worker panic: %s\n", err))
+		}
+	}()
+
 	var err error
 
 	reqHeaders := new(fasthttp.RequestHeader)
@@ -113,19 +122,20 @@ func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]st
 		for k, v := range c.cookies {
 			reqHeaders.SetCookie(k, v)
 		}
+		c.log.Debug().
+			Str("cookies", reqHeaders.String()).
+			Msg("cookies is set")
 	}
 
 	if ctx == nil {
 		ctx, err = pctx.AcquireCtx()
 		if err != nil {
-			c.log.Error().Caller().Err(err)
+			c.log.Error().Caller().Err(err).Send()
 			return err
 		}
-		c.log.Debug().Msg("acquired a new context")
 	}
 
 	request := AcquireRequest()
-
 	request.URL = URL
 	request.Method = method
 	request.Headers = reqHeaders
@@ -140,7 +150,7 @@ func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]st
 		task := &Task{c, request}
 		err = c.goPool.Put(task)
 		if err != nil {
-			c.log.Error().Caller().Err(err)
+			c.log.Error().Caller().Err(err).Send()
 			return err
 		}
 		return nil
@@ -155,13 +165,28 @@ func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]st
 }
 
 func (c *Crawler) prepare(request *Request) (err error) {
+	c.log.Info().
+		Uint32("request_id", atomic.LoadUint32(&request.ID)).
+		Str("method", request.Method).
+		Str("url", request.URL).
+		Msg("requesting")
+
 	if c.goPool != nil {
 		defer c.wg.Done()
 	}
 
 	c.processRequestHandler(request)
 
+	if request.Ctx.Length() > 0 {
+		c.log.Debug().
+			RawJSON("context", request.Ctx.Bytes()).
+			Msg("using context")
+	}
+
 	if request.abort {
+		c.log.Debug().
+			Uint32("request_id", atomic.LoadUint32(&request.ID)).
+			Msg("the request is aborted")
 		return
 	}
 
@@ -169,17 +194,26 @@ func (c *Crawler) prepare(request *Request) (err error) {
 
 	var key string
 
-	key, err = request.Hash()
-	if err != nil {
-		c.log.Error().Caller().Err(err)
-		return
-	}
-
 	if c.cache != nil {
+		key, err = request.Hash()
+		if err != nil {
+			c.log.Error().Caller().Err(err).Send()
+			return
+		}
+
+		c.log.Debug().
+			Uint32("request_id", atomic.LoadUint32(&request.ID)).
+			Str("cache_key", key).
+			Msg("cache key has been generated")
+
 		response, err = c.checkCache(key)
 		if err != nil {
 			return
 		}
+		c.log.Debug().
+			Uint32("request_id", atomic.LoadUint32(&request.ID)).
+			Str("cache_key", key).
+			Msg("find the response in the cache")
 	}
 
 	var rawResp *fasthttp.Response
@@ -195,7 +229,7 @@ func (c *Crawler) prepare(request *Request) (err error) {
 		if c.cache != nil {
 			cacheVal, err := response.Marshal()
 			if err != nil {
-				c.log.Error().Caller().Err(err)
+				c.log.Error().Caller().Err(err).Send()
 				return err
 			}
 
@@ -203,7 +237,7 @@ func (c *Crawler) prepare(request *Request) (err error) {
 				c.lock.Lock()
 				err = c.cache.Cache(key, cacheVal)
 				if err != nil {
-					c.log.Error().Caller().Err(err)
+					c.log.Error().Caller().Err(err).Send()
 					return err
 				}
 				c.lock.Unlock()
@@ -214,6 +248,13 @@ func (c *Crawler) prepare(request *Request) (err error) {
 		response.Ctx = request.Ctx
 	}
 
+	c.log.Info().
+		Str("method", request.Method).
+		Int("status_code", response.StatusCode).
+		Bool("from_cache", response.FromCache).
+		Uint32("request_id", atomic.LoadUint32(&request.ID)).
+		Msg("got a response")
+
 	c.processResponseHandler(response)
 
 	err = c.processHTMLHandler(response)
@@ -223,11 +264,9 @@ func (c *Crawler) prepare(request *Request) (err error) {
 
 	// 这里不需要调用 ReleaseRequest，因为 ReleaseResponse 中执行了 ReleaseRequest 方法
 	ReleaseResponse(response)
-	c.log.Debug().Msg("crawler response is released")
 	if rawResp != nil {
 		// 原始响应应该在自定义响应之后释放，不然一些字段的值会出错
 		fasthttp.ReleaseResponse(rawResp)
-		c.log.Debug().Msg("fasthttp response is released")
 	}
 
 	return
@@ -242,7 +281,7 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 	var resp Response
 	err = json.Unmarshal(cachedBody, &resp)
 	if err != nil {
-		c.log.Error().Caller().Err(err)
+		c.log.Error().Caller().Err(err).Send()
 		return nil, err
 	}
 	resp.FromCache = true
@@ -251,6 +290,7 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 
 func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	req := fasthttp.AcquireRequest()
+
 	req.Header = *request.Headers
 	req.SetRequestURI(request.URL)
 
@@ -276,16 +316,13 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		if p, ok := isProxyInvalid(err); ok {
 			err = c.removeInvalidProxy(p)
 			if err != nil {
-				c.log.Fatal().Caller().Err(err)
+				c.log.Fatal().Caller().Err(err).Send()
 			}
 			return c.do(request)
 		} else {
-			c.log.Fatal().Caller().Err(err)
+			c.log.Fatal().Caller().Err(err).Send()
 		}
 	}
-
-	pid := gjson.ParseBytes(resp.Body()).Get("form.id").String()
-	c.log.Debug().Caller().Msgf("原始响应中的 pid=%s", pid)
 
 	// Only count successful responses
 	atomic.AddUint32(&c.responseCount, 1)
@@ -299,12 +336,13 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		Request:    request,
 		Headers:    resp.Header,
 	}
-	// release resp
-	// fasthttp.ReleaseResponse(resp)
 
 	if c.retryCount > 0 && request.retryCounter < c.retryCount {
 		if c.retryConditions(*response) {
 			atomic.AddUint32(&request.retryCounter, 1)
+			c.log.Info().
+				Uint32("retry_count", atomic.LoadUint32(&request.retryCounter)).
+				Msg("retrying")
 			return c.do(request)
 		}
 	}
@@ -378,6 +416,10 @@ func (c *Crawler) PostMultipart(URL string, requestData map[string]string, ctx p
 		boundary = boundaryFunc[0]()
 	}
 
+	c.log.Debug().
+		Str("boundary", boundary).
+		Msg("boundary has been generated")
+
 	headers := make(map[string]string)
 
 	headers["Content-Type"] = "multipart/form-data; boundary=---------------------------" + boundary
@@ -392,6 +434,7 @@ func (c *Crawler) ClearCache() error {
 	if c.cache == nil {
 		return NoCacheSet
 	}
+	c.log.Warn().Msg("clear all cache")
 	return c.cache.Clear()
 }
 
@@ -508,12 +551,21 @@ func (c *Crawler) removeInvalidProxy(proxy string) error {
 			c.proxyURLPool[targetIndex+1:]...,
 		)
 
+		c.log.Debug().
+			Str("proxy", proxy).
+			Msg("invalid proxy have been deleted from the proxy pool")
+
 		if len(c.proxyURLPool) == 0 {
 			return EmptyProxyPoolError
 		}
+	} else {
+		// 没有在代理池中找到失效代理，这个代理来路不明，一样报错
+		return UnkownProxyIPError
 	}
 
-	// 在池和 ip 都不能匹配时，这个代理 ip 肯定是用户在 BeforeRequest 中传入的，
-	// 既然用户传入了代理，其必然是只想通过代理进行爬虫，所以一样报错
 	return nil
+}
+
+func (c *Crawler) Error(err error) {
+	c.log.Error().Caller().Err(err).Send()
 }

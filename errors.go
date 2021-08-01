@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: errors.go (c) 2021
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-08-01 08:31:07
+ * @Modified: 2021-08-01 18:33:58
  */
 
 package predator
@@ -18,7 +18,7 @@ var (
 	UnknownProtocolError = errors.New("only support http and socks5 protocol")
 	ProxyExpiredError    = errors.New("the proxy ip has expired")
 	OnlyOneProxyIPError  = errors.New("unable to delete the only proxy ip")
-	CustomProxyIPError   = errors.New("custom proxy ip is invalid")
+	UnkownProxyIPError   = errors.New("proxy is unkown")
 	EmptyProxyPoolError  = errors.New("after deleting the invalid proxy, the current proxy ip pool is empty")
 	NoCacheSet           = errors.New("No cache set")
 )

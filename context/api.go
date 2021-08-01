@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: api.go (c) 2021
  * @Created: 2021-07-24 08:55:30
- * @Modified: 2021-08-01 10:11:23
+ * @Modified: 2021-08-01 22:26:02
  */
 
 package context
@@ -33,6 +33,8 @@ type Context interface {
 	Length() int
 	// String 将上下文转换为 json(非标准) 字符串
 	String() string
+	// Bytes 格式化为 json 用的字节切片
+	Bytes() []byte
 }
 
 // 上下文类型

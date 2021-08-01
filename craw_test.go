@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go (c) 2021
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-08-01 09:36:27
+ * @Modified: 2021-08-01 22:48:37
  */
 
 package predator
@@ -24,6 +24,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/thep0y/predator/cache"
 	"github.com/thep0y/predator/html"
+	"github.com/thep0y/predator/log"
 	"github.com/tidwall/gjson"
 )
 
@@ -232,13 +233,14 @@ func TestHTTPProxy(t *testing.T) {
 	ts := server()
 	defer ts.Close()
 
-	validIP := "http://123.73.209.237:46603"
+	validIP := "htp://123.73.209.237:46603"
 	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
 
 	Convey("测试有效代理", t, func() {
 		c := NewCrawler(
 			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.55"),
 			WithProxy(validIP),
+			WithLogger(nil),
 		)
 
 		c.AfterResponse(func(r *Response) {
@@ -268,7 +270,7 @@ func TestHTTPProxy(t *testing.T) {
 			"http://14.134.207.22:45108",
 			"http://14.134.208.22:45109",
 		}
-		c := NewCrawler(WithProxyPool(ips))
+		c := NewCrawler(WithProxyPool(ips), WithLogger(nil))
 
 		c.Get(u)
 	})
@@ -285,7 +287,7 @@ func TestHTTPProxy(t *testing.T) {
 			"http://27.29.155.141:45118",
 			"http://14.134.208.22:45109",
 		}
-		c := NewCrawler(WithProxyPool(ips))
+		c := NewCrawler(WithProxyPool(ips), WithLogger(nil))
 
 		c.AfterResponse(func(r *Response) {
 			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
@@ -694,5 +696,60 @@ func TestCache(t *testing.T) {
 
 			testCache(c, t)
 		})
+	})
+}
+
+func TestLog(t *testing.T) {
+	ts := server()
+	defer ts.Close()
+
+	Convey("默认在终端美化输出 INFO 等级\n", t, func() {
+		c := NewCrawler(
+			WithLogger(nil),
+		)
+
+		c.Get(ts.URL)
+	})
+
+	Convey("在终端美化输出 DEBUG 等级\n", t, func() {
+		l := new(LogOp)
+		l.SetLevel(log.DEBUG)
+		c := NewCrawler(
+			WithLogger(l),
+		)
+
+		c.BeforeRequest(func(r *Request) {
+			r.Ctx.Put("key", "value")
+		})
+
+		c.Get(ts.URL)
+	})
+
+	Convey("保存到文件\n", t, func() {
+		l := new(LogOp)
+		l.SetLevel(log.DEBUG)
+		l.ToFile("test.log")
+
+		c := NewCrawler(
+			WithLogger(l),
+		)
+
+		c.Get(ts.URL)
+	})
+
+	Convey("既保存到文件，也输出到终端\n", t, func() {
+		l := new(LogOp)
+		l.SetLevel(log.DEBUG)
+		l.ToConsoleAndFile("test2.log")
+
+		c := NewCrawler(
+			WithLogger(l),
+		)
+
+		c.BeforeRequest(func(r *Request) {
+			r.Ctx.Put("key", "value")
+		})
+
+		c.Get(ts.URL)
 	})
 }

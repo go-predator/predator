@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: element.go
+ * @File Name: element.go (c) 2021
  * @Created: 2021-07-27 20:35:31
- * @Modified: 2021-07-29 14:09:59
+ * @Modified: 2021-08-01 23:02:45
  */
 
 package html

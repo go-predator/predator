@@ -250,7 +250,53 @@ c := NewCrawler(WithCache(nil, true))
 WithProxyPool([]string{"http://ip:port", "socks5://ip:port"})
 ```
 
-#### 10 关于 JSON
+#### 10 日志
+
+日志使用的是流行日志库[`zerolog`](https://github.com/rs/zerolog)。
+
+默认情况下，日志是不开启的，需要手动开启。
+
+`WithLogger`选项需要填入一个参数`*predator.LogOp`，当填入`nil`时，默认会以`INFO`等级从终端美化输出。
+
+```go
+	crawler := predator.NewCrawler(
+		predator.WithLogger(nil),
+	)
+```
+
+`predator.LogOp`对外公开四个方法：
+
+- *SetLevel*：设置日志等级。等级可选：`DEBUG`、`INFO`、`WARNING`、`ERROR`、`FATAL`
+
+  ```go
+  logOp := new(predator.LogOp)
+  // 设置为 INFO
+  logOp.SetLevel(log.INFO)
+  ```
+
+- *ToConsole*：美化输出到终端。
+
+- *ToFile*：JSON 格式输出到文件。
+
+- *ToConsoleAndFile*：既美化输出到终端，同时以 JSON 格式输出到文件。
+
+日志的完整示例：
+
+```go
+import "github.com/thep0y/predator/log"
+
+func main() {
+	logOp := new(predator.LogOp)
+	logOp.SetLevel(log.INFO)
+	logOp.ToConsoleAndFile("test.log")
+
+	crawler := predator.NewCrawler(
+		predator.WithLogger(logOp),
+	)
+}
+```
+
+#### 11 关于 JSON
 
 本来想着封装一个 JSON 包用来快速处理 JSON 响应，但是想了一两天也没想出个好办法来，因为我能想到的，[gjson](https://github.com/tidwall/gjson)都已经解决了。
 
@@ -284,6 +330,7 @@ json.UnmarshalFromString()
 - [x] 数据库管理接口，用来保存爬虫数据，并完成一种或多种数据库的管理
 	- SQL 数据库接口已实现了，NoSQL 接口与 SQL 差别较大，就不实现了，如果有使用 NoSQL 的需求，请自己实现
 	- 数据库接口没有封装在 Crawler 方法中，根据需要使用，一般场景下够用，复杂场景中仍然需要自己重写数据库管理
-- [ ] 添加日志
+- [x] 添加日志
+  - 可能还不完善
 - [ ] 为`Request`和`Response`的请求体`Body`添加池管理，减少 GC 次数
 - [ ] 增加对 robots.txt 的判断，默认遵守 robots.txt 规则，但可以选择忽略

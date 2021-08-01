@@ -3,18 +3,72 @@
  * @Email: thepoy@163.com
  * @File Name: options.go (c) 2021
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-07-31 20:18:24
+ * @Modified: 2021-08-01 21:59:51
  */
 
 package predator
 
 import (
+	"io"
+	"os"
 	"sync"
 
+	"github.com/rs/zerolog"
 	"github.com/thep0y/predator/cache"
+	"github.com/thep0y/predator/log"
 )
 
 type CrawlerOption func(*Crawler)
+
+type LogOp struct {
+	level zerolog.Level
+	Out   io.Writer
+}
+
+func (l *LogOp) SetLevel(level zerolog.Level) {
+	l.level = level
+}
+
+func (l *LogOp) ToConsole() {
+	l.Out = zerolog.ConsoleWriter{Out: os.Stdout}
+}
+
+func fileWriter(filepath string) (io.Writer, error) {
+	return os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+}
+
+func (l *LogOp) ToFile(filepath string) error {
+	writer, err := fileWriter(filepath)
+	if err != nil {
+		return err
+	}
+	l.Out = writer
+	return nil
+}
+
+func (l *LogOp) ToConsoleAndFile(filepath string) error {
+	fw, err := fileWriter(filepath)
+	if err != nil {
+		return err
+	}
+	l.Out = zerolog.MultiLevelWriter(fw, zerolog.ConsoleWriter{Out: os.Stdout})
+	return nil
+}
+
+func WithLogger(lop *LogOp) CrawlerOption {
+	if lop == nil {
+		lop = new(LogOp)
+		lop.level = zerolog.InfoLevel
+	}
+
+	if lop.Out == nil {
+		lop.Out = zerolog.ConsoleWriter{Out: os.Stdout}
+	}
+
+	return func(c *Crawler) {
+		c.log = log.NewLogger(lop.level, lop.Out)
+	}
+}
 
 func WithUserAgent(ua string) CrawlerOption {
 	return func(c *Crawler) {

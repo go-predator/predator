@@ -3,12 +3,13 @@
  * @Email: thepoy@163.com
  * @File Name: write.go (c) 2021
  * @Created: 2021-07-24 08:56:16
- * @Modified: 2021-08-01 10:03:40
+ * @Modified: 2021-08-01 22:30:18
  */
 
 package context
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"sync"
@@ -88,18 +89,41 @@ func (w *wcontext) Length() int {
 	return len(w.m)
 }
 
+func (w *wcontext) Bytes() []byte {
+	var b bytes.Buffer
+	b.WriteString("{")
+	i := 0
+	for k, v := range w.m {
+		if i > 0 {
+			b.WriteString(`, `)
+		}
+		b.WriteString(`"`)
+		b.WriteString(k)
+		b.WriteString(`": "`)
+		b.WriteString(fmt.Sprint(v))
+		b.WriteString(`"`)
+		i++
+	}
+	b.WriteString("}")
+	return b.Bytes()
+}
+
 func (w *wcontext) String() string {
 	w.l.RLock()
 	defer w.l.RUnlock()
 
 	var s strings.Builder
 	s.WriteString("{")
+	i := 0
 	for k, v := range w.m {
+		if i > 0 {
+			s.WriteString(`, `)
+		}
 		s.WriteString(`"`)
 		s.WriteString(k)
 		s.WriteString(`": "`)
 		s.WriteString(fmt.Sprint(v))
-		s.WriteString(`", `)
+		s.WriteString(`"`)
 	}
 	s.WriteString("}")
 	return s.String()

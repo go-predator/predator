@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: zlib.go
+ * @File Name: zlib.go (c) 2021
  * @Created: 2021-07-23 14:55:04
- * @Modified: 2021-07-31 09:15:26
+ * @Modified: 2021-08-01 23:02:25
  */
 
 package tools

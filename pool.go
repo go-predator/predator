@@ -3,17 +3,19 @@
  * @Email: thepoy@163.com
  * @File Name: pool.go (c) 2021
  * @Created: 2021-07-29 22:30:37
- * @Modified: 2021-07-31 20:30:55
+ * @Modified: 2021-08-01 21:24:59
  */
 
 package predator
 
 import (
 	"errors"
-	"log"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/rs/zerolog"
 )
 
 // errors
@@ -42,7 +44,7 @@ type Pool struct {
 	runningWorkers uint64
 	status         int64
 	chTask         chan *Task
-	PanicHandler   func(interface{})
+	log            zerolog.Logger
 	sync.Mutex
 }
 
@@ -118,11 +120,7 @@ func (p *Pool) run() {
 		defer func() {
 			p.decRunning()
 			if r := recover(); r != nil {
-				if p.PanicHandler != nil {
-					p.PanicHandler(r)
-				} else {
-					log.Printf("Worker panic: %s\n", r)
-				}
+				p.log.Error().Err(fmt.Errorf("Worker panic: %s\n", r))
 			}
 			p.checkWorker() // check worker avoid no worker running
 		}()

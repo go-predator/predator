@@ -3,12 +3,13 @@
  * @Email: thepoy@163.com
  * @File Name: read.go (c) 2021
  * @Created: 2021-07-24 08:56:04
- * @Modified: 2021-08-01 10:00:34
+ * @Modified: 2021-08-01 22:46:38
  */
 
 package context
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"sync"
@@ -75,17 +76,42 @@ func (r *rcontext) Length() int {
 	return l
 }
 
+func (r *rcontext) Bytes() []byte {
+	var b bytes.Buffer
+	b.WriteString("{")
+	i := 0
+	r.Range(func(key, value interface{}) bool {
+		if i > 0 {
+			b.WriteString(`, `)
+		}
+		b.WriteString(`"`)
+		b.WriteString(key.(string))
+		b.WriteString(`": "`)
+		b.WriteString(fmt.Sprint(value))
+		b.WriteString(`"`)
+		i++
+		return true
+	})
+	b.WriteString("}")
+	return b.Bytes()
+}
+
 func (r *rcontext) String() string {
 	var s strings.Builder
 	s.WriteString("{")
+	i := 0
 	r.Range(func(key, value interface{}) bool {
+		if i > 0 {
+			s.WriteString(`, `)
+		}
 		s.WriteString(`"`)
 		s.WriteString(key.(string))
 		s.WriteString(`": "`)
 		s.WriteString(fmt.Sprint(value))
-		s.WriteString(`", `)
+		s.WriteString(`"`)
+		i++
 		return true
 	})
 	s.WriteString("}")
-	return s.String()
+	return strings.ReplaceAll(s.String(), ", }", "}")
 }
