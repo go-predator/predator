@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go (c) 2021
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-08-02 14:37:27
+ * @Modified: 2021-08-02 18:01:57
  */
 
 package predator
@@ -148,7 +148,11 @@ func (r *Request) Reset() {
 	r.URL = ""
 	r.Method = ""
 	r.Headers.Reset()
-	r.Body = r.Body[:0]
+	if r.Body != nil {
+		// 将 body 长度截为 0，这样不会删除引用关系，GC 不会回收，
+		// 可以实现 body 的复用
+		r.Body = r.Body[:0]
+	}
 	r.bodyMap = make(map[string]string)
 	r.ID = 0
 	r.abort = false

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go (c) 2021
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-08-01 12:45:36
+ * @Modified: 2021-08-02 18:01:36
  */
 
 package predator
@@ -56,7 +56,11 @@ func (r *Response) String() string {
 
 func (r *Response) Reset() {
 	r.StatusCode = 0
-	r.Body = r.Body[:0]
+	if r.Body != nil {
+		// 将 body 长度截为 0，这样不会删除引用关系，GC 不会回收，
+		// 可以实现 body 的复用
+		r.Body = r.Body[:0]
+	}
 	ctx.ReleaseCtx(r.Ctx)
 	ReleaseRequest(r.Request)
 	r.Headers.Reset()
