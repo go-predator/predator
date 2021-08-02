@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: proxy.go (c) 2021
  * @Created: 2021-07-27 12:15:35
- * @Modified: 2021-08-01 21:20:04
+ * @Modified: 2021-08-02 08:16:21
  */
 
 package predator
@@ -16,6 +16,9 @@ import (
 	"github.com/thep0y/predator/tools"
 	"github.com/valyala/fasthttp"
 )
+
+// 可以从一些代理网站的 api 中请求指定数量的代理 ip
+type AcquireProxies func(n int) []string
 
 func (c *Crawler) DialWithProxy() fasthttp.DialFunc {
 	return c.DialWithProxyAndTimeout(0)

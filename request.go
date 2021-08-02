@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go (c) 2021
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-08-01 12:24:42
+ * @Modified: 2021-08-02 14:37:27
  */
 
 package predator
@@ -12,7 +12,12 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
+	// "io"
+	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -175,4 +180,105 @@ func AcquireRequest() *Request {
 func ReleaseRequest(req *Request) {
 	req.Reset()
 	requestPool.Put(req)
+}
+
+// MultipartForm 请求体的构造
+type MultipartForm struct {
+	buf *bytes.Buffer
+	// 每个网站 boundary 前的横线数量是固定的，直接赋给这个字段
+	boundary string
+	bodyMap  map[string]string
+}
+
+func NewMultipartForm(dash string, f CustomRandomBoundary) *MultipartForm {
+	return &MultipartForm{
+		buf:      &bytes.Buffer{},
+		boundary: dash + f(),
+		bodyMap:  make(map[string]string),
+	}
+}
+
+// Boundary returns the Writer's boundary.
+func (mf *MultipartForm) Boundary() string {
+	return mf.boundary
+}
+
+// FormDataContentType returns the Content-Type for an HTTP
+// multipart/form-data with this Writer's Boundary.
+func (mf *MultipartForm) FormDataContentType() string {
+	b := mf.boundary
+	// We must quote the boundary if it contains any of the
+	// tspecials characters defined by RFC 2045, or space.
+	if strings.ContainsAny(b, `()<>@,;:\"/[]?= `) {
+		b = `"` + b + `"`
+	}
+	return "multipart/form-data; boundary=" + b
+}
+
+func (mf *MultipartForm) appendHead() {
+	bodyBoundary := "--" + mf.boundary
+	mf.buf.WriteString(bodyBoundary + "\r\n")
+}
+
+func (mf *MultipartForm) appendTail() {
+	mf.buf.WriteString("\r\n")
+}
+
+var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
+
+func escapeQuotes(s string) string {
+	return quoteEscaper.Replace(s)
+}
+
+func (mf *MultipartForm) AppendString(name, value string) {
+	mf.appendHead()
+	mf.buf.WriteString(`Content-Disposition: form-data; name="`)
+	mf.buf.WriteString(name)
+	mf.buf.WriteString(`"`)
+	mf.buf.WriteString("\r\n\r\n")
+	mf.buf.WriteString(value)
+	mf.appendTail()
+
+	mf.bodyMap[name] = value
+}
+
+func getMimeType(buf []byte) string {
+	return http.DetectContentType(buf)
+}
+
+func (mf *MultipartForm) AppendFile(name, filePath string) error {
+	_, filename := filepath.Split(filePath)
+
+	mf.appendHead()
+	mf.buf.WriteString(`Content-Disposition: form-data; name="`)
+	mf.buf.WriteString(name)
+	mf.buf.WriteString(`"; filename="`)
+	mf.buf.WriteString(filename)
+	mf.buf.WriteString(`"`)
+	mf.buf.WriteString("\r\nContent-Type: ")
+
+	fileBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	// 只需要使用前 512 个字节即可检测出一个文件的类型
+	contentType := getMimeType(fileBytes[:512])
+
+	mf.buf.WriteString(contentType)
+	mf.buf.WriteString("\r\n\r\n")
+
+	mf.buf.Write(fileBytes)
+
+	mf.appendTail()
+
+	mf.bodyMap[filename] = filePath
+
+	return nil
+}
+
+func (mf *MultipartForm) Bytes() []byte {
+	bodyBoundary := "--" + mf.boundary + "--"
+	mf.buf.WriteString(bodyBoundary)
+	return mf.buf.Bytes()
 }

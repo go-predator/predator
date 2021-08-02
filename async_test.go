@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: async_test.go (c) 2021
  * @Created: 2021-07-31 13:14:09
- * @Modified: 2021-08-01 10:38:47
+ * @Modified: 2021-08-02 13:12:04
  */
 
 package predator
@@ -30,13 +30,20 @@ func buildRequestBody(queryID string, page int) map[string]string {
 func parsePerPage(c *Crawler, u, queryID string, page int) error {
 	// 创造请求体
 	body := buildRequestBody(queryID, page)
+	form := NewMultipartForm(
+		"-------------------",
+		randomBoundary,
+	)
+	for k, v := range body {
+		form.AppendString(k, v)
+	}
 
 	// 将请求体中的关键参数传入上下文
 	ctx, _ := context.NewContext()
 	ctx.Put("qid", queryID)
 	ctx.Put("page", page)
 
-	return c.PostMultipart(u, body, ctx)
+	return c.PostMultipart(u, form, ctx)
 }
 
 func testAsync(crawler *Crawler, t *testing.T) {

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go (c) 2021
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-08-01 22:48:37
+ * @Modified: 2021-08-02 14:40:59
  */
 
 package predator
@@ -26,6 +26,7 @@ import (
 	"github.com/thep0y/predator/html"
 	"github.com/thep0y/predator/log"
 	"github.com/tidwall/gjson"
+	"github.com/valyala/fasthttp"
 )
 
 func TestNewCrawler(t *testing.T) {
@@ -202,28 +203,38 @@ func TestRequest(t *testing.T) {
 		c.Post(ts.URL+"/login", requestData, nil)
 	})
 
+	// 想运行此示例，需要自行更新 cookie 和 auth_token
 	Convey("测试 PostMultipart", t, func() {
 		type TestResponse struct {
-			Form map[string]string `json:"form"`
+			Form  map[string]string `json:"form"`
+			Files map[string]string `json:"files"`
 		}
 
-		c := NewCrawler()
-		requestData := map[string]string{
-			"key1": "value1",
-			"key2": "value2",
-			"key3": "value3",
-			"key4": "",
-		}
+		c := NewCrawler(
+			WithCookies(map[string]string{
+				"PHPSESSID": "7ijqglcno1cljiqs76t2vo5oh2",
+			}))
+		form := NewMultipartForm(
+			"-------------------",
+			randomBoundary,
+		)
+
+		var err error
+
+		form.AppendString("type", "file")
+		form.AppendString("action", "upload")
+		form.AppendString("timestamp", "1627871450610")
+		form.AppendString("auth_token", "f43cdc8a537eff5169dfddb946c2365d1f897b0c")
+		form.AppendString("nsfw", "0")
+		err = form.AppendFile("source", "/Users/thepoy/Pictures/Nginx.png")
+		So(err, ShouldBeNil)
 
 		c.AfterResponse(func(r *Response) {
-			So(r.StatusCode, ShouldEqual, 200)
-
-			var f TestResponse
-			json.Unmarshal(r.Body, &f)
-			So(reflect.DeepEqual(f.Form, requestData), ShouldBeTrue)
+			status := gjson.ParseBytes(r.Body).Get("status_code").Int()
+			So(status, ShouldEqual, fasthttp.StatusOK)
 		})
 
-		err := c.PostMultipart("https://httpbin.org/post", requestData, nil)
+		err = c.PostMultipart("https://imgtu.com/json", form, nil)
 		So(err, ShouldBeNil)
 	})
 

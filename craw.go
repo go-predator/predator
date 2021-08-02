@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go (c) 2021
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-08-01 23:01:46
+ * @Modified: 2021-08-02 15:06:56
  */
 
 package predator
@@ -57,9 +57,11 @@ type Crawler struct {
 	cookies         map[string]string
 	goPool          *Pool
 	proxyURLPool    []string
-	timeout         uint
-	requestCount    uint32
-	responseCount   uint32
+	// TODO: 动态获取代理
+	dynamicProxyFunc AcquireProxies
+	timeout          uint
+	requestCount     uint32
+	responseCount    uint32
 	// 在多协程中这个上下文管理可以用来退出或取消多个协程
 	Context context.Context
 
@@ -123,7 +125,7 @@ func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]st
 			reqHeaders.SetCookie(k, v)
 		}
 		c.log.Debug().
-			Str("cookies", reqHeaders.String()).
+			Bytes("cookies", reqHeaders.Peek("Cookie")).
 			Msg("cookies is set")
 	}
 
@@ -204,16 +206,19 @@ func (c *Crawler) prepare(request *Request) (err error) {
 		c.log.Debug().
 			Uint32("request_id", atomic.LoadUint32(&request.ID)).
 			Str("cache_key", key).
-			Msg("cache key has been generated")
+			Msg("generate cache key")
 
 		response, err = c.checkCache(key)
 		if err != nil {
 			return
 		}
-		c.log.Debug().
-			Uint32("request_id", atomic.LoadUint32(&request.ID)).
-			Str("cache_key", key).
-			Msg("find the response in the cache")
+
+		if response != nil {
+			c.log.Debug().
+				Uint32("request_id", atomic.LoadUint32(&request.ID)).
+				Str("cache_key", key).
+				Msg("response is in the cache")
+		}
 	}
 
 	var rawResp *fasthttp.Response
@@ -253,7 +258,7 @@ func (c *Crawler) prepare(request *Request) (err error) {
 		Int("status_code", response.StatusCode).
 		Bool("from_cache", response.FromCache).
 		Uint32("request_id", atomic.LoadUint32(&request.ID)).
-		Msg("got a response")
+		Msg("response")
 
 	c.processResponseHandler(response)
 
@@ -371,9 +376,8 @@ func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Conte
 	return c.request(fasthttp.MethodPost, URL, createBody(requestData), requestData, nil, ctx)
 }
 
-func createMultipartBody(boundary string, data map[string]string) []byte {
-	// TODO: Multipart 请求体没这么简单，还有很大的改进空间
-	dashBoundary := "-----------------------------" + boundary
+func createMultipartBody(dash, boundary string, data map[string]string) []byte {
+	dashBoundary := "--" + dash + boundary
 
 	var buffer strings.Builder
 
@@ -402,29 +406,10 @@ func randomBoundary() string {
 }
 
 // PostMultipart
-func (c *Crawler) PostMultipart(URL string, requestData map[string]string, ctx pctx.Context, boundaryFunc ...CustomRandomBoundary) error {
-	if len(boundaryFunc) > 1 {
-		return fmt.Errorf("only one boundaryFunc can be passed in at most, but you pass in %d", len(boundaryFunc))
-	}
-
-	// TODO: 不同网站，对于减号的数量要求也不一样，需要交由用户自定义。
-	// 以 Content-Type 中的减号数量为准，body 中的减号数量比 Content-Type 多 2 个
-	var boundary string
-	if len(boundaryFunc) == 0 {
-		boundary = randomBoundary()
-	} else {
-		boundary = boundaryFunc[0]()
-	}
-
-	c.log.Debug().
-		Str("boundary", boundary).
-		Msg("boundary has been generated")
-
+func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Context) error {
 	headers := make(map[string]string)
-
-	headers["Content-Type"] = "multipart/form-data; boundary=---------------------------" + boundary
-	body := createMultipartBody(boundary, requestData)
-	return c.request(fasthttp.MethodPost, URL, body, requestData, headers, ctx)
+	headers["Content-Type"] = form.FormDataContentType()
+	return c.request(fasthttp.MethodPost, URL, form.Bytes(), form.bodyMap, headers, ctx)
 }
 
 /************************* 公共方法 ****************************/

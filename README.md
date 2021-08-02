@@ -111,9 +111,9 @@ crawler.Post("http://www.baidu.com", body, nil)
 
 #### 4 发送 multipart/form-data 请求
 
-`multipart/form-data`方法需要使用专门的`PostMultipart`方法，只是当前请求体只支持`map[string]string`，没有别的原因，因为我只用到这种类型，如果以后有别的需求，再改成`map[string]interface{}`。
+`multipart/form-data`方法需要使用专门的`PostMultipart`方法，示例可能较长，这里不便书写。
 
-参考示例：https://github.com/thep0y/predator/blob/main/example/multipart/main.go
+使用方法请参考示例：https://github.com/thep0y/predator/blob/main/example/multipart/main.go
 
 #### 5 上下文
 
@@ -332,5 +332,6 @@ json.UnmarshalFromString()
 	- 数据库接口没有封装在 Crawler 方法中，根据需要使用，一般场景下够用，复杂场景中仍然需要自己重写数据库管理
 - [x] 添加日志
   - 可能还不完善
+- [ ] 声明一个代理api处理方法，参数为一个整型，可以请求代理池中代理的数量返回代理切片，形成代理池。后续可以每次请求一个代理，用于实时补全代理池。这个方法需用户自行实现。
 - [ ] 为`Request`和`Response`的请求体`Body`添加池管理，减少 GC 次数
 - [ ] 增加对 robots.txt 的判断，默认遵守 robots.txt 规则，但可以选择忽略
