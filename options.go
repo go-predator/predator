@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go (c) 2021
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-08-01 21:59:51
+ * @Modified: 2021-08-06 08:22:00
  */
 
 package predator
@@ -11,6 +11,7 @@ package predator
 import (
 	"io"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -74,6 +75,16 @@ func WithUserAgent(ua string) CrawlerOption {
 	return func(c *Crawler) {
 		c.UserAgent = ua
 	}
+}
+
+func WithRawCookie(cookie string) CrawlerOption {
+	cookies := make(map[string]string)
+	cookieSlice := strings.Split(cookie, "; ")
+	for _, c := range cookieSlice {
+		temp := strings.Split(c, "=")
+		cookies[temp[0]] = temp[1]
+	}
+	return WithCookies(cookies)
 }
 
 func WithCookies(cookies map[string]string) CrawlerOption {
