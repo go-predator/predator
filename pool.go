@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: pool.go (c) 2021
+ * @File Name: pool.go
  * @Created: 2021-07-29 22:30:37
- * @Modified: 2021-08-01 21:24:59
+ * @Modified: 2021-08-07 21:53:34
  */
 
 package predator

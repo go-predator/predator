@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: request.go (c) 2021
+ * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-08-02 18:01:57
+ * @Modified: 2021-08-07 22:27:47
  */
 
 package predator
@@ -37,8 +37,8 @@ type Request struct {
 	Ctx pctx.Context
 	// 请求体
 	Body []byte
-	// 原始请求体，以后根据需要改成 map[string]interface{}
-	bodyMap map[string]string
+	// 待缓存的键值对
+	cachedMap map[string]string
 	// 唯一标识
 	ID uint32
 	// 中断本次请求
@@ -123,21 +123,21 @@ func marshalPostBody(body map[string]string) []byte {
 	return b.Bytes()
 }
 
-func (r Request) Marshal() ([]byte, error) {
+func (r Request) marshal() ([]byte, error) {
 	cr := &cacheRequest{
 		URL:    r.URL,
 		Method: r.Method,
 	}
 
 	if r.Method == fasthttp.MethodPost {
-		cr.Body = marshalPostBody(r.bodyMap)
+		cr.Body = marshalPostBody(r.cachedMap)
 	}
 
 	return json.Marshal(cr)
 }
 
 func (r Request) Hash() (string, error) {
-	cacheBody, err := r.Marshal()
+	cacheBody, err := r.marshal()
 	if err != nil {
 		return "", err
 	}
@@ -153,7 +153,9 @@ func (r *Request) Reset() {
 		// 可以实现 body 的复用
 		r.Body = r.Body[:0]
 	}
-	r.bodyMap = make(map[string]string)
+	for k := range r.cachedMap {
+		delete(r.cachedMap, k)
+	}
 	r.ID = 0
 	r.abort = false
 	r.crawler = nil

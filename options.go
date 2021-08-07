@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: options.go (c) 2021
+ * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-08-06 08:22:00
+ * @Modified: 2021-08-07 22:14:18
  */
 
 package predator
@@ -129,8 +129,10 @@ func WithProxyPool(proxyURLs []string) CrawlerOption {
 	}
 }
 
-// WithCache 使用缓存，可以选择是否压缩缓存的响应
-func WithCache(cc cache.Cache, compressed bool) CrawlerOption {
+// WithCache 使用缓存，可以选择是否压缩缓存的响应。
+// 使用缓存时，如果发出的是 POST 请求，最好传入能
+// 代表请求体的唯一性的缓存字段，可以是一个或多个。
+func WithCache(cc cache.Cache, compressed bool, cacheFileds ...string) CrawlerOption {
 	return func(c *Crawler) {
 		if cc == nil {
 			cc = &cache.SQLiteCache{}
@@ -141,5 +143,8 @@ func WithCache(cc cache.Cache, compressed bool) CrawlerOption {
 			panic(err)
 		}
 		c.cache = cc
+		if len(cacheFileds) > 0 {
+			c.cacheFields = cacheFileds
+		}
 	}
 }

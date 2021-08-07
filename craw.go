@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: craw.go (c) 2021
+ * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-08-02 15:06:56
+ * @Modified: 2021-08-07 22:56:24
  */
 
 package predator
@@ -23,6 +23,7 @@ import (
 	pctx "github.com/thep0y/predator/context"
 	"github.com/thep0y/predator/html"
 	"github.com/thep0y/predator/json"
+	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
 )
 
@@ -67,6 +68,11 @@ type Crawler struct {
 
 	// Cache successful response
 	cache cache.Cache
+	// List of fields to be cached in the request body, and
+	// the combination of these fields can represent the unique
+	// request body.
+	// The fewer fields the better.
+	cacheFields []string
 
 	requestHandler []HandleRequest
 
@@ -105,7 +111,7 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 /************************* http 请求方法 ****************************/
 
-func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]string, headers map[string]string, ctx pctx.Context) error {
+func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, headers map[string]string, ctx pctx.Context) error {
 	defer func() {
 		if err := recover(); err != nil {
 			c.log.Fatal().Err(fmt.Errorf("Worker panic: %s\n", err))
@@ -143,7 +149,7 @@ func (c *Crawler) request(method, URL string, body []byte, bodyMap map[string]st
 	request.Headers = reqHeaders
 	request.Ctx = ctx
 	request.Body = body
-	request.bodyMap = bodyMap
+	request.cachedMap = cachedMap
 	request.ID = atomic.AddUint32(&c.requestCount, 1)
 	request.crawler = c
 
@@ -373,7 +379,54 @@ func (c *Crawler) Get(URL string) error {
 
 // Post is used to send POST requests
 func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
-	return c.request(fasthttp.MethodPost, URL, createBody(requestData), requestData, nil, ctx)
+	var cachedMap = make(map[string]string)
+	if c.cacheFields != nil {
+		for _, field := range c.cacheFields {
+			if val, ok := requestData[field]; ok {
+				cachedMap[field] = val
+			} else {
+				c.log.Fatal().
+					Err(fmt.Errorf("there is no such field in the request body: %s", field)).
+					Send()
+			}
+		}
+	}
+	return c.request(fasthttp.MethodPost, URL, createBody(requestData), cachedMap, nil, ctx)
+}
+
+func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
+	if requestData == nil {
+		return nil
+	}
+	body, err := json.Marshal(requestData)
+	if err != nil {
+		c.log.Fatal().Err(err).Msg("an error occurred while serializing the request body")
+	}
+	return body
+}
+
+// PostJSON is used to send a POST request body in json format
+func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx pctx.Context) error {
+	body := c.createJSONBody(requestData)
+
+	var cachedMap = make(map[string]string)
+	if c.cacheFields != nil {
+		bodyJson := gjson.ParseBytes(body)
+		for _, field := range c.cacheFields {
+			if !bodyJson.Get(field).Exists() {
+				c.log.Fatal().
+					Err(fmt.Errorf("there is no such field in the request body: %s", field)).
+					Send()
+			}
+			val := bodyJson.Get(field).String()
+			cachedMap[field] = val
+		}
+	}
+
+	headers := make(map[string]string)
+	headers["Content-Type"] = "application/json"
+
+	return c.request(fasthttp.MethodPost, URL, body, cachedMap, headers, ctx)
 }
 
 func createMultipartBody(dash, boundary string, data map[string]string) []byte {
@@ -407,9 +460,23 @@ func randomBoundary() string {
 
 // PostMultipart
 func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Context) error {
+	var cachedMap = make(map[string]string)
+	if c.cacheFields != nil {
+		for _, field := range c.cacheFields {
+			if val, ok := form.bodyMap[field]; ok {
+				cachedMap[field] = val
+			} else {
+				c.log.Fatal().
+					Err(fmt.Errorf("there is no such field in the request body: %s", field)).
+					Send()
+			}
+		}
+	}
+
 	headers := make(map[string]string)
 	headers["Content-Type"] = form.FormDataContentType()
-	return c.request(fasthttp.MethodPost, URL, form.Bytes(), form.bodyMap, headers, ctx)
+
+	return c.request(fasthttp.MethodPost, URL, form.Bytes(), cachedMap, headers, ctx)
 }
 
 /************************* 公共方法 ****************************/

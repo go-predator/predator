@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: craw_test.go (c) 2021
+ * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-08-02 14:40:59
+ * @Modified: 2021-08-07 22:59:15
  */
 
 package predator
@@ -452,6 +452,58 @@ func TestJSON(t *testing.T) {
 		})
 
 		c.Post(ts.URL+"/json", nil, nil)
+	})
+
+	Convey("测试完整 JSON 请求和响应", t, func() {
+		c := NewCrawler()
+
+		c.AfterResponse(func(r *Response) {
+			t.Log(r)
+		})
+
+		type User struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		body := map[string]interface{}{
+			"time": 156546535,
+			"cid":  "10_18772100220-1625540144276-302919",
+			"args": []int{1, 2, 3, 4, 5},
+			"dict": map[string]string{
+				"mod": "1592215036_002", "extend1": "关注", "t": "1628346994", "eleTop": "778",
+			},
+			"user": User{"Tom", 13},
+		}
+
+		c.PostJSON("https://httpbin.org/post", body, nil)
+	})
+
+	Convey("测试带缓存的完整 JSON 请求和响应", t, func() {
+		c := NewCrawler(
+			WithCache(nil, false, "cid", "user.name", "user.age"),
+		)
+
+		c.AfterResponse(func(r *Response) {
+			t.Log(r.FromCache)
+		})
+
+		type User struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		body := map[string]interface{}{
+			"time": 156546535,
+			"cid":  "10_18772100220-1625540144276-302919",
+			"args": []int{1, 2, 3, 4, 5},
+			"dict": map[string]string{
+				"mod": "1592215036_002", "extend1": "关注", "t": "1628346994", "eleTop": "778",
+			},
+			"user": User{"Tom", 13},
+		}
+
+		c.PostJSON("https://httpbin.org/post", body, nil)
 	})
 }
 
