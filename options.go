@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-08-07 22:14:18
+ * @Modified: 2021-08-08 08:05:36
  */
 
 package predator
@@ -131,7 +131,12 @@ func WithProxyPool(proxyURLs []string) CrawlerOption {
 
 // WithCache 使用缓存，可以选择是否压缩缓存的响应。
 // 使用缓存时，如果发出的是 POST 请求，最好传入能
-// 代表请求体的唯一性的缓存字段，可以是一个或多个。
+// 代表请求体的唯一性的缓存字段，可以是零个、一个或多个。
+//
+// 注意：当不传入缓存字段时，将会默认采用整个请求体作为
+// 缓存标识，但由于 map 无序，同一个请求体生成的 key 很
+// 难保证相同，所以可能会有同一个请求缓存多次，或者无法
+// 从缓存中读取已请求过的请求的响应的情况出现。
 func WithCache(cc cache.Cache, compressed bool, cacheFileds ...string) CrawlerOption {
 	return func(c *Crawler) {
 		if cc == nil {

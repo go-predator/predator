@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-08-07 22:59:15
+ * @Modified: 2021-08-08 07:52:22
  */
 
 package predator
@@ -505,6 +505,34 @@ func TestJSON(t *testing.T) {
 
 		c.PostJSON("https://httpbin.org/post", body, nil)
 	})
+}
+
+func TestJSONWithInvalidCacheField(t *testing.T) {
+	c := NewCrawler(
+		WithCache(nil, false, "id", "user.name", "user.age"),
+		WithLogger(nil),
+	)
+
+	c.AfterResponse(func(r *Response) {
+		t.Log(r.FromCache)
+	})
+
+	type User struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+
+	body := map[string]interface{}{
+		"time": 156546535,
+		"cid":  "10_18772100220-1625540144276-302919",
+		"args": []int{1, 2, 3, 4, 5},
+		"dict": map[string]string{
+			"mod": "1592215036_002", "extend1": "关注", "t": "1628346994", "eleTop": "778",
+		},
+		"user": User{"Tom", 13},
+	}
+
+	c.PostJSON("https://httpbin.org/post", body, nil)
 }
 
 func TestParseHTML(t *testing.T) {

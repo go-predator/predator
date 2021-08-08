@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-08-07 22:27:47
+ * @Modified: 2021-08-07 23:10:24
  */
 
 package predator
@@ -130,7 +130,11 @@ func (r Request) marshal() ([]byte, error) {
 	}
 
 	if r.Method == fasthttp.MethodPost {
-		cr.Body = marshalPostBody(r.cachedMap)
+		if len(r.cachedMap) > 0 {
+			cr.Body = marshalPostBody(r.cachedMap)
+		} else {
+			cr.Body = r.Body
+		}
 	}
 
 	return json.Marshal(cr)

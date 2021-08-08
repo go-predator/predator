@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-08-07 22:56:24
+ * @Modified: 2021-08-08 07:57:41
  */
 
 package predator
@@ -102,9 +102,18 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	c.Context = context.Background()
 
-	c.log.Info().
-		Bool("concurrent", c.goPool != nil).
-		Msg("concurrent state")
+	capacityState := c.goPool != nil
+
+	if capacityState {
+		c.log.Info().
+			Bool("state", capacityState).
+			Uint64("capacity", c.goPool.capacity).
+			Msg("concurrent")
+	} else {
+		c.log.Info().
+			Bool("state", capacityState).
+			Msg("concurrent")
+	}
 
 	return c
 }
