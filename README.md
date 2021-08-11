@@ -1,11 +1,11 @@
 # predator / 掠食者
 基于 fasthttp 开发的高性能爬虫框架
 
-### 使用
+## 使用
 
 下面是一个示例，基本包含了当前已完成的所有功能，使用方法可以参考注释。
 
-#### 1 创建一个 Crawler
+### 1 创建一个 Crawler
 
 ```go
 import "github.com/thep0y/predator"
@@ -22,7 +22,7 @@ func main() {
 
 创建`Crawler`时有一些可选项用来功能增强。所有可选项参考[predator/options.go](https://github.com/thep0y/predator/blob/main/options.go)。
 
-#### 2 发送 Get 请求
+### 2 发送 Get 请求
 
 ```go
 crawler.Get("http://www.baidu.com")
@@ -63,9 +63,11 @@ crawler.AfterResponse(func(r *predator.Response) {
 crawler.Get("http://www.baidu.com")
 ```
 
-#### 3 发送 Post 请求
+### 3 发送 Post 请求
 
-与 Get 请求有一点不同，通常每个 Post 的请求的参数是不同的，而这些参数都在请求体中，在`BeforeRequest`中处理请求体虽然可以，但绝非最佳选择，所以在构造 Post 请求时，可以直接传入上下文，用以解决与响应的信息传递。
+与 Get 请求有一点不同，通常每个 Post 的请求的参数是不同的，而这些参数都在请求体中，在`BeforeRequest`中重新解析请求体获取关键参数虽然可以，但绝非最佳选择。所以在构造 Post 请求时，可以直接传入上下文，用以解决与响应的信息传递。
+
+#### 3.1 普通 POST 表单(application/x-www-form-urlencoded)
 
 ```go
 // BeforeRequest 可以在发送请求前，对请求进行一些修补
@@ -109,13 +111,56 @@ crawler.Post("http://www.baidu.com", body, ctx)
 crawler.Post("http://www.baidu.com", body, nil)
 ```
 
-#### 4 发送 multipart/form-data 请求
+#### 3.2 复杂 POST 请求(multipart/form-data)
 
 `multipart/form-data`方法需要使用专门的`PostMultipart`方法，示例可能较长，这里不便书写。
 
 使用方法请参考示例：https://github.com/thep0y/predator/blob/main/example/multipart/main.go
 
-#### 5 上下文
+#### 3.3 JSON 请求
+
+JSON 请求也有专门的方法`PostJSON`来完成，在使用`PostJSON`时会自动在请求头中添加`Content-Type: application/json`，无需重复添加。当然，你再重新添加一次也可以，最终将会使用你添加的`Content-Type`。
+
+示例：
+
+```go
+func main() {
+	c := NewCrawler()
+
+	c.AfterResponse(func(r *Response) {
+		t.Log(r)
+	})
+
+	type User struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+
+	body := map[string]interface{}{
+		"time": 156546535,
+		"cid":  "10_18772100220-1625540144276-302919",
+		"args": []int{1, 2, 3, 4, 5},
+		"dict": map[string]string{
+			"mod": "1592215036_002", "extend1": "关注", "t": "1628346994", "eleTop": "778",
+		},
+		"user": User{"Tom", 13},
+	}
+
+	c.PostJSON("https://httpbin.org/post", body, nil)
+}
+```
+
+#### 3.4 其他 POST 请求
+
+虽然以上三种方式已解决大部分的网站的请求，但仍然存在一小部分网站比较特殊，此时需要使用`PostRaw`方法：
+
+```go
+func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error
+```
+
+其中的请求体需要你自行构造，原始请求体可以是任何形式，构造完成后再序列化为`[]byte`作为请求体。
+
+### 4 上下文
 
 上下文是一个接口，我实现了两种上下文：
 
@@ -128,7 +173,7 @@ crawler.Post("http://www.baidu.com", body, nil)
 ctx, err := AcquireCtx(context.ReadOp)
 ```
 
-#### 6 处理 HTML
+### 5 处理 HTML
 
 爬虫的结果大体可分为两种，一是 HTML 响应，另一种是 JSON 格式的响应。
 
@@ -161,7 +206,7 @@ crawl.ParseHTML("body", func(he *html.HTMLElement) {
 }
 ```
 
-#### 7 异步 / 多协程请求
+### 6 异步 / 多协程请求
 
 ```go
 c := NewCrawler(
@@ -183,7 +228,7 @@ for i := 0; i < 10; i++ {
 c.Wait()
 ```
 
-#### 8 使用缓存
+### 7 使用缓存
 
 默认情况下，缓存是不启用的，所有的请求都直接放行。
 
@@ -240,7 +285,7 @@ c := NewCrawler(
 c := NewCrawler(WithCache(nil, true))
 ```
 
-#### 9 代理
+### 8 代理
 
 支持 HTTP 代理和 Socks5 代理。
 
@@ -250,7 +295,7 @@ c := NewCrawler(WithCache(nil, true))
 WithProxyPool([]string{"http://ip:port", "socks5://ip:port"})
 ```
 
-#### 10 日志
+### 9 日志
 
 日志使用的是流行日志库[`zerolog`](https://github.com/rs/zerolog)。
 
@@ -296,7 +341,7 @@ func main() {
 }
 ```
 
-#### 11 关于 JSON
+### 10 关于 JSON
 
 本来想着封装一个 JSON 包用来快速处理 JSON 响应，但是想了一两天也没想出个好办法来，因为我能想到的，[gjson](https://github.com/tidwall/gjson)都已经解决了。
 
@@ -314,7 +359,7 @@ json.UnmarshalFromString()
 
 对付 JSON 响应，当前足够用了。
 
-### 目标
+## 目标
 
 - [x] 完成对失败响应的重新请求，直到重试了传入的重试次数时才算最终请求失败
 - [x] 识别因代理失效而造成的请求失败。当使用代理池时，代理池中剔除此代理；代理池为空时，终止整个爬虫程序

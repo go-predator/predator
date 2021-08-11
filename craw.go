@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-08-08 07:57:41
+ * @Modified: 2021-08-11 20:32:12
  */
 
 package predator
@@ -486,6 +486,14 @@ func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Contex
 	headers["Content-Type"] = form.FormDataContentType()
 
 	return c.request(fasthttp.MethodPost, URL, form.Bytes(), cachedMap, headers, ctx)
+}
+
+// PostRaw 发送非 form、multipart、json 的原始的 post 请求
+func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error {
+	cachedMap := map[string]string{
+		"cache": string(body),
+	}
+	return c.request(fasthttp.MethodPost, URL, body, cachedMap, nil, ctx)
 }
 
 /************************* 公共方法 ****************************/
