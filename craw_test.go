@@ -17,7 +17,6 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -114,6 +113,10 @@ func server() *httptest.Server {
 		`))
 	})
 
+	mux.HandleFunc("/redirect", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/html", http.StatusMovedPermanently)
+	})
+
 	mux.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		if r.Method != "POST" {
@@ -205,11 +208,6 @@ func TestRequest(t *testing.T) {
 
 	// 想运行此示例，需要自行更新 cookie 和 auth_token
 	Convey("测试 PostMultipart", t, func() {
-		type TestResponse struct {
-			Form  map[string]string `json:"form"`
-			Files map[string]string `json:"files"`
-		}
-
 		c := NewCrawler(
 			WithCookies(map[string]string{
 				"PHPSESSID": "7ijqglcno1cljiqs76t2vo5oh2",
@@ -266,13 +264,9 @@ func TestHTTPProxy(t *testing.T) {
 	Convey("测试代理池为空时 panic", t, func() {
 		defer func() {
 			if err := recover(); err != nil {
-				So(err.(error), ShouldEqual, EmptyProxyPoolError)
+				So(err.(error), ShouldEqual, ErrEmptyProxyPool)
 			}
 		}()
-
-		type TestResponse struct {
-			IP string `json:"origin"`
-		}
 		ips := []string{
 			"http://14.134.203.22:45104",
 			"http://14.134.204.22:45105",
@@ -287,9 +281,6 @@ func TestHTTPProxy(t *testing.T) {
 	})
 
 	Convey("测试删除代理池中某个或某些无效代理", t, func() {
-		type TestResponse struct {
-			IP string `json:"origin"`
-		}
 		ips := []string{
 			"http://14.134.204.22:45105",
 			validIP,
@@ -617,11 +608,6 @@ func TestConcurrency(t *testing.T) {
 				WithConcurrency(30),
 			)
 
-			c.AfterResponse(func(r *Response) {
-				// t.Log(atomic.LoadUint32(&r.Request.ID))
-				t.Log(atomic.LoadUint32(&c.responseCount))
-			})
-
 			for i := 0; i < 10; i++ {
 				err := c.Post(ts.URL+"/post", map[string]string{
 					"id": fmt.Sprint(i + 1),
@@ -842,5 +828,34 @@ func TestLog(t *testing.T) {
 		})
 
 		c.Get(ts.URL)
+	})
+}
+
+func TestRedirect(t *testing.T) {
+	ts := server()
+	defer ts.Close()
+
+	Convey("测试默认情况", t, func() {
+		c := NewCrawler()
+
+		c.AfterResponse(func(r *Response) {
+			So(r.StatusCode, ShouldEqual, 301)
+		})
+
+		c.Get(ts.URL + "/redirect")
+	})
+
+	Convey("测试设置重定向次数的情况", t, func() {
+		c := NewCrawler()
+
+		c.BeforeRequest(func(r *Request) {
+			r.AllowRedirect(1)
+		})
+
+		c.AfterResponse(func(r *Response) {
+			So(r.StatusCode, ShouldEqual, 200)
+		})
+
+		c.Get(ts.URL + "/redirect")
 	})
 }
