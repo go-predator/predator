@@ -160,7 +160,30 @@ func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error
 
 其中的请求体需要你自行构造，原始请求体可以是任何形式，构造完成后再序列化为`[]byte`作为请求体。
 
-### 4 上下文
+### 4 允许重定向
+
+考虑到爬虫的效率问题，默认情况下是不允许重定向的。
+
+但在正常的爬虫业务中难免遇到重定向问题，你可以根据每个请求的不同情况设置不同的最大重定向次数。
+
+```go
+crawler.BeforeRequest(func(r *predator.Request) {
+    // 用 GET 请求时可以根据 r.URL 判断，POST 请求时可以根据请求体判断，下面仅是示例
+	if r.URL == 情况一 {
+		// 允许重定向 1 次
+		r.AllowRedirect(1)
+	} else if r.URL == 情况二 {
+		// 允许重定向 3 次
+		r.AllowRedirect(3)
+	}
+})
+```
+
+不允许设置全局重定向，只能针对每个请求进行修补。
+
+当然，如果全局重定向呼声高的话，再考虑是否加入。
+
+### 5 上下文
 
 上下文是一个接口，我实现了两种上下文：
 
@@ -173,7 +196,7 @@ func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error
 ctx, err := AcquireCtx(context.ReadOp)
 ```
 
-### 5 处理 HTML
+### 6 处理 HTML
 
 爬虫的结果大体可分为两种，一是 HTML 响应，另一种是 JSON 格式的响应。
 
@@ -206,7 +229,7 @@ crawl.ParseHTML("body", func(he *html.HTMLElement) {
 }
 ```
 
-### 6 异步 / 多协程请求
+### 7 异步 / 多协程请求
 
 ```go
 c := NewCrawler(
@@ -228,7 +251,7 @@ for i := 0; i < 10; i++ {
 c.Wait()
 ```
 
-### 7 使用缓存
+### 8 使用缓存
 
 默认情况下，缓存是不启用的，所有的请求都直接放行。
 
@@ -285,7 +308,7 @@ c := NewCrawler(
 c := NewCrawler(WithCache(nil, true))
 ```
 
-### 8 代理
+### 9 代理
 
 支持 HTTP 代理和 Socks5 代理。
 
@@ -295,7 +318,7 @@ c := NewCrawler(WithCache(nil, true))
 WithProxyPool([]string{"http://ip:port", "socks5://ip:port"})
 ```
 
-### 9 日志
+### 10 日志
 
 日志使用的是流行日志库[`zerolog`](https://github.com/rs/zerolog)。
 
@@ -341,7 +364,7 @@ func main() {
 }
 ```
 
-### 10 关于 JSON
+### 11 关于 JSON
 
 本来想着封装一个 JSON 包用来快速处理 JSON 响应，但是想了一两天也没想出个好办法来，因为我能想到的，[gjson](https://github.com/tidwall/gjson)都已经解决了。
 
