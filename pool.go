@@ -111,8 +111,6 @@ func (p *Pool) Put(task *Task) error {
 	return nil
 }
 
-var before, end uint32
-
 func (p *Pool) run() {
 	p.incRunning()
 
@@ -120,20 +118,13 @@ func (p *Pool) run() {
 		defer func() {
 			p.decRunning()
 			if r := recover(); r != nil {
-				p.log.Error().Err(fmt.Errorf("Worker panic: %s\n", r))
+				p.log.Error().Err(fmt.Errorf("worker panic: %s", r))
 			}
 			p.checkWorker() // check worker avoid no worker running
 		}()
 
-		for {
-			select {
-			case task, ok := <-p.chTask:
-				if !ok {
-					return
-				}
-
-				task.crawler.prepare(task.req)
-			}
+		for task := range p.chTask {
+			task.crawler.prepare(task.req)
 		}
 	}()
 
