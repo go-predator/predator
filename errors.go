@@ -14,13 +14,13 @@ import (
 )
 
 var (
-	InvalidProxyError    = errors.New("the proxy ip should contain the protocol")
-	UnknownProtocolError = errors.New("only support http and socks5 protocol")
-	ProxyExpiredError    = errors.New("the proxy ip has expired")
-	OnlyOneProxyIPError  = errors.New("unable to delete the only proxy ip")
-	UnkownProxyIPError   = errors.New("proxy is unkown")
-	EmptyProxyPoolError  = errors.New("after deleting the invalid proxy, the current proxy ip pool is empty")
-	NoCacheSet           = errors.New("No cache set")
+	ErrInvalidProxy    = errors.New("the proxy ip should contain the protocol")
+	ErrUnknownProtocol = errors.New("only support http and socks5 protocol")
+	ErrProxyExpired    = errors.New("the proxy ip has expired")
+	ErrOnlyOneProxyIP  = errors.New("unable to delete the only proxy ip")
+	ErrUnkownProxyIP   = errors.New("proxy is unkown")
+	ErrEmptyProxyPool  = errors.New("after deleting the invalid proxy, the current proxy ip pool is empty")
+	ErrNoCacheSet      = errors.New("no cache set")
 )
 
 func isProxyInvalid(err error) (string, bool) {

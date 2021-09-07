@@ -34,7 +34,7 @@ func (c *Crawler) DialWithProxyAndTimeout(timeout time.Duration) fasthttp.DialFu
 			return proxy.Socks5Proxy(proxyAddr, addr)
 		} else {
 			c.log.Fatal().Caller().
-				Err(UnknownProtocolError).
+				Err(ErrUnknownProtocol).
 				Str("proxy", proxyAddr).
 				Send()
 			return nil, nil

@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	IncorrectResponse = errors.New("the response status code is not 200 or 201")
+	ErrIncorrectResponse = errors.New("the response status code is not 200 or 201")
 )
 
 type Response struct {
@@ -69,7 +69,7 @@ func (r *Response) Reset() {
 
 func (r Response) Marshal() ([]byte, error) {
 	if r.StatusCode != fasthttp.StatusOK && r.StatusCode != fasthttp.StatusCreated {
-		return nil, IncorrectResponse
+		return nil, ErrIncorrectResponse
 	}
 	return json.Marshal(r)
 }
