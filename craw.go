@@ -59,10 +59,10 @@ type Crawler struct {
 	goPool          *Pool
 	proxyURLPool    []string
 	// TODO: 动态获取代理
-	dynamicProxyFunc AcquireProxies
-	timeout          uint
-	requestCount     uint32
-	responseCount    uint32
+	// dynamicProxyFunc AcquireProxies
+	// timeout          uint
+	requestCount  uint32
+	responseCount uint32
 	// 在多协程中这个上下文管理可以用来退出或取消多个协程
 	Context context.Context
 
@@ -123,7 +123,7 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, headers map[string]string, ctx pctx.Context) error {
 	defer func() {
 		if err := recover(); err != nil {
-			c.log.Fatal().Err(fmt.Errorf("Worker panic: %s\n", err))
+			c.log.Fatal().Err(fmt.Errorf("worker panic: %s", err))
 		}
 	}()
 
@@ -332,7 +332,15 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 	resp := fasthttp.AcquireResponse()
 
-	if err := c.client.Do(req, resp); err != nil {
+	var err error
+
+	if request.maxRedirectsCount == 0 {
+		err = c.client.Do(req, resp)
+	} else {
+		err = c.client.DoRedirects(req, resp, int(request.maxRedirectsCount))
+	}
+
+	if err != nil {
 		if p, ok := isProxyInvalid(err); ok {
 			err = c.removeInvalidProxy(p)
 			if err != nil {
@@ -438,22 +446,6 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 	return c.request(fasthttp.MethodPost, URL, body, cachedMap, headers, ctx)
 }
 
-func createMultipartBody(dash, boundary string, data map[string]string) []byte {
-	dashBoundary := "--" + dash + boundary
-
-	var buffer strings.Builder
-
-	for contentType, content := range data {
-		buffer.WriteString(dashBoundary + "\r\n")
-		buffer.WriteString("Content-Disposition: form-data; name=" + contentType + "\r\n")
-		buffer.WriteString("\r\n")
-		buffer.WriteString(content)
-		buffer.WriteString("\r\n")
-	}
-	buffer.WriteString(dashBoundary + "--\r\n")
-	return []byte(buffer.String())
-}
-
 func randomBoundary() string {
 	var s strings.Builder
 	count := 29
@@ -501,7 +493,7 @@ func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error {
 // ClearCache will clear all cache
 func (c *Crawler) ClearCache() error {
 	if c.cache == nil {
-		return NoCacheSet
+		return ErrNoCacheSet
 	}
 	c.log.Warn().Msg("clear all cache")
 	return c.cache.Clear()
@@ -602,7 +594,7 @@ func (c *Crawler) removeInvalidProxy(proxy string) error {
 	defer c.lock.Unlock()
 
 	if c.ProxyPoolAmount() == 0 {
-		return EmptyProxyPoolError
+		return ErrEmptyProxyPool
 	}
 
 	targetIndex := -1
@@ -625,11 +617,11 @@ func (c *Crawler) removeInvalidProxy(proxy string) error {
 			Msg("invalid proxy have been deleted from the proxy pool")
 
 		if len(c.proxyURLPool) == 0 {
-			return EmptyProxyPoolError
+			return ErrEmptyProxyPool
 		}
 	} else {
 		// 没有在代理池中找到失效代理，这个代理来路不明，一样报错
-		return UnkownProxyIPError
+		return ErrUnkownProxyIP
 	}
 
 	return nil

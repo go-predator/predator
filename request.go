@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
+
 	// "io"
 	"net/http"
 	"os"
@@ -47,6 +48,10 @@ type Request struct {
 	crawler *Crawler
 	// 重试计数器
 	retryCounter uint32
+	// 允许重定向的次数，默认等于 0，不允许重定向。
+	// 大于 0 时，允许最多重定向对应的次数。
+	// 重定向次数会影响爬虫效率。
+	maxRedirectsCount uint
 }
 
 // New 使用原始请求的上下文创建一个新的请求
@@ -68,6 +73,13 @@ func (r *Request) Abort() {
 
 func (r *Request) SetContentType(contentType string) {
 	r.Headers.Set("Content-Type", contentType)
+}
+
+// AllowRedirect 最多允许重定向 maxRedirectsCount 次。
+//
+// 重定向是一件比较常见，但影响爬虫效率的事，请根据实际情况设置此值。
+func (r *Request) AllowRedirect(maxRedirectsCount uint) {
+	r.maxRedirectsCount = maxRedirectsCount
 }
 
 func (r *Request) SetHeaders(headers map[string]string) {
@@ -164,6 +176,7 @@ func (r *Request) Reset() {
 	r.abort = false
 	r.crawler = nil
 	r.retryCounter = 0
+	r.maxRedirectsCount = 0
 }
 
 var (
@@ -232,12 +245,6 @@ func (mf *MultipartForm) appendHead() {
 
 func (mf *MultipartForm) appendTail() {
 	mf.buf.WriteString("\r\n")
-}
-
-var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
-
-func escapeQuotes(s string) string {
-	return quoteEscaper.Replace(s)
 }
 
 func (mf *MultipartForm) AppendString(name, value string) {
