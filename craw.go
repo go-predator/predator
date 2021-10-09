@@ -446,19 +446,6 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 	return c.request(fasthttp.MethodPost, URL, body, cachedMap, headers, ctx)
 }
 
-func randomBoundary() string {
-	var s strings.Builder
-	count := 29
-	for i := 0; i < count; i++ {
-		if i == 0 {
-			s.WriteString(fmt.Sprint(rand.Intn(9) + 1))
-		} else {
-			s.WriteString(fmt.Sprint(rand.Intn(10)))
-		}
-	}
-	return s.String()
-}
-
 // PostMultipart
 func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Context) error {
 	var cachedMap = make(map[string]string)

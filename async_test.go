@@ -3,13 +3,15 @@
  * @Email: thepoy@163.com
  * @File Name: async_test.go (c) 2021
  * @Created: 2021-07-31 13:14:09
- * @Modified: 2021-08-02 13:12:04
+ * @Modified: 2021-09-09 08:38:38
  */
 
 package predator
 
 import (
 	"fmt"
+	"math/rand"
+	"strings"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -25,6 +27,19 @@ func buildRequestBody(queryID string, page int) map[string]string {
 		"key3": "value3",
 		"key4": "",
 	}
+}
+
+func randomBoundary() string {
+	var s strings.Builder
+	count := 29
+	for i := 0; i < count; i++ {
+		if i == 0 {
+			s.WriteString(fmt.Sprint(rand.Intn(9) + 1))
+		} else {
+			s.WriteString(fmt.Sprint(rand.Intn(10)))
+		}
+	}
+	return s.String()
 }
 
 func parsePerPage(c *Crawler, u, queryID string, page int) error {
