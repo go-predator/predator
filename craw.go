@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-08-11 20:32:12
+ * @Modified: 2021-09-09 08:38:32
  */
 
 package predator
@@ -11,7 +11,6 @@ package predator
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"net/url"
 	"strings"
 	"sync"
@@ -116,6 +115,28 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 	}
 
 	return c
+}
+
+// Clone creates an exact copy of a Crawler without callbacks.
+func (c *Crawler) Clone() *Crawler {
+	return &Crawler{
+		lock:            c.lock,
+		UserAgent:       c.UserAgent,
+		retryCount:      c.retryCount,
+		retryConditions: c.retryConditions,
+		client:          c.client,
+		cookies:         c.cookies,
+		goPool:          c.goPool,
+		proxyURLPool:    c.proxyURLPool,
+		Context:         c.Context,
+		cache:           c.cache,
+		cacheFields:     c.cacheFields,
+		requestHandler:  make([]HandleRequest, 0, 5),
+		responseHandler: make([]HandleResponse, 0, 5),
+		htmlHandler:     make([]*HTMLParser, 0, 5),
+		wg:              &sync.WaitGroup{},
+		log:             c.log,
+	}
 }
 
 /************************* http 请求方法 ****************************/
