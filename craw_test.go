@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-08-08 07:52:22
+ * @Modified: 2021-09-09 09:08:47
  */
 
 package predator
@@ -114,6 +114,8 @@ func server() *httptest.Server {
 	})
 
 	mux.HandleFunc("/redirect", func(w http.ResponseWriter, r *http.Request) {
+		c := &http.Cookie{Name: "test", Value: "testv", HttpOnly: false}
+		http.SetCookie(w, c)
 		http.Redirect(w, r, "/html", http.StatusMovedPermanently)
 	})
 
@@ -857,5 +859,42 @@ func TestRedirect(t *testing.T) {
 		})
 
 		c.Get(ts.URL + "/redirect")
+	})
+}
+
+func getRawCookie(c *Crawler, ts *httptest.Server) string {
+	var rawCookie string
+
+	c.AfterResponse(func(r *Response) {
+		if r.StatusCode == 301 {
+			rawCookie = string(r.Headers.Peek("Set-Cookie"))
+		}
+	})
+
+	c.Post(ts.URL+"/redirect", map[string]string{"username": "test", "password": "test"}, nil)
+	return rawCookie
+}
+
+func TestClone(t *testing.T) {
+	ts := server()
+	defer ts.Close()
+
+	Convey("测试克隆", t, func() {
+		c := NewCrawler()
+
+		rawCookie := getRawCookie(c, ts)
+
+		WithRawCookie(rawCookie)(c)
+		WithConcurrency(10)(c)
+
+		c.AfterResponse(func(r *Response) {
+			fmt.Println(r.StatusCode)
+			fmt.Println(r)
+			So(r.StatusCode, ShouldEqual, 200)
+			So(r.String(), ShouldEqual, "ok")
+		})
+
+		c.Get(ts.URL + "/check_cookie")
+		c.Wait()
 	})
 }
