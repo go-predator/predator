@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: element.go (c) 2021
+ * @File Name: element.go
  * @Created: 2021-07-27 20:35:31
- * @Modified: 2021-08-01 23:02:45
+ * @Modified: 2021-10-10 16:25:14
  */
 
 package html
@@ -15,14 +15,23 @@ import (
 	"golang.org/x/net/html"
 )
 
+// HTMLElement is the representation of a HTML tag.
 type HTMLElement struct {
-	Name  string
-	DOM   *goquery.Selection
+	// Name is the name of the tag
+	Name string
+
+	// DOM is the goquery parsed DOM object of the page. DOM is relative
+	// to the current HTMLElement
+	DOM *goquery.Selection
+
+	// Index stores the position of the current element within
+	// all the elements matched by an OnHTML callback
 	Index int
-	Node  *html.Node
+
+	Node *html.Node
 }
 
-// NewHTMLElementFromSelectionNode 创建一个元素
+// NewHTMLElementFromSelectionNode creates a HTMLElement from a goquery.Selection Node.
 func NewHTMLElementFromSelectionNode(s *goquery.Selection, n *html.Node, index int) *HTMLElement {
 	return &HTMLElement{
 		Name:  n.Data,
@@ -32,7 +41,8 @@ func NewHTMLElementFromSelectionNode(s *goquery.Selection, n *html.Node, index i
 	}
 }
 
-// Attr 获取 HTML 元素的一个属性值
+// Attr returns the selected attribute of a HTMLElement or empty string
+// if no attribute found
 func (he HTMLElement) Attr(key string) string {
 	for _, attr := range he.Node.Attr {
 		if attr.Key == key {
@@ -42,28 +52,33 @@ func (he HTMLElement) Attr(key string) string {
 	return ""
 }
 
-// OuterHTML 当前元素的整体 HTML 代码
+// OuterHtml returns the outer HTML rendering of the first item in
+// the selection - that is, the HTML including the first element's
+// tag and attributes.
 func (he HTMLElement) OuterHTML() (string, error) {
 	return goquery.OuterHtml(he.DOM)
 }
 
-// InnerHTML 当前元素的内部 HTML 代码
+// InnerHTML gets the HTML contents of the first element in the set of matched
+// elements. It includes text and comment nodes.
 func (he HTMLElement) InnerHTML() (string, error) {
 	return he.DOM.Html()
 }
 
-// Text 当前元素的所有文本（包括子元素）
+// Text gets the combined text contents of each element in the set of matched
+// elements, including their descendants.
 func (he HTMLElement) Text() string {
 	return he.DOM.Text()
-	// return goquery.NewDocumentFromNode(he.Node).Text()
 }
 
-// ChildText 在当前元素内部根据选择器查找元素，并返回第一个匹配的目标元素的文本内容
+// ChildText returns the concatenated and stripped text content of the matching
+// elements.
 func (he HTMLElement) ChildText(selector string) string {
 	return strings.TrimSpace(he.DOM.Find(selector).Text())
 }
 
-// ChildrenText 在当前元素内部根据选择器查找元素，并返回全部匹配的目标元素的文本切片
+// ChildrenText returns the stripped text content of all the matching
+// elements.
 func (he HTMLElement) ChildrenText(selector string) []string {
 	var res []string
 	he.DOM.Find(selector).Each(func(_ int, s *goquery.Selection) {
@@ -72,7 +87,8 @@ func (he HTMLElement) ChildrenText(selector string) []string {
 	return res
 }
 
-// ChildAttr 在当前元素内部根据选择器查找元素，并返回第一个匹配的目标元素的属性值
+// ChildAttr returns the stripped text content of the first matching
+// element's attribute.
 func (he HTMLElement) ChildAttr(selector, attrName string) string {
 	if attr, ok := he.DOM.Find(selector).Attr(attrName); ok {
 		return strings.TrimSpace(attr)
@@ -80,7 +96,8 @@ func (he HTMLElement) ChildAttr(selector, attrName string) string {
 	return ""
 }
 
-// ChildrenAttr 在当前元素内部根据选择器查找元素，并返回全部匹配的目标元素的属性值切片
+// ChildrenAttr returns the stripped text content of all the matching
+// element's attributes.
 func (he HTMLElement) ChildrenAttr(selector, attrName string) []string {
 	var res []string
 	he.DOM.Find(selector).Each(func(_ int, s *goquery.Selection) {
@@ -91,7 +108,8 @@ func (he HTMLElement) ChildrenAttr(selector, attrName string) []string {
 	return res
 }
 
-// Each 处理每一个与选择器匹配的元素
+// Each iterates over the elements matched by the first argument
+// and calls the callback function on every HTMLElement match.
 func (he HTMLElement) Each(selector string, callback func(int, *HTMLElement)) {
 	i := 0
 	he.DOM.Find(selector).Each(func(_ int, s *goquery.Selection) {
@@ -102,7 +120,8 @@ func (he HTMLElement) Each(selector string, callback func(int, *HTMLElement)) {
 	})
 }
 
-// Child 返回第 num 个匹配选择器的子元素，num 不是索引，而是从 1 开始的顺序号
+// Child returns the numth matched child element.
+// num starts at 1, not at 0.
 func (he HTMLElement) Child(selector string, num int) *HTMLElement {
 	s := he.DOM.Find(selector)
 	nodes := s.Nodes
@@ -121,12 +140,39 @@ func (he HTMLElement) Child(selector string, num int) *HTMLElement {
 	)
 }
 
-// FirstChild 返回第一个匹配选择器的子元素
+// FirstChild returns the first child element that matches the selector.
 func (he HTMLElement) FirstChild(selector string) *HTMLElement {
 	return he.Child(selector, 1)
 }
 
-// LastChild 返回最后一个匹配选择器的子元素
+// LastChild returns the last child element that matches the selector.
 func (he HTMLElement) LastChild(selector string) *HTMLElement {
 	return he.Child(selector, -1)
+}
+
+// Parent returns the direct parent element.
+func (he HTMLElement) Parent() *HTMLElement {
+	// If the current element is <html> tag, return nil
+	if he.Name == "html" {
+		return nil
+	}
+
+	s := he.DOM.Parent()
+	return NewHTMLElementFromSelectionNode(s, s.Nodes[0], 0)
+}
+
+// Parents returns all parent elements.
+func (he HTMLElement) Parents() []*HTMLElement {
+	parents := make([]*HTMLElement, 0)
+
+	for {
+		var parent = he.Parent()
+		if parent == nil {
+			break
+		}
+		parents = append(parents, parent)
+		he = *parent
+	}
+
+	return parents
 }
