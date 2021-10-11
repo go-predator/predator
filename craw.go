@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-09-09 08:38:32
+ * @Modified: 2021-10-11 12:37:22
  */
 
 package predator
@@ -152,6 +152,14 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 
 	reqHeaders := new(fasthttp.RequestHeader)
 	reqHeaders.SetMethod(method)
+
+	u, err := url.Parse(URL)
+	if err != nil {
+		c.log.Error().Caller().Err(err).Send()
+		return err
+	}
+	reqHeaders.SetRequestURI(u.RequestURI())
+
 	reqHeaders.Set("User-Agent", c.UserAgent)
 	for k, v := range headers {
 		reqHeaders.Set(k, v)
