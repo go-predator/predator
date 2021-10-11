@@ -3,12 +3,13 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-08-08 08:05:36
+ * @Modified: 2021-10-11 11:57:49
  */
 
 package predator
 
 import (
+	"crypto/tls"
 	"io"
 	"os"
 	"strings"
@@ -20,6 +21,12 @@ import (
 )
 
 type CrawlerOption func(*Crawler)
+
+// SkipVerification will skip verifying the certificate when
+// you access the `https` protocol
+func SkipVerification(c *Crawler) {
+	c.client.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+}
 
 type LogOp struct {
 	level zerolog.Level
