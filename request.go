@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-08-07 23:10:24
+ * @Modified: 2021-10-11 22:41:32
  */
 
 package predator
@@ -15,6 +15,7 @@ import (
 
 	// "io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -98,6 +99,30 @@ func (r Request) Get(u string) error {
 
 func (r Request) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
 	return r.crawler.Post(URL, requestData, ctx)
+}
+
+// AbsoluteURL returns with the resolved absolute URL of an URL chunk.
+// AbsoluteURL returns empty string if the URL chunk is a fragment or
+// could not be parsed
+func (r Request) AbsoluteURL(src string) string {
+	if strings.HasPrefix(src, "#") {
+		return ""
+	}
+
+	u, err := url.Parse(r.URL)
+	if err != nil {
+		return ""
+	}
+
+	absoluteURL, err := u.Parse(src)
+	if err != nil {
+		return ""
+	}
+	absoluteURL.Fragment = ""
+	if absoluteURL.Scheme == "//" {
+		absoluteURL.Scheme = u.Scheme
+	}
+	return absoluteURL.String()
 }
 
 type cacheRequest struct {
