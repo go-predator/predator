@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-11 12:37:22
+ * @Modified: 2021-10-11 16:14:37
  */
 
 package predator
@@ -33,7 +33,7 @@ type HandleRequest func(r *Request)
 type HandleResponse func(r *Response)
 
 // HandleHTML is used to process html
-type HandleHTML func(he *html.HTMLElement)
+type HandleHTML func(he *html.HTMLElement, r *Response)
 
 // HTMLParser is used to parse html
 type HTMLParser struct {
@@ -596,7 +596,7 @@ func (c *Crawler) processHTMLHandler(r *Response) error {
 		i := 0
 		doc.Find(parser.Selector).Each(func(_ int, s *goquery.Selection) {
 			for _, n := range s.Nodes {
-				parser.Handle(html.NewHTMLElementFromSelectionNode(s, n, i))
+				parser.Handle(html.NewHTMLElementFromSelectionNode(s, n, i), r)
 				i++
 			}
 		})
