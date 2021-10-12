@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-10-12 11:40:40
+ * @Modified: 2021-10-12 11:43:47
  */
 
 package predator
@@ -92,15 +92,15 @@ func (r Request) NumberOfRetries() uint32 {
 }
 
 func (r Request) Get(u string) error {
-	return r.Visit(fasthttp.MethodGet, u, nil, nil, nil, r.Ctx)
+	return r.Visit(fasthttp.MethodGet, u, nil, nil)
 }
 
-func (r Request) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
-	return r.crawler.Post(URL, requestData, ctx)
+func (r Request) Post(URL string, requestData map[string]string) error {
+	return r.crawler.Post(URL, requestData, r.Ctx)
 }
 
-func (r Request) Visit(method, URL string, headers, cachedMap map[string]string, body []byte, ctx pctx.Context) error {
-	return r.crawler.request(method, URL, body, cachedMap, headers, ctx)
+func (r Request) Visit(method, URL string, cachedMap map[string]string, body []byte) error {
+	return r.crawler.request(method, URL, body, cachedMap, nil, r.Ctx)
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
