@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-10-12 11:37:01
+ * @Modified: 2021-10-12 11:40:40
  */
 
 package predator
@@ -92,11 +92,7 @@ func (r Request) NumberOfRetries() uint32 {
 }
 
 func (r Request) Get(u string) error {
-	return r.crawler.Get(u)
-}
-
-func (r Request) GetWithCtx(u string, ctx pctx.Context) error {
-	return r.Visit(fasthttp.MethodGet, u, nil, nil, nil, ctx)
+	return r.Visit(fasthttp.MethodGet, u, nil, nil, nil, r.Ctx)
 }
 
 func (r Request) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
