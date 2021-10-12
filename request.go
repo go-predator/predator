@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-10-12 09:43:05
+ * @Modified: 2021-10-12 11:37:01
  */
 
 package predator
@@ -76,9 +76,7 @@ func (r *Request) SetContentType(contentType string) {
 	r.Headers.Set("Content-Type", contentType)
 }
 
-// AllowRedirect 最多允许重定向 maxRedirectsCount 次。
-//
-// 重定向是一件比较常见，但影响爬虫效率的事，请根据实际情况设置此值。
+// AllowRedirect allows up to `maxRedirectsCount` times to be redirected.
 func (r *Request) AllowRedirect(maxRedirectsCount uint) {
 	r.maxRedirectsCount = maxRedirectsCount
 }
@@ -97,8 +95,16 @@ func (r Request) Get(u string) error {
 	return r.crawler.Get(u)
 }
 
+func (r Request) GetWithCtx(u string, ctx pctx.Context) error {
+	return r.Visit(fasthttp.MethodGet, u, nil, nil, nil, ctx)
+}
+
 func (r Request) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
 	return r.crawler.Post(URL, requestData, ctx)
+}
+
+func (r Request) Visit(method, URL string, headers, cachedMap map[string]string, body []byte, ctx pctx.Context) error {
+	return r.crawler.request(method, URL, body, cachedMap, headers, ctx)
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
