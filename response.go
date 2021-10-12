@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: response.go (c) 2021
+ * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-08-02 18:01:36
+ * @Modified: 2021-10-12 09:42:57
  */
 
 package predator
@@ -13,8 +13,8 @@ import (
 	"io/ioutil"
 	"sync"
 
-	ctx "github.com/thep0y/predator/context"
-	"github.com/thep0y/predator/json"
+	ctx "github.com/go-predator/predator/context"
+	"github.com/go-predator/predator/json"
 	"github.com/valyala/fasthttp"
 )
 

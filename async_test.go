@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: async_test.go (c) 2021
+ * @File Name: async_test.go
  * @Created: 2021-07-31 13:14:09
- * @Modified: 2021-09-09 08:38:38
+ * @Modified: 2021-10-12 09:43:57
  */
 
 package predator
@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-predator/predator/context"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/thep0y/predator/context"
 )
 
 func buildRequestBody(queryID string, page int) map[string]string {

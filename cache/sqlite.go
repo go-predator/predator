@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: sqlite.go
  * @Created: 2021-07-24 22:20:47
- * @Modified: 2021-07-31 11:36:14
+ * @Modified: 2021-10-12 09:45:18
  */
 
 package cache
@@ -11,8 +11,8 @@ package cache
 import (
 	"errors"
 
-	"github.com/thep0y/predator/dao"
-	"github.com/thep0y/predator/tools"
+	"github.com/go-predator/predator/dao"
+	"github.com/go-predator/predator/tools"
 	"gorm.io/gorm"
 )
 

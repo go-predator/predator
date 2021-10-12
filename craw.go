@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-11 16:14:37
+ * @Modified: 2021-10-12 09:43:51
  */
 
 package predator
@@ -17,11 +17,11 @@ import (
 	"sync/atomic"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/go-predator/predator/cache"
+	pctx "github.com/go-predator/predator/context"
+	"github.com/go-predator/predator/html"
+	"github.com/go-predator/predator/json"
 	"github.com/rs/zerolog"
-	"github.com/thep0y/predator/cache"
-	pctx "github.com/thep0y/predator/context"
-	"github.com/thep0y/predator/html"
-	"github.com/thep0y/predator/json"
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
 )

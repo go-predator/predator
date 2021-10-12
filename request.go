@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-10-11 22:41:32
+ * @Modified: 2021-10-12 09:43:05
  */
 
 package predator
@@ -23,8 +23,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	pctx "github.com/thep0y/predator/context"
-	"github.com/thep0y/predator/json"
+	pctx "github.com/go-predator/predator/context"
+	"github.com/go-predator/predator/json"
 	"github.com/valyala/fasthttp"
 )
 

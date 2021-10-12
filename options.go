@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-10-11 12:10:35
+ * @Modified: 2021-10-12 09:43:22
  */
 
 package predator
@@ -15,9 +15,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-predator/predator/cache"
+	"github.com/go-predator/predator/log"
 	"github.com/rs/zerolog"
-	"github.com/thep0y/predator/cache"
-	"github.com/thep0y/predator/log"
 )
 
 type CrawlerOption func(*Crawler)

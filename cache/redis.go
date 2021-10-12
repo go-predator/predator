@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: redis.go
  * @Created: 2021-07-24 22:21:17
- * @Modified: 2021-07-31 08:56:29
+ * @Modified: 2021-10-12 09:45:12
  */
 
 package cache
@@ -13,8 +13,8 @@ import (
 	"encoding/base64"
 	"strings"
 
+	"github.com/go-predator/predator/tools"
 	"github.com/go-redis/redis/v8"
-	"github.com/thep0y/predator/tools"
 )
 
 const (

@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: tools.go (c) 2021
+ * @File Name: tools.go
  * @Created: 2021-07-23 14:55:04
- * @Modified: 2021-08-01 23:02:22
+ * @Modified: 2021-10-12 09:44:02
  */
 
 package tools

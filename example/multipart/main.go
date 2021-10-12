@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: main.go (c) 2021
+ * @File Name: main.go
  * @Created: 2021-07-31 11:50:11
- * @Modified: 2021-08-02 15:08:32
+ * @Modified: 2021-10-12 09:44:37
  */
 
 package main
@@ -13,9 +13,9 @@ import (
 	"math/rand"
 	"strings"
 
-	"github.com/thep0y/predator"
-	"github.com/thep0y/predator/context"
-	"github.com/thep0y/predator/log"
+	"github.com/go-predator/predator"
+	"github.com/go-predator/predator/context"
+	"github.com/go-predator/predator/log"
 	"github.com/tidwall/gjson"
 )
 
