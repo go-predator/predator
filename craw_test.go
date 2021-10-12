@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-10-12 09:43:36
+ * @Modified: 2021-10-12 09:53:51
  */
 
 package predator
@@ -244,7 +244,7 @@ func TestHTTPProxy(t *testing.T) {
 	ts := server()
 	defer ts.Close()
 
-	validIP := "htp://123.73.209.237:46603"
+	validIP := "http://123.73.209.237:46603"
 	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
 
 	Convey("测试有效代理", t, func() {
@@ -536,7 +536,7 @@ func TestParseHTML(t *testing.T) {
 		crawl := NewCrawler()
 
 		Convey("测试解析整体 HTML", func() {
-			crawl.ParseHTML("body", func(he *html.HTMLElement) {
+			crawl.ParseHTML("body", func(he *html.HTMLElement, r *Response) {
 				h, err := he.OuterHTML()
 				So(err, ShouldBeNil)
 				So(h, ShouldEqual, `<body>
@@ -551,7 +551,7 @@ func TestParseHTML(t *testing.T) {
 		})
 
 		Convey("测试解析内部 HTML", func() {
-			crawl.ParseHTML("body", func(he *html.HTMLElement) {
+			crawl.ParseHTML("body", func(he *html.HTMLElement, r *Response) {
 				h, err := he.InnerHTML()
 				So(err, ShouldBeNil)
 				So(h, ShouldEqual, `
@@ -566,20 +566,20 @@ func TestParseHTML(t *testing.T) {
 		})
 
 		Convey("测试解析内部文本", func() {
-			crawl.ParseHTML("title", func(he *html.HTMLElement) {
+			crawl.ParseHTML("title", func(he *html.HTMLElement, r *Response) {
 				So(he.Text(), ShouldEqual, "Test Page")
 			})
 		})
 
 		Convey("测试获取属性", func() {
-			crawl.ParseHTML("p", func(he *html.HTMLElement) {
+			crawl.ParseHTML("p", func(he *html.HTMLElement, r *Response) {
 				attr := he.Attr("class")
 				So(attr, ShouldEqual, "description")
 			})
 		})
 
 		Convey("测试查找子元素", func() {
-			crawl.ParseHTML("body", func(he *html.HTMLElement) {
+			crawl.ParseHTML("body", func(he *html.HTMLElement, r *Response) {
 				So(he.FirstChild("p").Attr("class"), ShouldEqual, "description")
 				So(he.Child("p", 2).Text(), ShouldEqual, "This is a 2")
 				So(he.ChildAttr("p", "class"), ShouldEqual, "description")
