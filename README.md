@@ -8,7 +8,7 @@
 ### 1 创建一个 Crawler
 
 ```go
-import "github.com/thep0y/predator"
+import "github.com/go-predator/predator"
 
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 }
 ```
 
-创建`Crawler`时有一些可选项用来功能增强。所有可选项参考[predator/options.go](https://github.com/thep0y/predator/blob/main/options.go)。
+创建`Crawler`时有一些可选项用来功能增强。所有可选项参考[predator/options.go](https://github.com/go-predator/predator/blob/main/options.go)。
 
 ### 2 发送 Get 请求
 
@@ -115,7 +115,7 @@ crawler.Post("http://www.baidu.com", body, nil)
 
 `multipart/form-data`方法需要使用专门的`PostMultipart`方法，示例可能较长，这里不便书写。
 
-使用方法请参考示例：https://github.com/thep0y/predator/blob/main/example/multipart/main.go
+使用方法请参考示例：https://github.com/go-predator/predator/blob/main/example/multipart/main.go
 
 #### 3.3 JSON 请求
 
@@ -351,7 +351,7 @@ WithProxyPool([]string{"http://ip:port", "socks5://ip:port"})
 日志的完整示例：
 
 ```go
-import "github.com/thep0y/predator/log"
+import "github.com/go-predator/predator/log"
 
 func main() {
 	logOp := new(predator.LogOp)
@@ -373,7 +373,7 @@ func main() {
 当然，如果你确实有反序列化的需求，也不要用标准库，使用封装的 JSON 包中的序列化和反序列化方法比标准库性能高。
 
 ```GO
-import "github.com/thep0y/predator/json"
+import "github.com/go-predator/predator/json"
 
 json.Marshal()
 json.Unmarshal()
