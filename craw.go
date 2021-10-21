@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-21 11:19:25
+ * @Modified: 2021-10-21 11:21:28
  */
 
 package predator
@@ -210,18 +210,18 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 }
 
 func (c *Crawler) prepare(request *Request) (err error) {
+	if c.goPool != nil {
+		defer c.wg.Done()
+	}
+
+	c.processRequestHandler(request)
+
 	c.log.Info().
 		Uint32("request_id", atomic.LoadUint32(&request.ID)).
 		Str("method", request.Method).
 		Str("url", request.URL).
 		Str("timeout", request.timeout.String()).
 		Msg("requesting")
-
-	if c.goPool != nil {
-		defer c.wg.Done()
-	}
-
-	c.processRequestHandler(request)
 
 	if request.Ctx.Length() > 0 {
 		c.log.Debug().
