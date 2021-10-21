@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-10-12 11:43:47
+ * @Modified: 2021-10-21 10:29:08
  */
 
 package predator
@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
+	"time"
 
 	// "io"
 	"net/http"
@@ -53,6 +54,7 @@ type Request struct {
 	// 大于 0 时，允许最多重定向对应的次数。
 	// 重定向次数会影响爬虫效率。
 	maxRedirectsCount uint
+	timeout           time.Duration
 }
 
 // New 使用原始请求的上下文创建一个新的请求
@@ -79,6 +81,14 @@ func (r *Request) SetContentType(contentType string) {
 // AllowRedirect allows up to `maxRedirectsCount` times to be redirected.
 func (r *Request) AllowRedirect(maxRedirectsCount uint) {
 	r.maxRedirectsCount = maxRedirectsCount
+}
+
+// SetTimeout sets the waiting time for each request before
+// the remote end returns a response.
+//
+// The function doesn't follow redirects.
+func (r *Request) SetTimeout(t time.Duration) {
+	r.timeout = t
 }
 
 func (r *Request) SetHeaders(headers map[string]string) {

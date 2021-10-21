@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-12 09:43:51
+ * @Modified: 2021-10-21 10:30:44
  */
 
 package predator
@@ -59,7 +59,6 @@ type Crawler struct {
 	proxyURLPool    []string
 	// TODO: 动态获取代理
 	// dynamicProxyFunc AcquireProxies
-	// timeout          uint
 	requestCount  uint32
 	responseCount uint32
 	// 在多协程中这个上下文管理可以用来退出或取消多个协程
@@ -364,7 +363,11 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	var err error
 
 	if request.maxRedirectsCount == 0 {
-		err = c.client.Do(req, resp)
+		if request.timeout > 0 {
+			err = c.client.DoTimeout(req, resp, request.timeout)
+		} else {
+			err = c.client.Do(req, resp)
+		}
 	} else {
 		err = c.client.DoRedirects(req, resp, int(request.maxRedirectsCount))
 	}
