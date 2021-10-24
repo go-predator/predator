@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-10-12 09:43:22
+ * @Modified: 2021-10-24 16:29:05
  */
 
 package predator
@@ -161,4 +161,9 @@ func WithCache(cc cache.Cache, compressed bool, cacheFileds ...string) CrawlerOp
 			c.cacheFields = cacheFileds
 		}
 	}
+}
+
+// WithDefaultCache 默认缓存为 sqlite3，不压缩
+func WithDefaultCache() CrawlerOption {
+	return WithCache(nil, false)
 }
