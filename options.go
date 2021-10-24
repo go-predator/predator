@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified: 2021-10-24 16:29:05
+ * @Modified: 2021-10-24 18:39:08
  */
 
 package predator
@@ -78,6 +78,10 @@ func WithLogger(lop *LogOp) CrawlerOption {
 	return func(c *Crawler) {
 		c.log = log.NewLogger(lop.level, lop.Out)
 	}
+}
+
+func WithDefaultLogger() CrawlerOption {
+	return WithLogger(nil)
 }
 
 func WithUserAgent(ua string) CrawlerOption {
