@@ -204,6 +204,8 @@ ctx, err := AcquireCtx(context.ReadOp)
 
 本框架对 HTML 处理进行了一些函数封装，能方便地通过 css selector 进行元素的查找，可以提取元素中的属性和文本等。
 
+响应头必须是`text/html`或其扩展类型如`text/html; charset=utf-8`才能执行此方法。
+
 ```go
 crawl := NewCrawler()
 
