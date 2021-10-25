@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-21 11:21:28
+ * @Modified: 2021-10-25 17:41:30
  */
 
 package predator
@@ -425,6 +425,11 @@ func createBody(requestData map[string]string) []byte {
 // Get is used to send GET requests
 func (c *Crawler) Get(URL string) error {
 	return c.request(fasthttp.MethodGet, URL, nil, nil, nil, nil)
+}
+
+// GetWithCtx is used to send GET requests with a context
+func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
+	return c.request(fasthttp.MethodGet, URL, nil, nil, nil, ctx)
 }
 
 // Post is used to send POST requests
