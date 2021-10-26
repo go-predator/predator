@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: element.go
  * @Created: 2021-07-27 20:35:31
- * @Modified: 2021-10-26 18:10:59
+ * @Modified: 2021-10-26 22:09:59
  */
 
 package html
@@ -123,6 +123,10 @@ func (he *HTMLElement) Each(selector string, callback func(int, *HTMLElement)) {
 // Child returns the numth matched child element.
 // num starts at 1, not at 0.
 func (he *HTMLElement) Child(selector string, num int) *HTMLElement {
+	if he == nil {
+		panic("`HTMLElement` instance is nil")
+	}
+
 	s := he.DOM.Find(selector)
 	nodes := s.Nodes
 	if len(nodes) == 0 {
