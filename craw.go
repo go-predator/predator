@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-25 17:41:30
+ * @Modified: 2021-10-26 21:30:25
  */
 
 package predator
@@ -142,8 +142,10 @@ func (c *Crawler) Clone() *Crawler {
 
 func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, headers map[string]string, ctx pctx.Context) error {
 	defer func() {
-		if err := recover(); err != nil {
-			c.log.Fatal().Err(fmt.Errorf("worker panic: %s", err))
+		if c.goPool != nil {
+			if err := recover(); err != nil {
+				c.log.Fatal().Err(fmt.Errorf("worker panic: %s", err))
+			}
 		}
 	}()
 
