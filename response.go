@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-10-28 08:59:51
+ * @Modified: 2021-10-28 15:10:04
  */
 
 package predator
@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	ErrIncorrectResponse = errors.New("the response status code is not 200 or 201")
+	ErrIncorrectResponse = errors.New("the response status code is not 20X")
 )
 
 type Response struct {
@@ -73,7 +73,7 @@ func (r *Response) Reset(releaseCtx bool) {
 }
 
 func (r Response) Marshal() ([]byte, error) {
-	if r.StatusCode != fasthttp.StatusOK && r.StatusCode != fasthttp.StatusCreated {
+	if r.StatusCode/100 != 2 {
 		return nil, ErrIncorrectResponse
 	}
 	return json.Marshal(r)

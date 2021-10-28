@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 14:51:38
+ * @Modified: 2021-10-28 15:10:13
  */
 
 package predator
@@ -301,8 +301,8 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			return
 		}
 
-		// Cache the response from the request
-		if c.cache != nil && key != "" {
+		// Cache the response from the request if the statuscode is 20X
+		if response.StatusCode/100 == 2 && c.cache != nil && key != "" {
 			cacheVal, err := response.Marshal()
 			if err != nil {
 				if c.log != nil {
