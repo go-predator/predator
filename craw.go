@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 12:34:08
+ * @Modified: 2021-10-28 13:37:20
  */
 
 package predator
@@ -246,7 +246,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 	var key string
 
-	if c.cache != nil && request.cachedMap != nil {
+	if c.cache != nil {
 		key, err = request.Hash()
 		if err != nil {
 			c.log.Error().Caller().Err(err).Send()
@@ -281,7 +281,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 
 		// Cache the response from the request
-		if c.cache != nil && request.cachedMap != nil {
+		if c.cache != nil && key != "" {
 			cacheVal, err := response.Marshal()
 			if err != nil {
 				c.log.Error().Caller().Err(err).Send()

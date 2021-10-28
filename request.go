@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-10-28 12:26:05
+ * @Modified: 2021-10-28 13:50:32
  */
 
 package predator
@@ -150,8 +150,8 @@ type cacheRequest struct {
 	URL string
 	// 请求方法
 	Method string
-	// 请求体
-	Body []byte
+	// 待缓存的 map
+	CacheKey []byte
 }
 
 func marshalCachedMap(cachedMap map[string]string) []byte {
@@ -186,15 +186,19 @@ func (r Request) marshal() ([]byte, error) {
 		Method: r.Method,
 	}
 
-	if len(r.cachedMap) > 0 {
-		cr.Body = marshalCachedMap(r.cachedMap)
+	if r.cachedMap != nil {
+		cr.CacheKey = marshalCachedMap(r.cachedMap)
 	} else {
-		cr.Body = r.Body
+		cr.CacheKey = r.Body
 	}
 
 	if r.Method == fasthttp.MethodGet {
-		if cr.Body != nil {
-			return cr.Body, nil
+		// 为 GET 设置 cachedFields，则说明一定是因为 url 是变化的，所以不能将整个 url 作为缓存标志，
+		// 此时将 CacheKey 作为缓存标志是最佳选择
+		if cr.CacheKey != nil {
+			return cr.CacheKey, nil
+		} else {
+			return []byte(r.URL), nil
 		}
 	}
 
