@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified: 2021-10-12 09:44:18
+ * @Modified: 2021-10-28 10:54:47
  */
 
 package log
@@ -24,8 +24,8 @@ const (
 )
 
 // NewLogger returns a new zerolog instance
-func NewLogger(level zerolog.Level, out io.Writer) zerolog.Logger {
-	return zerolog.New(out).
+func NewLogger(level zerolog.Level, out io.Writer) *zerolog.Logger {
+	logger := zerolog.New(out).
 		Level(func() zerolog.Level {
 			// 环境变量是 DEBUG 时，优先设置日志等级为 DEBUG
 			if os.Getenv("DEBUG") != "" {
@@ -37,4 +37,5 @@ func NewLogger(level zerolog.Level, out io.Writer) zerolog.Logger {
 		With().
 		Timestamp().
 		Logger()
+	return &logger
 }

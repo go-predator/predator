@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-10-28 08:56:45
+ * @Modified: 2021-10-28 11:14:51
  */
 
 package predator
@@ -146,9 +146,9 @@ type cacheRequest struct {
 	Body []byte
 }
 
-func marshalPostBody(body map[string]string) []byte {
-	keys := make([]string, 0, len(body))
-	for k := range body {
+func marshalCachedMap(cachedMap map[string]string) []byte {
+	keys := make([]string, 0, len(cachedMap))
+	for k := range cachedMap {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -164,7 +164,7 @@ func marshalPostBody(body map[string]string) []byte {
 		b.WriteString(k)
 		b.WriteString(`": `)
 		b.WriteString(`"`)
-		b.WriteString(body[k])
+		b.WriteString(cachedMap[k])
 		b.WriteString(`"`)
 	}
 	b.WriteString("}")
@@ -178,11 +178,15 @@ func (r Request) marshal() ([]byte, error) {
 		Method: r.Method,
 	}
 
-	if r.Method == fasthttp.MethodPost {
-		if len(r.cachedMap) > 0 {
-			cr.Body = marshalPostBody(r.cachedMap)
-		} else {
-			cr.Body = r.Body
+	if len(r.cachedMap) > 0 {
+		cr.Body = marshalCachedMap(r.cachedMap)
+	} else {
+		cr.Body = r.Body
+	}
+
+	if r.Method == fasthttp.MethodGet {
+		if cr.Body != nil {
+			return cr.Body, nil
 		}
 	}
 

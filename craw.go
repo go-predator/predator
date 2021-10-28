@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 10:16:26
+ * @Modified: 2021-10-28 11:07:42
  */
 
 package predator
@@ -81,7 +81,7 @@ type Crawler struct {
 
 	wg *sync.WaitGroup
 
-	log zerolog.Logger
+	log *zerolog.Logger
 }
 
 // NewCrawler creates a new Crawler instance with some CrawlerOptions
@@ -337,6 +337,14 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 	return
 }
 
+func (c *Crawler) fatalOrPanic(err error) {
+	if c.log != nil {
+		c.log.Fatal().Caller(1).Err(err).Send()
+	} else {
+		panic(err)
+	}
+}
+
 func (c *Crawler) checkCache(key string) (*Response, error) {
 	var err error
 	cachedBody, ok := c.cache.IsCached(key)
@@ -393,11 +401,11 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		if p, ok := isProxyInvalid(err); ok {
 			err = c.removeInvalidProxy(p)
 			if err != nil {
-				c.log.Fatal().Caller().Err(err).Send()
+				c.fatalOrPanic(err)
 			}
 			return c.do(request)
 		} else {
-			c.log.Fatal().Caller().Err(err).Send()
+			c.fatalOrPanic(err)
 		}
 	}
 
@@ -443,12 +451,30 @@ func createBody(requestData map[string]string) []byte {
 
 // Get is used to send GET requests
 func (c *Crawler) Get(URL string) error {
-	return c.request(fasthttp.MethodGet, URL, nil, nil, nil, nil, false)
+	return c.GetWithCtx(URL, nil)
 }
 
 // GetWithCtx is used to send GET requests with a context
 func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
-	return c.request(fasthttp.MethodGet, URL, nil, nil, nil, ctx, false)
+	// Parse the query parameters and create a `cachedMap` based on `cacheFields`
+	u, err := url.Parse(URL)
+	if err != nil {
+		return err
+	}
+
+	params := u.Query()
+	var cachedMap = make(map[string]string)
+	if c.cacheFields != nil {
+		for _, field := range c.cacheFields {
+			if val := params.Get(field); val != "" {
+				cachedMap[field] = val
+			} else {
+				c.fatalOrPanic(fmt.Errorf("there is no such field in the query parameters: %s", field))
+			}
+		}
+	}
+
+	return c.request(fasthttp.MethodGet, URL, nil, cachedMap, nil, ctx, false)
 }
 
 // Post is used to send POST requests
@@ -459,9 +485,7 @@ func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Conte
 			if val, ok := requestData[field]; ok {
 				cachedMap[field] = val
 			} else {
-				c.log.Fatal().
-					Err(fmt.Errorf("there is no such field in the request body: %s", field)).
-					Send()
+				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
 			}
 		}
 	}
@@ -474,7 +498,7 @@ func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
 	}
 	body, err := json.Marshal(requestData)
 	if err != nil {
-		c.log.Fatal().Err(err).Msg("an error occurred while serializing the request body")
+		c.fatalOrPanic(err)
 	}
 	return body
 }
@@ -488,9 +512,7 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 		bodyJson := gjson.ParseBytes(body)
 		for _, field := range c.cacheFields {
 			if !bodyJson.Get(field).Exists() {
-				c.log.Fatal().
-					Err(fmt.Errorf("there is no such field in the request body: %s", field)).
-					Send()
+				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
 			}
 			val := bodyJson.Get(field).String()
 			cachedMap[field] = val
@@ -511,9 +533,7 @@ func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Contex
 			if val, ok := form.bodyMap[field]; ok {
 				cachedMap[field] = val
 			} else {
-				c.log.Fatal().
-					Err(fmt.Errorf("there is no such field in the request body: %s", field)).
-					Send()
+				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
 			}
 		}
 	}
