@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 12:16:19
+ * @Modified: 2021-10-28 12:34:08
  */
 
 package predator
@@ -457,8 +457,9 @@ func (c *Crawler) get(URL string, ctx pctx.Context, isChained bool, cacheFields 
 	}
 
 	params := u.Query()
-	var cachedMap = make(map[string]string)
+	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
+		cachedMap = make(map[string]string)
 		for _, field := range cacheFields {
 			if val := params.Get(field); val != "" {
 				cachedMap[field] = val
@@ -484,8 +485,9 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 }
 
 func (c *Crawler) post(URL string, requestData map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
-	var cachedMap = make(map[string]string)
+	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
+		cachedMap = make(map[string]string)
 		for _, field := range cacheFields {
 			if val, ok := requestData[field]; ok {
 				cachedMap[field] = val
@@ -519,8 +521,9 @@ func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
 func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx pctx.Context) error {
 	body := c.createJSONBody(requestData)
 
-	var cachedMap = make(map[string]string)
+	var cachedMap map[string]string
 	if c.cacheFields != nil {
+		cachedMap = make(map[string]string)
 		bodyJson := gjson.ParseBytes(body)
 		for _, field := range c.cacheFields {
 			if !bodyJson.Get(field).Exists() {
@@ -541,8 +544,9 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 
 // PostMultipart
 func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Context) error {
-	var cachedMap = make(map[string]string)
+	var cachedMap map[string]string
 	if c.cacheFields != nil {
+		cachedMap = make(map[string]string)
 		for _, field := range c.cacheFields {
 			if val, ok := form.bodyMap[field]; ok {
 				cachedMap[field] = val
