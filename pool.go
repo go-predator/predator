@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: pool.go
  * @Created: 2021-07-29 22:30:37
- * @Modified: 2021-08-07 21:53:34
+ * @Modified: 2021-10-28 09:07:59
  */
 
 package predator
@@ -34,8 +34,9 @@ const (
 
 // Task task to-do
 type Task struct {
-	crawler *Crawler
-	req     *Request
+	crawler   *Crawler
+	req       *Request
+	isChained bool
 }
 
 // Pool task pool
@@ -124,7 +125,7 @@ func (p *Pool) run() {
 		}()
 
 		for task := range p.chTask {
-			task.crawler.prepare(task.req)
+			task.crawler.prepare(task.req, task.isChained)
 		}
 	}()
 

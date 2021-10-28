@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 09:00:34
+ * @Modified: 2021-10-28 09:07:30
  */
 
 package predator
@@ -194,7 +194,11 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 
 	if c.goPool != nil {
 		c.wg.Add(1)
-		task := &Task{c, request}
+		task := &Task{
+			crawler:   c,
+			req:       request,
+			isChained: isChained,
+		}
 		err = c.goPool.Put(task)
 		if err != nil {
 			c.log.Error().Caller().Err(err).Send()
