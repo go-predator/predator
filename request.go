@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-10-28 11:14:51
+ * @Modified: 2021-10-28 12:19:23
  */
 
 package predator
@@ -105,11 +105,19 @@ func (r Request) Get(u string) error {
 	return r.Visit(fasthttp.MethodGet, u, nil, nil)
 }
 
-func (r Request) Post(URL string, requestData map[string]string) error {
-	return r.crawler.Post(URL, requestData, r.Ctx)
+func (r Request) GetWithCache(URL string, cacheFields ...string) error {
+	return r.crawler.get(URL, r.Ctx, true, cacheFields...)
 }
 
-func (r Request) Visit(method, URL string, cachedMap map[string]string, body []byte) error {
+func (r Request) Post(URL string, requestData map[string]string) error {
+	return r.crawler.post(URL, requestData, r.Ctx, true)
+}
+
+func (r Request) PostWithCache(URL string, requestData map[string]string, cacheFields ...string) error {
+	return r.crawler.post(URL, requestData, r.Ctx, true, cacheFields...)
+}
+
+func (r Request) Request(method, URL string, cachedMap map[string]string, body []byte) error {
 	return r.crawler.request(method, URL, body, cachedMap, nil, r.Ctx, true)
 }
 

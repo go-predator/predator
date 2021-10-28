@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 11:48:53
+ * @Modified: 2021-10-28 12:16:19
  */
 
 package predator
@@ -449,13 +449,7 @@ func createBody(requestData map[string]string) []byte {
 	return []byte(form.Encode())
 }
 
-// Get is used to send GET requests
-func (c *Crawler) Get(URL string) error {
-	return c.GetWithCtx(URL, nil)
-}
-
-// GetWithCtx is used to send GET requests with a context
-func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
+func (c *Crawler) get(URL string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
 	// Parse the query parameters and create a `cachedMap` based on `cacheFields`
 	u, err := url.Parse(URL)
 	if err != nil {
@@ -464,8 +458,8 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 
 	params := u.Query()
 	var cachedMap = make(map[string]string)
-	if c.cacheFields != nil {
-		for _, field := range c.cacheFields {
+	if len(cacheFields) > 0 {
+		for _, field := range cacheFields {
 			if val := params.Get(field); val != "" {
 				cachedMap[field] = val
 			} else {
@@ -476,14 +470,23 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 		}
 	}
 
-	return c.request(fasthttp.MethodGet, URL, nil, cachedMap, nil, ctx, false)
+	return c.request(fasthttp.MethodGet, URL, nil, cachedMap, nil, ctx, isChained)
 }
 
-// Post is used to send POST requests
-func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
+// Get is used to send GET requests
+func (c *Crawler) Get(URL string) error {
+	return c.GetWithCtx(URL, nil)
+}
+
+// GetWithCtx is used to send GET requests with a context
+func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
+	return c.get(URL, ctx, false, c.cacheFields...)
+}
+
+func (c *Crawler) post(URL string, requestData map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
 	var cachedMap = make(map[string]string)
-	if c.cacheFields != nil {
-		for _, field := range c.cacheFields {
+	if len(cacheFields) > 0 {
+		for _, field := range cacheFields {
 			if val, ok := requestData[field]; ok {
 				cachedMap[field] = val
 			} else {
@@ -493,7 +496,12 @@ func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Conte
 			}
 		}
 	}
-	return c.request(fasthttp.MethodPost, URL, createBody(requestData), cachedMap, nil, ctx, false)
+	return c.request(fasthttp.MethodPost, URL, createBody(requestData), cachedMap, nil, ctx, isChained)
+}
+
+// Post is used to send POST requests
+func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
+	return c.post(URL, requestData, ctx, false, c.cacheFields...)
 }
 
 func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
