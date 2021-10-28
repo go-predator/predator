@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-10-12 09:42:57
+ * @Modified: 2021-10-28 08:59:51
  */
 
 package predator
@@ -54,14 +54,19 @@ func (r *Response) String() string {
 	return string(r.Body)
 }
 
-func (r *Response) Reset() {
+func (r *Response) Reset(releaseCtx bool) {
 	r.StatusCode = 0
 	if r.Body != nil {
 		// 将 body 长度截为 0，这样不会删除引用关系，GC 不会回收，
 		// 可以实现 body 的复用
 		r.Body = r.Body[:0]
 	}
-	ctx.ReleaseCtx(r.Ctx)
+
+	// 为了在链式请求中传递上下文，不能每次响应后都释放上下文。
+	if releaseCtx {
+		ctx.ReleaseCtx(r.Ctx)
+	}
+
 	ReleaseRequest(r.Request)
 	r.Headers.Reset()
 	r.FromCache = false
@@ -95,7 +100,7 @@ func AcquireResponse() *Response {
 //
 // It is forbidden accessing resp and/or its' members after returning
 // it to response pool.
-func ReleaseResponse(resp *Response) {
-	resp.Reset()
+func ReleaseResponse(resp *Response, releaseCtx bool) {
+	resp.Reset(releaseCtx)
 	responsePool.Put(resp)
 }

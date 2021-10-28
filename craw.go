@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-26 21:30:25
+ * @Modified: 2021-10-28 09:00:34
  */
 
 package predator
@@ -140,7 +140,7 @@ func (c *Crawler) Clone() *Crawler {
 
 /************************* http 请求方法 ****************************/
 
-func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, headers map[string]string, ctx pctx.Context) error {
+func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, headers map[string]string, ctx pctx.Context, isChained bool) error {
 	defer func() {
 		if c.goPool != nil {
 			if err := recover(); err != nil {
@@ -203,7 +203,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 		return nil
 	}
 
-	err = c.prepare(request)
+	err = c.prepare(request, isChained)
 	if err != nil {
 		return err
 	}
@@ -211,7 +211,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 	return nil
 }
 
-func (c *Crawler) prepare(request *Request) (err error) {
+func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 	if c.goPool != nil {
 		defer c.wg.Done()
 	}
@@ -314,7 +314,7 @@ func (c *Crawler) prepare(request *Request) (err error) {
 	}
 
 	// 这里不需要调用 ReleaseRequest，因为 ReleaseResponse 中执行了 ReleaseRequest 方法
-	ReleaseResponse(response)
+	ReleaseResponse(response, !isChained)
 	if rawResp != nil {
 		// 原始响应应该在自定义响应之后释放，不然一些字段的值会出错
 		fasthttp.ReleaseResponse(rawResp)
@@ -426,12 +426,12 @@ func createBody(requestData map[string]string) []byte {
 
 // Get is used to send GET requests
 func (c *Crawler) Get(URL string) error {
-	return c.request(fasthttp.MethodGet, URL, nil, nil, nil, nil)
+	return c.request(fasthttp.MethodGet, URL, nil, nil, nil, nil, false)
 }
 
 // GetWithCtx is used to send GET requests with a context
 func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
-	return c.request(fasthttp.MethodGet, URL, nil, nil, nil, ctx)
+	return c.request(fasthttp.MethodGet, URL, nil, nil, nil, ctx, false)
 }
 
 // Post is used to send POST requests
@@ -448,7 +448,7 @@ func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Conte
 			}
 		}
 	}
-	return c.request(fasthttp.MethodPost, URL, createBody(requestData), cachedMap, nil, ctx)
+	return c.request(fasthttp.MethodPost, URL, createBody(requestData), cachedMap, nil, ctx, false)
 }
 
 func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
@@ -483,7 +483,7 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 
-	return c.request(fasthttp.MethodPost, URL, body, cachedMap, headers, ctx)
+	return c.request(fasthttp.MethodPost, URL, body, cachedMap, headers, ctx, false)
 }
 
 // PostMultipart
@@ -504,7 +504,7 @@ func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Contex
 	headers := make(map[string]string)
 	headers["Content-Type"] = form.FormDataContentType()
 
-	return c.request(fasthttp.MethodPost, URL, form.Bytes(), cachedMap, headers, ctx)
+	return c.request(fasthttp.MethodPost, URL, form.Bytes(), cachedMap, headers, ctx, false)
 }
 
 // PostRaw 发送非 form、multipart、json 的原始的 post 请求
@@ -512,7 +512,7 @@ func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error {
 	cachedMap := map[string]string{
 		"cache": string(body),
 	}
-	return c.request(fasthttp.MethodPost, URL, body, cachedMap, nil, ctx)
+	return c.request(fasthttp.MethodPost, URL, body, cachedMap, nil, ctx, false)
 }
 
 /************************* 公共方法 ****************************/

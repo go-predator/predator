@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-10-21 10:29:08
+ * @Modified: 2021-10-28 08:56:45
  */
 
 package predator
@@ -110,7 +110,7 @@ func (r Request) Post(URL string, requestData map[string]string) error {
 }
 
 func (r Request) Visit(method, URL string, cachedMap map[string]string, body []byte) error {
-	return r.crawler.request(method, URL, body, cachedMap, nil, r.Ctx)
+	return r.crawler.request(method, URL, body, cachedMap, nil, r.Ctx, true)
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
