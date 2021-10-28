@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 09:07:30
+ * @Modified: 2021-10-28 09:50:25
  */
 
 package predator
@@ -303,12 +303,22 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		response.Ctx = request.Ctx
 	}
 
-	c.log.Info().
-		Str("method", request.Method).
-		Int("status_code", response.StatusCode).
-		Bool("from_cache", response.FromCache).
-		Uint32("request_id", atomic.LoadUint32(&request.ID)).
-		Msg("response")
+	if response.StatusCode == fasthttp.StatusFound {
+		location := response.Headers.Peek("location")
+		c.log.Info().
+			Str("method", request.Method).
+			Int("status_code", response.StatusCode).
+			Str("location", string(location)).
+			Uint32("request_id", atomic.LoadUint32(&request.ID)).
+			Msg("response")
+	} else {
+		c.log.Info().
+			Str("method", request.Method).
+			Int("status_code", response.StatusCode).
+			Bool("from_cache", response.FromCache).
+			Uint32("request_id", atomic.LoadUint32(&request.ID)).
+			Msg("response")
+	}
 
 	c.processResponseHandler(response)
 
