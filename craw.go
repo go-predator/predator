@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 15:10:13
+ * @Modified: 2021-10-28 15:57:08
  */
 
 package predator
@@ -499,7 +499,7 @@ func (c *Crawler) get(URL string, ctx pctx.Context, isChained bool, cacheFields 
 				cachedMap[field] = val
 			} else {
 				// 如果设置了 cachedFields，但 url 查询参数中却没有某个 field，则报异常退出
-				c.fatalOrPanic(fmt.Errorf("there is no such field in the query parameter: %s", field))
+				c.fatalOrPanic(fmt.Errorf("there is no such field [%s] in the query parameters: %v", field, params.Encode()))
 			}
 		}
 	}
@@ -520,13 +520,18 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 func (c *Crawler) post(URL string, requestData map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
+
 		cachedMap = make(map[string]string)
 		for _, field := range cacheFields {
 			if val, ok := requestData[field]; ok {
 				cachedMap[field] = val
 			} else {
+				keys := make([]string, 0, len(requestData))
+				for _, k := range requestData {
+					keys = append(keys, k)
+				}
 				// 如果 cachedFields 中某个 field 是请求表单中没有的，则报异常退出
-				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
+				c.fatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
 			}
 		}
 	}
@@ -559,8 +564,13 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 		bodyJson := gjson.ParseBytes(body)
 		for _, field := range c.cacheFields {
 			if !bodyJson.Get(field).Exists() {
+				m := bodyJson.Map()
+				var keys = make([]string, 0, len(m))
+				for k := range m {
+					keys = append(keys, k)
+				}
 				// 如果 cachedFields 中某个 field 是请求 json 中没有的，则报异常退出
-				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
+				c.fatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
 			}
 			val := bodyJson.Get(field).String()
 			cachedMap[field] = val
@@ -582,8 +592,12 @@ func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Contex
 			if val, ok := form.bodyMap[field]; ok {
 				cachedMap[field] = val
 			} else {
+				var keys = make([]string, 0, len(form.bodyMap))
+				for k := range form.bodyMap {
+					keys = append(keys, k)
+				}
 				// 如果 cachedFields 中某个 field 是请求表单中没有的，则报异常退出
-				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
+				c.fatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
 			}
 		}
 	}
