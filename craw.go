@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 13:37:20
+ * @Modified: 2021-10-28 14:03:52
  */
 
 package predator
@@ -464,9 +464,8 @@ func (c *Crawler) get(URL string, ctx pctx.Context, isChained bool, cacheFields 
 			if val := params.Get(field); val != "" {
 				cachedMap[field] = val
 			} else {
-				c.log.Warn().Msg(fmt.Sprintf("there is no such field in the query parameters: %s", field))
-				cachedMap = nil
-				break
+				// 如果设置了 cachedFields，但 url 查询参数中却没有某个 field，则报异常退出
+				c.fatalOrPanic(fmt.Errorf("there is no such field in the query parameter: %s", field))
 			}
 		}
 	}
@@ -492,9 +491,8 @@ func (c *Crawler) post(URL string, requestData map[string]string, ctx pctx.Conte
 			if val, ok := requestData[field]; ok {
 				cachedMap[field] = val
 			} else {
-				c.log.Warn().Msg(fmt.Sprintf("there is no such field in the request body: %s", field))
-				cachedMap = nil
-				break
+				// 如果 cachedFields 中某个 field 是请求表单中没有的，则报异常退出
+				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
 			}
 		}
 	}
@@ -527,9 +525,8 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 		bodyJson := gjson.ParseBytes(body)
 		for _, field := range c.cacheFields {
 			if !bodyJson.Get(field).Exists() {
-				c.log.Warn().Msg(fmt.Sprintf("there is no such field in the request body: %s", field))
-				cachedMap = nil
-				break
+				// 如果 cachedFields 中某个 field 是请求 json 中没有的，则报异常退出
+				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
 			}
 			val := bodyJson.Get(field).String()
 			cachedMap[field] = val
@@ -551,9 +548,8 @@ func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Contex
 			if val, ok := form.bodyMap[field]; ok {
 				cachedMap[field] = val
 			} else {
-				c.log.Warn().Msg(fmt.Sprintf("there is no such field in the request body: %s", field))
-				cachedMap = nil
-				break
+				// 如果 cachedFields 中某个 field 是请求表单中没有的，则报异常退出
+				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
 			}
 		}
 	}
