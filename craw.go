@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 15:57:08
+ * @Modified: 2021-10-28 21:25:18
  */
 
 package predator
@@ -201,6 +201,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 	request.ID = atomic.AddUint32(&c.requestCount, 1)
 	request.crawler = c
 
+	// TODO: 链式请求用 go pool 会阻塞？
 	if c.goPool != nil {
 		c.wg.Add(1)
 		task := &Task{
@@ -771,6 +772,6 @@ func (c *Crawler) removeInvalidProxy(proxy string) error {
 
 func (c *Crawler) Error(err error) {
 	if c.log != nil {
-		c.log.Error().Caller().Err(err).Send()
+		c.log.Error().Caller(1).Err(err).Send()
 	}
 }
