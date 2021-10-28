@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 11:07:42
+ * @Modified: 2021-10-28 11:48:53
  */
 
 package predator
@@ -140,7 +140,7 @@ func (c *Crawler) Clone() *Crawler {
 
 /************************* http 请求方法 ****************************/
 
-func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, headers map[string]string, ctx pctx.Context, isChained bool) error {
+func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers map[string]string, ctx pctx.Context, isChained bool) error {
 	defer func() {
 		if c.goPool != nil {
 			if err := recover(); err != nil {
@@ -246,7 +246,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 	var key string
 
-	if c.cache != nil {
+	if c.cache != nil && request.cachedMap != nil {
 		key, err = request.Hash()
 		if err != nil {
 			c.log.Error().Caller().Err(err).Send()
@@ -280,8 +280,8 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			return
 		}
 
-		// Save the response from the request to the cache
-		if c.cache != nil {
+		// Cache the response from the request
+		if c.cache != nil && request.cachedMap != nil {
 			cacheVal, err := response.Marshal()
 			if err != nil {
 				c.log.Error().Caller().Err(err).Send()
@@ -469,7 +469,9 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 			if val := params.Get(field); val != "" {
 				cachedMap[field] = val
 			} else {
-				c.fatalOrPanic(fmt.Errorf("there is no such field in the query parameters: %s", field))
+				c.log.Warn().Msg(fmt.Sprintf("there is no such field in the query parameters: %s", field))
+				cachedMap = nil
+				break
 			}
 		}
 	}
@@ -485,7 +487,9 @@ func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Conte
 			if val, ok := requestData[field]; ok {
 				cachedMap[field] = val
 			} else {
-				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
+				c.log.Warn().Msg(fmt.Sprintf("there is no such field in the request body: %s", field))
+				cachedMap = nil
+				break
 			}
 		}
 	}
@@ -512,7 +516,9 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 		bodyJson := gjson.ParseBytes(body)
 		for _, field := range c.cacheFields {
 			if !bodyJson.Get(field).Exists() {
-				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
+				c.log.Warn().Msg(fmt.Sprintf("there is no such field in the request body: %s", field))
+				cachedMap = nil
+				break
 			}
 			val := bodyJson.Get(field).String()
 			cachedMap[field] = val
@@ -533,7 +539,9 @@ func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Contex
 			if val, ok := form.bodyMap[field]; ok {
 				cachedMap[field] = val
 			} else {
-				c.fatalOrPanic(fmt.Errorf("there is no such field in the request body: %s", field))
+				c.log.Warn().Msg(fmt.Sprintf("there is no such field in the request body: %s", field))
+				cachedMap = nil
+				break
 			}
 		}
 	}
