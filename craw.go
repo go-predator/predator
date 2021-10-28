@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 14:03:52
+ * @Modified: 2021-10-28 14:23:16
  */
 
 package predator
@@ -102,15 +102,17 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	capacityState := c.goPool != nil
 
-	if capacityState {
-		c.log.Info().
-			Bool("state", capacityState).
-			Uint64("capacity", c.goPool.capacity).
-			Msg("concurrent")
-	} else {
-		c.log.Info().
-			Bool("state", capacityState).
-			Msg("concurrent")
+	if c.log != nil {
+		if capacityState {
+			c.log.Info().
+				Bool("state", capacityState).
+				Uint64("capacity", c.goPool.capacity).
+				Msg("concurrent")
+		} else {
+			c.log.Info().
+				Bool("state", capacityState).
+				Msg("concurrent")
+		}
 	}
 
 	return c
@@ -144,7 +146,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 	defer func() {
 		if c.goPool != nil {
 			if err := recover(); err != nil {
-				c.log.Fatal().Err(fmt.Errorf("worker panic: %s", err))
+				c.fatalOrPanic(fmt.Errorf("worker panic: %s", err))
 			}
 		}
 	}()
@@ -156,7 +158,9 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 
 	u, err := url.Parse(URL)
 	if err != nil {
-		c.log.Error().Caller().Err(err).Send()
+		if c.log != nil {
+			c.log.Error().Caller().Err(err).Send()
+		}
 		return err
 	}
 	reqHeaders.SetRequestURI(u.RequestURI())
@@ -169,15 +173,19 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 		for k, v := range c.cookies {
 			reqHeaders.SetCookie(k, v)
 		}
-		c.log.Debug().
-			Bytes("cookies", reqHeaders.Peek("Cookie")).
-			Msg("cookies is set")
+		if c.log != nil {
+			c.log.Debug().
+				Bytes("cookies", reqHeaders.Peek("Cookie")).
+				Msg("cookies is set")
+		}
 	}
 
 	if ctx == nil {
 		ctx, err = pctx.AcquireCtx()
 		if err != nil {
-			c.log.Error().Caller().Err(err).Send()
+			if c.log != nil {
+				c.log.Error().Caller().Err(err).Send()
+			}
 			return err
 		}
 	}
@@ -201,7 +209,9 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 		}
 		err = c.goPool.Put(task)
 		if err != nil {
-			c.log.Error().Caller().Err(err).Send()
+			if c.log != nil {
+				c.log.Error().Caller().Err(err).Send()
+			}
 			return err
 		}
 		return nil
@@ -222,23 +232,29 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 	c.processRequestHandler(request)
 
-	c.log.Info().
-		Uint32("request_id", atomic.LoadUint32(&request.ID)).
-		Str("method", request.Method).
-		Str("url", request.URL).
-		Str("timeout", request.timeout.String()).
-		Msg("requesting")
+	if c.log != nil {
+		c.log.Info().
+			Uint32("request_id", atomic.LoadUint32(&request.ID)).
+			Str("method", request.Method).
+			Str("url", request.URL).
+			Str("timeout", request.timeout.String()).
+			Msg("requesting")
+	}
 
 	if request.Ctx.Length() > 0 {
-		c.log.Debug().
-			RawJSON("context", request.Ctx.Bytes()).
-			Msg("using context")
+		if c.log != nil {
+			c.log.Debug().
+				RawJSON("context", request.Ctx.Bytes()).
+				Msg("using context")
+		}
 	}
 
 	if request.abort {
-		c.log.Debug().
-			Uint32("request_id", atomic.LoadUint32(&request.ID)).
-			Msg("the request is aborted")
+		if c.log != nil {
+			c.log.Debug().
+				Uint32("request_id", atomic.LoadUint32(&request.ID)).
+				Msg("the request is aborted")
+		}
 		return
 	}
 
@@ -249,21 +265,25 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 	if c.cache != nil {
 		key, err = request.Hash()
 		if err != nil {
-			c.log.Error().Caller().Err(err).Send()
+			if c.log != nil {
+				c.log.Error().Caller().Err(err).Send()
+			}
 			return
 		}
 
-		c.log.Debug().
-			Uint32("request_id", atomic.LoadUint32(&request.ID)).
-			Str("cache_key", key).
-			Msg("generate cache key")
+		if c.log != nil {
+			c.log.Debug().
+				Uint32("request_id", atomic.LoadUint32(&request.ID)).
+				Str("cache_key", key).
+				Msg("generate cache key")
+		}
 
 		response, err = c.checkCache(key)
 		if err != nil {
 			return
 		}
 
-		if response != nil {
+		if response != nil && c.log != nil {
 			c.log.Debug().
 				Uint32("request_id", atomic.LoadUint32(&request.ID)).
 				Str("cache_key", key).
@@ -284,7 +304,9 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		if c.cache != nil && key != "" {
 			cacheVal, err := response.Marshal()
 			if err != nil {
-				c.log.Error().Caller().Err(err).Send()
+				if c.log != nil {
+					c.log.Error().Caller().Err(err).Send()
+				}
 				return err
 			}
 
@@ -292,7 +314,9 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 				c.lock.Lock()
 				err = c.cache.Cache(key, cacheVal)
 				if err != nil {
-					c.log.Error().Caller().Err(err).Send()
+					if c.log != nil {
+						c.log.Error().Caller().Err(err).Send()
+					}
 					return err
 				}
 				c.lock.Unlock()
@@ -305,19 +329,24 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 	if response.StatusCode == fasthttp.StatusFound {
 		location := response.Headers.Peek("location")
-		c.log.Info().
-			Str("method", request.Method).
-			Int("status_code", response.StatusCode).
-			Str("location", string(location)).
-			Uint32("request_id", atomic.LoadUint32(&request.ID)).
-			Msg("response")
+
+		if c.log != nil {
+			c.log.Info().
+				Str("method", request.Method).
+				Int("status_code", response.StatusCode).
+				Str("location", string(location)).
+				Uint32("request_id", atomic.LoadUint32(&request.ID)).
+				Msg("response")
+		}
 	} else {
-		c.log.Info().
-			Str("method", request.Method).
-			Int("status_code", response.StatusCode).
-			Bool("from_cache", response.FromCache).
-			Uint32("request_id", atomic.LoadUint32(&request.ID)).
-			Msg("response")
+		if c.log != nil {
+			c.log.Info().
+				Str("method", request.Method).
+				Int("status_code", response.StatusCode).
+				Bool("from_cache", response.FromCache).
+				Uint32("request_id", atomic.LoadUint32(&request.ID)).
+				Msg("response")
+		}
 	}
 
 	c.processResponseHandler(response)
@@ -354,7 +383,9 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 	var resp Response
 	err = json.Unmarshal(cachedBody, &resp)
 	if err != nil {
-		c.log.Error().Caller().Err(err).Send()
+		if c.log != nil {
+			c.log.Error().Caller().Err(err).Send()
+		}
 		return nil, err
 	}
 	resp.FromCache = true
@@ -425,12 +456,14 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	if c.retryCount > 0 && request.retryCounter < c.retryCount {
 		if c.retryConditions(*response) {
 			atomic.AddUint32(&request.retryCounter, 1)
-			c.log.Info().
-				Uint32("retry_count", atomic.LoadUint32(&request.retryCounter)).
-				Str("method", request.Method).
-				Str("url", request.URL).
-				Uint32("request_id", atomic.LoadUint32(&request.ID)).
-				Msg("retrying")
+			if c.log != nil {
+				c.log.Info().
+					Uint32("retry_count", atomic.LoadUint32(&request.retryCounter)).
+					Str("method", request.Method).
+					Str("url", request.URL).
+					Uint32("request_id", atomic.LoadUint32(&request.ID)).
+					Msg("retrying")
+			}
 			return c.do(request)
 		}
 	}
@@ -575,7 +608,9 @@ func (c *Crawler) ClearCache() error {
 	if c.cache == nil {
 		return ErrNoCacheSet
 	}
-	c.log.Warn().Msg("clear all cache")
+	if c.log != nil {
+		c.log.Warn().Msg("clear all cache")
+	}
 	return c.cache.Clear()
 }
 
@@ -692,9 +727,11 @@ func (c *Crawler) removeInvalidProxy(proxy string) error {
 			c.proxyURLPool[targetIndex+1:]...,
 		)
 
-		c.log.Debug().
-			Str("proxy", proxy).
-			Msg("invalid proxy have been deleted from the proxy pool")
+		if c.log != nil {
+			c.log.Debug().
+				Str("proxy", proxy).
+				Msg("invalid proxy have been deleted from the proxy pool")
+		}
 
 		if len(c.proxyURLPool) == 0 {
 			return ErrEmptyProxyPool
@@ -708,5 +745,7 @@ func (c *Crawler) removeInvalidProxy(proxy string) error {
 }
 
 func (c *Crawler) Error(err error) {
-	c.log.Error().Caller().Err(err).Send()
+	if c.log != nil {
+		c.log.Error().Caller().Err(err).Send()
+	}
 }
