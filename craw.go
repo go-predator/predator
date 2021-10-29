@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-29 09:34:05
+ * @Modified: 2021-10-29 09:36:00
  */
 
 package predator
@@ -147,7 +147,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 	defer func() {
 		if c.goPool != nil {
 			if err := recover(); err != nil {
-				c.fatalOrPanic(fmt.Errorf("worker panic: %s", err))
+				c.FatalOrPanic(fmt.Errorf("worker panic: %s", err))
 			}
 		}
 	}()
@@ -368,7 +368,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 	return
 }
 
-func (c *Crawler) fatalOrPanic(err error) {
+func (c *Crawler) FatalOrPanic(err error) {
 	if c.log != nil {
 		c.log.Fatal().Caller(1).Err(err).Send()
 	} else {
@@ -434,11 +434,11 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		if p, ok := isProxyInvalid(err); ok {
 			err = c.removeInvalidProxy(p)
 			if err != nil {
-				c.fatalOrPanic(err)
+				c.FatalOrPanic(err)
 			}
 			return c.do(request)
 		} else {
-			c.fatalOrPanic(err)
+			c.FatalOrPanic(err)
 		}
 	}
 
@@ -500,7 +500,7 @@ func (c *Crawler) get(URL string, ctx pctx.Context, isChained bool, cacheFields 
 				cachedMap[field] = val
 			} else {
 				// 如果设置了 cachedFields，但 url 查询参数中却没有某个 field，则报异常退出
-				c.fatalOrPanic(fmt.Errorf("there is no such field [%s] in the query parameters: %v", field, params.Encode()))
+				c.FatalOrPanic(fmt.Errorf("there is no such field [%s] in the query parameters: %v", field, params.Encode()))
 			}
 		}
 	}
@@ -532,7 +532,7 @@ func (c *Crawler) post(URL string, requestData map[string]string, ctx pctx.Conte
 					keys = append(keys, k)
 				}
 				// 如果 cachedFields 中某个 field 是请求表单中没有的，则报异常退出
-				c.fatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
+				c.FatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
 			}
 		}
 	}
@@ -550,7 +550,7 @@ func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
 	}
 	body, err := json.Marshal(requestData)
 	if err != nil {
-		c.fatalOrPanic(err)
+		c.FatalOrPanic(err)
 	}
 	return body
 }
@@ -571,7 +571,7 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 					keys = append(keys, k)
 				}
 				// 如果 cachedFields 中某个 field 是请求 json 中没有的，则报异常退出
-				c.fatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
+				c.FatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
 			}
 			val := bodyJson.Get(field).String()
 			cachedMap[field] = val
@@ -598,7 +598,7 @@ func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Contex
 					keys = append(keys, k)
 				}
 				// 如果 cachedFields 中某个 field 是请求表单中没有的，则报异常退出
-				c.fatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
+				c.FatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
 			}
 		}
 	}
