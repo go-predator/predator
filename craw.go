@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-28 21:25:18
+ * @Modified: 2021-10-29 09:34:05
  */
 
 package predator
@@ -770,8 +770,93 @@ func (c *Crawler) removeInvalidProxy(proxy string) error {
 	return nil
 }
 
-func (c *Crawler) Error(err error) {
+func guessType(l *zerolog.Event, args ...map[string]interface{}) *zerolog.Event {
+	if len(args) > 1 {
+		panic("too many args")
+	}
+	if len(args) == 1 {
+		for k, arg := range args[0] {
+			switch arg.(type) {
+			case string:
+				l = l.Str(k, arg.(string))
+			case int:
+				l = l.Int(k, arg.(int))
+			case int32:
+				l = l.Int32(k, arg.(int32))
+			case int64:
+				l = l.Int64(k, arg.(int64))
+			case uint:
+				l = l.Uint(k, arg.(uint))
+			case uint32:
+				l = l.Uint32(k, arg.(uint32))
+			case uint64:
+				l = l.Uint64(k, arg.(uint64))
+			case float32:
+				l = l.Float32(k, arg.(float32))
+			case float64:
+				l = l.Float64(k, arg.(float64))
+			case bool:
+				l = l.Bool(k, arg.(bool))
+			case []int:
+				l = l.Ints(k, arg.([]int))
+			case []int32:
+				l = l.Ints32(k, arg.([]int32))
+			case []uint:
+				l = l.Uints(k, arg.([]uint))
+			case []uint32:
+				l = l.Uints32(k, arg.([]uint32))
+			case []uint64:
+				l = l.Uints64(k, arg.([]uint64))
+			case []float32:
+				l = l.Floats32(k, arg.([]float32))
+			case []float64:
+				l = l.Floats64(k, arg.([]float64))
+			case []bool:
+				l = l.Bools(k, arg.([]bool))
+			default:
+				panic("unkown type")
+			}
+		}
+	}
+	return l
+}
+
+func (c *Crawler) Debug(msg string, args ...map[string]interface{}) {
 	if c.log != nil {
-		c.log.Error().Caller(1).Err(err).Send()
+		l := c.log.Debug().Caller(1)
+		l = guessType(l, args...)
+		l.Msg(msg)
+	}
+}
+
+func (c *Crawler) Info(msg string, args ...map[string]interface{}) {
+	if c.log != nil {
+		l := c.log.Info()
+		l = guessType(l, args...)
+		l.Msg(msg)
+	}
+}
+
+func (c *Crawler) Warning(msg string, args ...map[string]interface{}) {
+	if c.log != nil {
+		l := c.log.Warn().Caller(1)
+		l = guessType(l, args...)
+		l.Msg(msg)
+	}
+}
+
+func (c *Crawler) Error(err error, args ...map[string]interface{}) {
+	if c.log != nil {
+		l := c.log.Warn().Caller(1).Err(err)
+		l = guessType(l, args...)
+		l.Send()
+	}
+}
+
+func (c *Crawler) Fatal(err error, args ...map[string]interface{}) {
+	if c.log != nil {
+		l := c.log.Error().Caller(1).Err(err)
+		l = guessType(l, args...)
+		l.Send()
 	}
 }
