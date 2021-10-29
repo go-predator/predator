@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-29 09:36:00
+ * @Modified: 2021-10-29 16:09:21
  */
 
 package predator
@@ -847,7 +847,7 @@ func (c *Crawler) Warning(msg string, args ...map[string]interface{}) {
 
 func (c *Crawler) Error(err error, args ...map[string]interface{}) {
 	if c.log != nil {
-		l := c.log.Warn().Caller(1).Err(err)
+		l := c.log.Error().Caller(1).Err(err)
 		l = guessType(l, args...)
 		l.Send()
 	}
@@ -855,7 +855,7 @@ func (c *Crawler) Error(err error, args ...map[string]interface{}) {
 
 func (c *Crawler) Fatal(err error, args ...map[string]interface{}) {
 	if c.log != nil {
-		l := c.log.Error().Caller(1).Err(err)
+		l := c.log.Fatal().Caller(1).Err(err)
 		l = guessType(l, args...)
 		l.Send()
 	}
