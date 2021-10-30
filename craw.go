@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-29 16:09:21
+ * @Modified: 2021-10-30 17:36:30
  */
 
 package predator
@@ -234,6 +234,15 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 	c.processRequestHandler(request)
 
+	if request.abort {
+		if c.log != nil {
+			c.log.Debug().
+				Uint32("request_id", atomic.LoadUint32(&request.ID)).
+				Msg("the request is aborted")
+		}
+		return
+	}
+
 	if c.log != nil {
 		c.log.Info().
 			Uint32("request_id", atomic.LoadUint32(&request.ID)).
@@ -249,15 +258,6 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 				RawJSON("context", request.Ctx.Bytes()).
 				Msg("using context")
 		}
-	}
-
-	if request.abort {
-		if c.log != nil {
-			c.log.Debug().
-				Uint32("request_id", atomic.LoadUint32(&request.ID)).
-				Msg("the request is aborted")
-		}
-		return
 	}
 
 	var response *Response
