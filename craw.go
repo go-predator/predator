@@ -3,14 +3,13 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-10-30 17:36:30
+ * @Modified: 2021-11-04 18:21:47
  */
 
 package predator
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -698,13 +697,17 @@ func (c *Crawler) processResponseHandler(r *Response) {
 }
 
 func (c *Crawler) processHTMLHandler(r *Response) error {
-	if len(c.htmlHandler) == 0 || !strings.Contains(strings.ToLower(r.ContentType()), "html") {
+	if len(c.htmlHandler) == 0 {
+		return nil
+	}
+
+	if !strings.Contains(strings.ToLower(r.ContentType()), "html") {
 		if c.log != nil {
 			c.log.
-				Error().
+				Debug().
 				Caller().
-				Err(errors.New(`the "Content-Type" of the response header is not of the "html" type`)).
-				Send()
+				Str("Content-Type", r.ContentType()).
+				Msg(`the "Content-Type" of the response header is not of the "html" type`)
 		}
 		return nil
 	}
