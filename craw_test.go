@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-10-12 09:53:51
+ * @Modified: 2021-11-05 15:04:57
  */
 
 package predator
@@ -23,6 +23,7 @@ import (
 	"github.com/go-predator/predator/cache"
 	"github.com/go-predator/predator/html"
 	"github.com/go-predator/predator/log"
+	"github.com/go-predator/predator/proxy"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
@@ -266,7 +267,7 @@ func TestHTTPProxy(t *testing.T) {
 	Convey("测试代理池为空时 panic", t, func() {
 		defer func() {
 			if err := recover(); err != nil {
-				So(err.(error), ShouldEqual, ErrEmptyProxyPool)
+				So(err.(proxy.ProxyErr).Code, ShouldEqual, proxy.ErrEmptyProxyPoolCode)
 			}
 		}()
 		ips := []string{

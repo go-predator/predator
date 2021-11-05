@@ -3,13 +3,14 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-04 18:21:47
+ * @Modified: 2021-11-05 15:09:12
  */
 
 package predator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -21,10 +22,13 @@ import (
 	pctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/html"
 	"github.com/go-predator/predator/json"
+	"github.com/go-predator/predator/proxy"
 	"github.com/rs/zerolog"
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
 )
+
+var ErrNoCacheSet = errors.New("no cache set")
 
 // HandleRequest is used to patch the request
 type HandleRequest func(r *Request)
@@ -430,7 +434,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	}
 
 	if err != nil {
-		if p, ok := isProxyInvalid(err); ok {
+		if p, ok := proxy.IsProxyInvalid(err); ok {
 			err = c.removeInvalidProxy(p)
 			if err != nil {
 				c.FatalOrPanic(err)
@@ -733,18 +737,21 @@ func (c *Crawler) processHTMLHandler(r *Response) error {
 }
 
 // removeInvalidProxy 只有在使用代理池且当前请求使用的代理来自于代理池时，才能真正删除失效代理
-func (c *Crawler) removeInvalidProxy(proxy string) error {
+func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	if c.ProxyPoolAmount() == 0 {
-		return ErrEmptyProxyPool
+		return proxy.ProxyErr{
+			Code: proxy.ErrEmptyProxyPoolCode,
+			Msg:  "the current proxy ip pool is empty",
+		}
 	}
 
 	targetIndex := -1
 	for i, p := range c.proxyURLPool {
 		addr := strings.Split(p, "//")[1]
-		if addr == proxy {
+		if addr == proxyAddr {
 			targetIndex = i
 			break
 		}
@@ -758,16 +765,25 @@ func (c *Crawler) removeInvalidProxy(proxy string) error {
 
 		if c.log != nil {
 			c.log.Debug().
-				Str("proxy", proxy).
+				Str("proxy", proxyAddr).
 				Msg("invalid proxy have been deleted from the proxy pool")
 		}
 
 		if len(c.proxyURLPool) == 0 {
-			return ErrEmptyProxyPool
+			return proxy.ProxyErr{
+				Code: proxy.ErrEmptyProxyPoolCode,
+				Msg:  "the current proxy ip pool is empty",
+			}
 		}
 	} else {
 		// 没有在代理池中找到失效代理，这个代理来路不明，一样报错
-		return ErrUnkownProxyIP
+		return &proxy.ProxyErr{
+			Code: proxy.ErrUnkownProxyIPCode,
+			Msg:  "proxy address is unkown",
+			Args: map[string]string{
+				"unkown_proxy_addr": proxyAddr,
+			},
+		}
 	}
 
 	return nil
@@ -779,43 +795,43 @@ func guessType(l *zerolog.Event, args ...map[string]interface{}) *zerolog.Event 
 	}
 	if len(args) == 1 {
 		for k, arg := range args[0] {
-			switch arg.(type) {
+			switch v := arg.(type) {
 			case string:
-				l = l.Str(k, arg.(string))
+				l = l.Str(k, v)
 			case int:
-				l = l.Int(k, arg.(int))
+				l = l.Int(k, v)
 			case int32:
-				l = l.Int32(k, arg.(int32))
+				l = l.Int32(k, v)
 			case int64:
-				l = l.Int64(k, arg.(int64))
+				l = l.Int64(k, v)
 			case uint:
-				l = l.Uint(k, arg.(uint))
+				l = l.Uint(k, v)
 			case uint32:
-				l = l.Uint32(k, arg.(uint32))
+				l = l.Uint32(k, v)
 			case uint64:
-				l = l.Uint64(k, arg.(uint64))
+				l = l.Uint64(k, v)
 			case float32:
-				l = l.Float32(k, arg.(float32))
+				l = l.Float32(k, v)
 			case float64:
-				l = l.Float64(k, arg.(float64))
+				l = l.Float64(k, v)
 			case bool:
-				l = l.Bool(k, arg.(bool))
+				l = l.Bool(k, v)
 			case []int:
-				l = l.Ints(k, arg.([]int))
+				l = l.Ints(k, v)
 			case []int32:
-				l = l.Ints32(k, arg.([]int32))
+				l = l.Ints32(k, v)
 			case []uint:
-				l = l.Uints(k, arg.([]uint))
+				l = l.Uints(k, v)
 			case []uint32:
-				l = l.Uints32(k, arg.([]uint32))
+				l = l.Uints32(k, v)
 			case []uint64:
-				l = l.Uints64(k, arg.([]uint64))
+				l = l.Uints64(k, v)
 			case []float32:
-				l = l.Floats32(k, arg.([]float32))
+				l = l.Floats32(k, v)
 			case []float64:
-				l = l.Floats64(k, arg.([]float64))
+				l = l.Floats64(k, v)
 			case []bool:
-				l = l.Bools(k, arg.([]bool))
+				l = l.Bools(k, v)
 			default:
 				panic("unkown type")
 			}
