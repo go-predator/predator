@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-06 14:22:40
+ * @Modified:  2021-11-06 14:52:53
  */
 
 package predator
@@ -235,9 +235,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		defer c.wg.Done()
 	}
 
-	if !(isChained && request.Headers != nil) {
-		c.processRequestHandler(request)
-	}
+	c.processRequestHandler(request)
 
 	if request.abort {
 		if c.log != nil {
@@ -489,7 +487,7 @@ func createBody(requestData map[string]string) []byte {
 	return []byte(form.Encode())
 }
 
-func (c *Crawler) get(URL string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
+func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
 	// Parse the query parameters and create a `cachedMap` based on `cacheFields`
 	u, err := url.Parse(URL)
 	if err != nil {
@@ -510,7 +508,7 @@ func (c *Crawler) get(URL string, ctx pctx.Context, isChained bool, cacheFields 
 		}
 	}
 
-	return c.request(fasthttp.MethodGet, URL, nil, cachedMap, nil, ctx, isChained)
+	return c.request(fasthttp.MethodGet, URL, nil, cachedMap, headers, ctx, isChained)
 }
 
 // Get is used to send GET requests
@@ -520,10 +518,10 @@ func (c *Crawler) Get(URL string) error {
 
 // GetWithCtx is used to send GET requests with a context
 func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
-	return c.get(URL, ctx, false, c.cacheFields...)
+	return c.get(URL, nil, ctx, false, c.cacheFields...)
 }
 
-func (c *Crawler) post(URL string, requestData map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
+func (c *Crawler) post(URL string, requestData map[string]string, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 
@@ -541,12 +539,12 @@ func (c *Crawler) post(URL string, requestData map[string]string, ctx pctx.Conte
 			}
 		}
 	}
-	return c.request(fasthttp.MethodPost, URL, createBody(requestData), cachedMap, nil, ctx, isChained)
+	return c.request(fasthttp.MethodPost, URL, createBody(requestData), cachedMap, headers, ctx, isChained)
 }
 
 // Post is used to send POST requests
 func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
-	return c.post(URL, requestData, ctx, false, c.cacheFields...)
+	return c.post(URL, requestData, nil, ctx, false, c.cacheFields...)
 }
 
 func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
@@ -560,7 +558,7 @@ func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
 	return body
 }
 
-func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, ctx pctx.Context, isChained bool, cacheFields ...string) error {
+func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
 	body := c.createJSONBody(requestData)
 
 	var cachedMap map[string]string
@@ -582,7 +580,9 @@ func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, ctx p
 		}
 	}
 
-	headers := make(map[string]string)
+	if len(headers) == 0 {
+		headers = make(map[string]string)
+	}
 	headers["Content-Type"] = "application/json"
 
 	return c.request(fasthttp.MethodPost, URL, body, cachedMap, headers, ctx, isChained)
@@ -590,10 +590,10 @@ func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, ctx p
 
 // PostJSON is used to send a POST request body in json format
 func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx pctx.Context) error {
-	return c.postJSON(URL, requestData, ctx, false, c.cacheFields...)
+	return c.postJSON(URL, requestData, nil, ctx, false, c.cacheFields...)
 }
 
-func (c *Crawler) postMultipart(URL string, form *MultipartForm, ctx pctx.Context, isChained bool, cacheFields ...string) error {
+func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
@@ -611,7 +611,9 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, ctx pctx.Contex
 		}
 	}
 
-	headers := make(map[string]string)
+	if len(headers) == 0 {
+		headers = make(map[string]string)
+	}
 	headers["Content-Type"] = form.FormDataContentType()
 
 	return c.request(fasthttp.MethodPost, URL, form.Bytes(), cachedMap, headers, ctx, isChained)
@@ -619,7 +621,7 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, ctx pctx.Contex
 
 // PostMultipart
 func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Context) error {
-	return c.postMultipart(URL, form, ctx, false, c.cacheFields...)
+	return c.postMultipart(URL, form, nil, ctx, false, c.cacheFields...)
 }
 
 // PostRaw 发送非 form、multipart、json 的原始的 post 请求

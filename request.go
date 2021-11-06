@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified:  2021-11-06 14:24:01
+ * @Modified:  2021-11-06 15:05:21
  */
 
 package predator
@@ -97,42 +97,50 @@ func (r *Request) SetHeaders(headers map[string]string) {
 	}
 }
 
+func (r Request) headers() map[string]string {
+	h := make(map[string]string)
+	r.Headers.VisitAll(func(key, value []byte) {
+		h[string(key)] = string(value)
+	})
+	return h
+}
+
 func (r Request) NumberOfRetries() uint32 {
 	return r.retryCounter
 }
 
 func (r Request) Get(u string) error {
-	return r.Request(fasthttp.MethodGet, u, nil, nil, nil)
+	return r.Request(fasthttp.MethodGet, u, nil, nil)
 }
 
 func (r Request) GetWithCache(URL string, cacheFields ...string) error {
-	return r.crawler.get(URL, r.Ctx, true, cacheFields...)
+	return r.crawler.get(URL, r.headers(), r.Ctx, true, cacheFields...)
 }
 
 func (r Request) Post(URL string, requestData map[string]string) error {
-	return r.crawler.post(URL, requestData, r.Ctx, true)
+	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true)
 }
 
 func (r Request) PostWithCache(URL string, requestData map[string]string, cacheFields ...string) error {
-	return r.crawler.post(URL, requestData, r.Ctx, true, cacheFields...)
+	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
 }
 func (r Request) PostJSON(URL string, requestData map[string]interface{}) error {
-	return r.crawler.postJSON(URL, requestData, r.Ctx, true)
+	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true)
 }
 
 func (r Request) PostJSONWithCache(URL string, requestData map[string]interface{}, cacheFields ...string) error {
-	return r.crawler.postJSON(URL, requestData, r.Ctx, true, cacheFields...)
+	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
 }
 func (r Request) PostMultipart(URL string, form *MultipartForm) error {
-	return r.crawler.postMultipart(URL, form, r.Ctx, true)
+	return r.crawler.postMultipart(URL, form, r.headers(), r.Ctx, true)
 }
 
 func (r Request) PostMultipartWithCache(URL string, form *MultipartForm, cacheFields ...string) error {
-	return r.crawler.postMultipart(URL, form, r.Ctx, true, cacheFields...)
+	return r.crawler.postMultipart(URL, form, r.headers(), r.Ctx, true, cacheFields...)
 }
 
-func (r Request) Request(method, URL string, cachedMap, headers map[string]string, body []byte) error {
-	return r.crawler.request(method, URL, body, cachedMap, headers, r.Ctx, true)
+func (r Request) Request(method, URL string, cachedMap map[string]string, body []byte) error {
+	return r.crawler.request(method, URL, body, cachedMap, r.headers(), r.Ctx, true)
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
