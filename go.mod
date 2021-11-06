@@ -7,11 +7,11 @@ require (
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/json-iterator/go v1.1.12
 	github.com/klauspost/compress v1.13.6
-	github.com/rs/zerolog v1.25.0
+	github.com/rs/zerolog v1.26.0
 	github.com/smartystreets/goconvey v1.6.6
 	github.com/tidwall/gjson v1.11.0
 	github.com/valyala/fasthttp v1.31.0
-	golang.org/x/net v0.0.0-20211029224645-99673261e6eb
+	golang.org/x/net v0.0.0-20211104170005-ce137452f963
 	gorm.io/driver/mysql v1.1.3
 	gorm.io/driver/postgres v1.2.1
 	gorm.io/driver/sqlite v1.2.3
