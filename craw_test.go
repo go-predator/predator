@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-11-05 15:04:57
+ * @Modified:  2021-11-06 17:28:17
  */
 
 package predator
@@ -475,7 +475,7 @@ func TestJSON(t *testing.T) {
 
 	Convey("测试带缓存的完整 JSON 请求和响应", t, func() {
 		c := NewCrawler(
-			WithCache(nil, false, "cid", "user.name", "user.age"),
+			WithCache(nil, false, nil, "cid", "user.name", "user.age"),
 		)
 
 		c.AfterResponse(func(r *Response) {
@@ -503,7 +503,7 @@ func TestJSON(t *testing.T) {
 
 func TestJSONWithInvalidCacheField(t *testing.T) {
 	c := NewCrawler(
-		WithCache(nil, false, "id", "user.name", "user.age"),
+		WithCache(nil, false, nil, "id", "user.name", "user.age"),
 		WithLogger(nil),
 	)
 
@@ -670,7 +670,7 @@ func TestCache(t *testing.T) {
 			c := NewCrawler(
 				WithCache(&cache.SQLiteCache{
 					URI: uri,
-				}, false),
+				}, false, nil),
 				// WithCache(nil, false),
 			)
 
@@ -682,7 +682,7 @@ func TestCache(t *testing.T) {
 			c := NewCrawler(
 				WithCache(&cache.SQLiteCache{
 					URI: uri,
-				}, false),
+				}, false, nil),
 				// WithCache(nil, false),
 			)
 
@@ -700,7 +700,7 @@ func TestCache(t *testing.T) {
 					Database: "predator",
 					Username: "root",
 					Password: "123456",
-				}, false),
+				}, false, nil),
 			)
 
 			testCache(c, t)
@@ -715,7 +715,7 @@ func TestCache(t *testing.T) {
 					Database: "predator",
 					Username: "root",
 					Password: "123456",
-				}, true),
+				}, true, nil),
 			)
 
 			testCache(c, t)
@@ -732,7 +732,7 @@ func TestCache(t *testing.T) {
 					Database: "predator",
 					Username: "postgres",
 					Password: "123456",
-				}, false),
+				}, false, nil),
 			)
 
 			testCache(c, t)
@@ -747,7 +747,7 @@ func TestCache(t *testing.T) {
 					Database: "predator",
 					Username: "postgres",
 					Password: "123456",
-				}, true),
+				}, true, nil),
 			)
 
 			testCache(c, t)
@@ -760,7 +760,7 @@ func TestCache(t *testing.T) {
 			c := NewCrawler(
 				WithCache(&cache.RedisCache{
 					Addr: "localhost:6379",
-				}, false),
+				}, false, nil),
 			)
 
 			testCache(c, t)
@@ -771,7 +771,7 @@ func TestCache(t *testing.T) {
 			c := NewCrawler(
 				WithCache(&cache.RedisCache{
 					Addr: "localhost:6379",
-				}, true),
+				}, true, nil),
 			)
 
 			testCache(c, t)

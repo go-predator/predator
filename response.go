@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-10-28 15:10:04
+ * @Modified:  2021-11-06 17:33:32
  */
 
 package predator
@@ -73,9 +73,6 @@ func (r *Response) Reset(releaseCtx bool) {
 }
 
 func (r Response) Marshal() ([]byte, error) {
-	if r.StatusCode/100 != 2 {
-		return nil, ErrIncorrectResponse
-	}
 	return json.Marshal(r)
 }
 

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: main.go
  * @Created: 2021-07-31 11:50:11
- * @Modified: 2021-10-12 09:44:37
+ * @Modified:  2021-11-06 17:27:04
  */
 
 package main
@@ -46,7 +46,7 @@ func main() {
 		}),
 		// 使用日志
 		predator.WithLogger(logOp),
-		predator.WithCache(nil, false),
+		predator.WithCache(nil, false, nil),
 	)
 
 	// 创建 multipart/form-data

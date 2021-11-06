@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-06 14:52:53
+ * @Modified:  2021-11-06 17:33:37
  */
 
 package predator
@@ -48,6 +48,8 @@ type HTMLParser struct {
 // CustomRandomBoundary generates a custom boundary
 type CustomRandomBoundary func() string
 
+type CacheCondition func(r Response) bool
+
 // Crawler is the provider of crawlers
 type Crawler struct {
 	lock *sync.RWMutex
@@ -74,7 +76,8 @@ type Crawler struct {
 	// the combination of these fields can represent the unique
 	// request body.
 	// The fewer fields the better.
-	cacheFields []string
+	cacheFields    []string
+	cacheCondition CacheCondition
 
 	requestHandler []HandleRequest
 
@@ -306,7 +309,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 
 		// Cache the response from the request if the statuscode is 20X
-		if response.StatusCode/100 == 2 && c.cache != nil && key != "" {
+		if c.cacheCondition(*response) && c.cache != nil && key != "" {
 			cacheVal, err := response.Marshal()
 			if err != nil {
 				if c.log != nil {
