@@ -3,7 +3,7 @@
  * @Email:     2021-11-05 12:11:41
  * @File Name: errors.go
  * @Created:   2021-11-05 12:11:41
- * @Modified:  2021-11-06 23:00:05
+ * @Modified:  2021-11-06 23:43:00
  */
 
 package proxy
@@ -52,7 +52,7 @@ func (pe ProxyErr) Error() string {
 	}
 
 	keys := make([]string, len(pe.Args))
-	for _, k := range pe.Args {
+	for k := range pe.Args {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -70,6 +70,7 @@ func (pe ProxyErr) Error() string {
 }
 
 func IsProxyInvalid(err error) (string, bool) {
+	// TODO: http err可以处理了，但socks err因为不是我们定义的，所以尚不能处理
 	if len(err.Error()) < 26 {
 		return "", false
 	}
