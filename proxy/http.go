@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: http.go
  * @Created: 2021-07-23 09:22:36
- * @Modified: 2021-10-12 09:44:12
+ * @Modified:  2021-11-06 23:18:54
  */
 
 package proxy
@@ -11,8 +11,8 @@ package proxy
 import (
 	"bufio"
 	"encoding/base64"
-	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,7 +35,14 @@ func HttpProxy(proxyAddr, addr string, timeout time.Duration) (net.Conn, error) 
 		conn, err = fasthttp.DialTimeout(proxyAddr, timeout)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("cannot connect to proxy ip [ %s ] -> %s", proxyAddr, err)
+		return nil, ProxyErr{
+			Code: ErrUnableToConnectCode,
+			Args: map[string]string{
+				"proxy": proxyAddr,
+				"error": err.Error(),
+			},
+			Msg: "cannot connect to proxy ip",
+		}
 	}
 
 	req := "CONNECT " + addr + " HTTP/1.1\r\n"
@@ -59,7 +66,14 @@ func HttpProxy(proxyAddr, addr string, timeout time.Duration) (net.Conn, error) 
 	}
 	if res.Header.StatusCode() != 200 {
 		conn.Close()
-		return nil, fmt.Errorf("could not connect to proxy: %s status code: %d", proxyAddr, res.Header.StatusCode())
+		return nil, ProxyErr{
+			Code: ErrUnableToConnectCode,
+			Args: map[string]string{
+				"proxy":       proxyAddr,
+				"status_code": strconv.Itoa(res.Header.StatusCode()),
+			},
+			Msg: "cannot connect to proxy ip",
+		}
 	}
 	return conn, nil
 }

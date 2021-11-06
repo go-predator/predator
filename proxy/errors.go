@@ -3,7 +3,7 @@
  * @Email:     2021-11-05 12:11:41
  * @File Name: errors.go
  * @Created:   2021-11-05 12:11:41
- * @Modified:  2021-11-05 15:02:27
+ * @Modified:  2021-11-06 23:00:05
  */
 
 package proxy
@@ -25,6 +25,7 @@ const (
 	ErrUnkownProxyIPCode
 	ErrIPOrPortIsNullCode
 	ErrEmptyProxyPoolCode
+	ErrUnableToConnectCode
 )
 
 func (ec ErrCode) String() string {
