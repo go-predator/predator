@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-05 15:09:12
+ * @Modified:  2021-11-06 14:22:40
  */
 
 package predator
@@ -235,7 +235,9 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		defer c.wg.Done()
 	}
 
-	c.processRequestHandler(request)
+	if !(isChained && request.Headers != nil) {
+		c.processRequestHandler(request)
+	}
 
 	if request.abort {
 		if c.log != nil {
@@ -558,15 +560,14 @@ func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
 	return body
 }
 
-// PostJSON is used to send a POST request body in json format
-func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx pctx.Context) error {
+func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, ctx pctx.Context, isChained bool, cacheFields ...string) error {
 	body := c.createJSONBody(requestData)
 
 	var cachedMap map[string]string
-	if c.cacheFields != nil {
+	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
 		bodyJson := gjson.ParseBytes(body)
-		for _, field := range c.cacheFields {
+		for _, field := range cacheFields {
 			if !bodyJson.Get(field).Exists() {
 				m := bodyJson.Map()
 				var keys = make([]string, 0, len(m))
@@ -584,15 +585,19 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 
-	return c.request(fasthttp.MethodPost, URL, body, cachedMap, headers, ctx, false)
+	return c.request(fasthttp.MethodPost, URL, body, cachedMap, headers, ctx, isChained)
 }
 
-// PostMultipart
-func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Context) error {
+// PostJSON is used to send a POST request body in json format
+func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx pctx.Context) error {
+	return c.postJSON(URL, requestData, ctx, false, c.cacheFields...)
+}
+
+func (c *Crawler) postMultipart(URL string, form *MultipartForm, ctx pctx.Context, isChained bool, cacheFields ...string) error {
 	var cachedMap map[string]string
-	if c.cacheFields != nil {
+	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
-		for _, field := range c.cacheFields {
+		for _, field := range cacheFields {
 			if val, ok := form.bodyMap[field]; ok {
 				cachedMap[field] = val
 			} else {
@@ -609,7 +614,12 @@ func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Contex
 	headers := make(map[string]string)
 	headers["Content-Type"] = form.FormDataContentType()
 
-	return c.request(fasthttp.MethodPost, URL, form.Bytes(), cachedMap, headers, ctx, false)
+	return c.request(fasthttp.MethodPost, URL, form.Bytes(), cachedMap, headers, ctx, isChained)
+}
+
+// PostMultipart
+func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Context) error {
+	return c.postMultipart(URL, form, ctx, false, c.cacheFields...)
 }
 
 // PostRaw 发送非 form、multipart、json 的原始的 post 请求

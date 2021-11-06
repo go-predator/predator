@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified: 2021-10-28 13:50:32
+ * @Modified:  2021-11-06 14:24:01
  */
 
 package predator
@@ -102,7 +102,7 @@ func (r Request) NumberOfRetries() uint32 {
 }
 
 func (r Request) Get(u string) error {
-	return r.Request(fasthttp.MethodGet, u, nil, nil)
+	return r.Request(fasthttp.MethodGet, u, nil, nil, nil)
 }
 
 func (r Request) GetWithCache(URL string, cacheFields ...string) error {
@@ -116,9 +116,23 @@ func (r Request) Post(URL string, requestData map[string]string) error {
 func (r Request) PostWithCache(URL string, requestData map[string]string, cacheFields ...string) error {
 	return r.crawler.post(URL, requestData, r.Ctx, true, cacheFields...)
 }
+func (r Request) PostJSON(URL string, requestData map[string]interface{}) error {
+	return r.crawler.postJSON(URL, requestData, r.Ctx, true)
+}
 
-func (r Request) Request(method, URL string, cachedMap map[string]string, body []byte) error {
-	return r.crawler.request(method, URL, body, cachedMap, nil, r.Ctx, true)
+func (r Request) PostJSONWithCache(URL string, requestData map[string]interface{}, cacheFields ...string) error {
+	return r.crawler.postJSON(URL, requestData, r.Ctx, true, cacheFields...)
+}
+func (r Request) PostMultipart(URL string, form *MultipartForm) error {
+	return r.crawler.postMultipart(URL, form, r.Ctx, true)
+}
+
+func (r Request) PostMultipartWithCache(URL string, form *MultipartForm, cacheFields ...string) error {
+	return r.crawler.postMultipart(URL, form, r.Ctx, true, cacheFields...)
+}
+
+func (r Request) Request(method, URL string, cachedMap, headers map[string]string, body []byte) error {
+	return r.crawler.request(method, URL, body, cachedMap, headers, r.Ctx, true)
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
@@ -163,19 +177,19 @@ func marshalCachedMap(cachedMap map[string]string) []byte {
 
 	var b bytes.Buffer
 
-	b.WriteString("{")
+	b.WriteByte('{')
 	for i, k := range keys {
 		if i > 0 {
 			b.WriteString(`, `)
 		}
-		b.WriteString(`"`)
+		b.WriteByte('"')
 		b.WriteString(k)
 		b.WriteString(`": `)
-		b.WriteString(`"`)
+		b.WriteByte('"')
 		b.WriteString(cachedMap[k])
-		b.WriteString(`"`)
+		b.WriteByte('"')
 	}
-	b.WriteString("}")
+	b.WriteByte('}')
 
 	return b.Bytes()
 }
@@ -304,7 +318,7 @@ func (mf *MultipartForm) AppendString(name, value string) {
 	mf.appendHead()
 	mf.buf.WriteString(`Content-Disposition: form-data; name="`)
 	mf.buf.WriteString(name)
-	mf.buf.WriteString(`"`)
+	mf.buf.WriteByte('"')
 	mf.buf.WriteString("\r\n\r\n")
 	mf.buf.WriteString(value)
 	mf.appendTail()
@@ -324,7 +338,7 @@ func (mf *MultipartForm) AppendFile(name, filePath string) error {
 	mf.buf.WriteString(name)
 	mf.buf.WriteString(`"; filename="`)
 	mf.buf.WriteString(filename)
-	mf.buf.WriteString(`"`)
+	mf.buf.WriteByte('"')
 	mf.buf.WriteString("\r\nContent-Type: ")
 
 	fileBytes, err := os.ReadFile(filePath)
