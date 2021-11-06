@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-06 20:17:01
+ * @Modified:  2021-11-06 23:34:34
  */
 
 package predator
@@ -699,6 +699,10 @@ func (c Crawler) ProxyPoolAmount() int {
 func (c *Crawler) Wait() {
 	c.wg.Wait()
 	c.goPool.Close()
+}
+
+func (c *Crawler) UpdateDialWithNewProxy() {
+	c.client.Dial = c.DialWithProxy()
 }
 
 /************************* 私有注册方法 ****************************/
