@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 12:17:56
+ * @Modified:  2021-11-07 12:55:15
  */
 
 package predator
@@ -834,6 +834,8 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 			},
 		}
 	}
+
+	c.client.Dial = c.DialWithProxy()
 
 	return nil
 }
