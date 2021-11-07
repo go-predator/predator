@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: proxy.go
  * @Created: 2021-07-27 12:15:35
- * @Modified:  2021-11-07 12:58:46
+ * @Modified:  2021-11-07 13:11:47
  */
 
 package predator
@@ -13,22 +13,18 @@ import (
 	"time"
 
 	"github.com/go-predator/predator/proxy"
-	"github.com/go-predator/predator/tools"
 	"github.com/valyala/fasthttp"
 )
 
 // 可以从一些代理网站的 api 中请求指定数量的代理 ip
 type AcquireProxies func(n int) []string
 
-func (c *Crawler) DialWithProxy() fasthttp.DialFunc {
-	return c.DialWithProxyAndTimeout(0)
+func (c *Crawler) DialWithProxy(proxyAddr string) fasthttp.DialFunc {
+	return c.DialWithProxyAndTimeout(proxyAddr, 0)
 }
 
-func (c *Crawler) DialWithProxyAndTimeout(timeout time.Duration) fasthttp.DialFunc {
-	proxyAddr := tools.Shuffle(c.proxyURLPool)[0]
-
+func (c *Crawler) DialWithProxyAndTimeout(proxyAddr string, timeout time.Duration) fasthttp.DialFunc {
 	return func(addr string) (net.Conn, error) {
-
 		if c.log != nil {
 			c.log.Info().
 				Str("proxy_ip", proxyAddr).
