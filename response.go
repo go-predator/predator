@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified:  2021-11-07 10:42:09
+ * @Modified:  2021-11-07 13:17:20
  */
 
 package predator
@@ -75,6 +75,8 @@ func (r *Response) Reset(releaseCtx bool) {
 	ReleaseRequest(r.Request)
 	r.Headers.Reset()
 	r.FromCache = false
+	r.localIP = nil
+	r.clientIP = nil
 }
 
 func (r Response) Marshal() ([]byte, error) {
