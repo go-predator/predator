@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: proxy.go
  * @Created: 2021-07-27 12:15:35
- * @Modified:  2021-11-06 22:33:53
+ * @Modified:  2021-11-07 12:58:46
  */
 
 package predator
@@ -25,8 +25,9 @@ func (c *Crawler) DialWithProxy() fasthttp.DialFunc {
 }
 
 func (c *Crawler) DialWithProxyAndTimeout(timeout time.Duration) fasthttp.DialFunc {
+	proxyAddr := tools.Shuffle(c.proxyURLPool)[0]
+
 	return func(addr string) (net.Conn, error) {
-		proxyAddr := tools.Shuffle(c.proxyURLPool)[0]
 
 		if c.log != nil {
 			c.log.Info().
