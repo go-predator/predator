@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 10:56:26
+ * @Modified:  2021-11-07 11:01:28
  */
 
 package predator
@@ -782,10 +782,10 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	if len(c.proxyURLPool) == 0 {
+	if c.ProxyPoolAmount() == 0 {
 		return proxy.ProxyErr{
 			Code: proxy.ErrEmptyProxyPoolCode,
-			Msg:  "the current proxy ip pool is empty",
+			Msg:  "the current proxy pool is empty",
 		}
 	}
 
@@ -813,7 +813,7 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 		if len(c.proxyURLPool) == 0 {
 			return proxy.ProxyErr{
 				Code: proxy.ErrEmptyProxyPoolCode,
-				Msg:  "the current proxy ip pool is empty",
+				Msg:  "the current proxy pool is empty after removing a invalid proxy",
 			}
 		}
 	} else {
