@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified:  2021-11-06 17:33:32
+ * @Modified:  2021-11-07 10:14:34
  */
 
 package predator
@@ -11,6 +11,7 @@ package predator
 import (
 	"errors"
 	"io/ioutil"
+	"net"
 	"sync"
 
 	ctx "github.com/go-predator/predator/context"
@@ -35,6 +36,10 @@ type Response struct {
 	Headers fasthttp.ResponseHeader
 	// 是否从缓存中取得的响应
 	FromCache bool
+	// 远端 ip
+	remoteIP net.Addr
+	// 客户端 ip
+	clientIP net.Addr
 }
 
 // Save writes response body to disk
@@ -74,6 +79,14 @@ func (r *Response) Reset(releaseCtx bool) {
 
 func (r Response) Marshal() ([]byte, error) {
 	return json.Marshal(r)
+}
+
+func (r Response) RemoteIP() net.Addr {
+	return r.remoteIP
+}
+
+func (r Response) ClientIP() net.Addr {
+	return r.clientIP
 }
 
 var (

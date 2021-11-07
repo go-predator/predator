@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 09:29:06
+ * @Modified:  2021-11-07 10:15:23
  */
 
 package predator
@@ -445,10 +445,11 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		Ctx:        request.Ctx,
 		Request:    request,
 		Headers:    resp.Header,
+		remoteIP:   resp.RemoteAddr(),
+		clientIP:   resp.LocalAddr(),
 	}
 
 	if err == nil {
-		// 能够正常获取到响应后，根据响应判断代理是否失效
 		if c.ProxyPoolAmount() > 0 && c.proxyInvalidCondition != nil {
 			err = c.proxyInvalidCondition(*response)
 		}
