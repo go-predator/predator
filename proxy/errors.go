@@ -3,7 +3,7 @@
  * @Email:     2021-11-05 12:11:41
  * @File Name: errors.go
  * @Created:   2021-11-05 12:11:41
- * @Modified:  2021-11-07 12:49:26
+ * @Modified:  2021-11-07 13:20:59
  */
 
 package proxy
@@ -77,9 +77,7 @@ func IsProxyInvalid(err error) (string, bool) {
 	// TODO: http err可以处理了，但socks err因为不是我们定义的，所以尚不能处理。自定义socks，或删除socks代理
 	if e, ok := err.(ProxyErr); ok {
 		switch e.Code {
-		case ErrProxyExpiredCode:
-		case ErrUnableToConnectCode:
-		case ErrInvalidProxyCode:
+		case ErrProxyExpiredCode, ErrUnableToConnectCode, ErrInvalidProxyCode:
 			return e.Args["proxy"], true
 		}
 		return "", false
