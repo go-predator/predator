@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 09:21:25
+ * @Modified:  2021-11-07 09:29:06
  */
 
 package predator
@@ -311,13 +311,6 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			return
 		}
 
-		// 能够正常获取到响应后，根据响应判断代理是否失效
-		if c.ProxyPoolAmount() > 0 && c.proxyInvalidCondition != nil {
-			if err := c.proxyInvalidCondition(*response); err != nil {
-				return err
-			}
-		}
-
 		// Cache the response from the request if the statuscode is 20X
 		if c.cache != nil && c.cacheCondition(*response) && key != "" {
 			cacheVal, err := response.Marshal()
@@ -446,6 +439,21 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		err = c.client.DoRedirects(req, resp, int(request.maxRedirectsCount))
 	}
 
+	response := &Response{
+		StatusCode: resp.StatusCode(),
+		Body:       resp.Body(),
+		Ctx:        request.Ctx,
+		Request:    request,
+		Headers:    resp.Header,
+	}
+
+	if err == nil {
+		// 能够正常获取到响应后，根据响应判断代理是否失效
+		if c.ProxyPoolAmount() > 0 && c.proxyInvalidCondition != nil {
+			err = c.proxyInvalidCondition(*response)
+		}
+	}
+
 	if err != nil {
 		if p, ok := proxy.IsProxyInvalid(err); ok {
 			err = c.removeInvalidProxy(p)
@@ -462,14 +470,6 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	atomic.AddUint32(&c.responseCount, 1)
 	// release req
 	fasthttp.ReleaseRequest(req)
-
-	response := &Response{
-		StatusCode: resp.StatusCode(),
-		Body:       resp.Body(),
-		Ctx:        request.Ctx,
-		Request:    request,
-		Headers:    resp.Header,
-	}
 
 	if c.retryCount > 0 && request.retryCounter < c.retryCount {
 		if c.retryConditions(*response) {
