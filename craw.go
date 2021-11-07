@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 13:29:31
+ * @Modified:  2021-11-07 13:53:33
  */
 
 package predator
@@ -352,12 +352,22 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 	} else {
 		if c.log != nil {
-			c.log.Info().
-				Str("method", request.Method).
-				Int("status_code", response.StatusCode).
-				Bool("from_cache", response.FromCache).
-				Uint32("request_id", atomic.LoadUint32(&request.ID)).
-				Msg("response")
+			if c.ProxyPoolAmount() > 0 {
+				c.log.Info().
+					Str("method", request.Method).
+					Str("proxy", response.clientIP.String()).
+					Int("status_code", response.StatusCode).
+					Bool("from_cache", response.FromCache).
+					Uint32("request_id", atomic.LoadUint32(&request.ID)).
+					Msg("response")
+			} else {
+				c.log.Info().
+					Str("method", request.Method).
+					Int("status_code", response.StatusCode).
+					Bool("from_cache", response.FromCache).
+					Uint32("request_id", atomic.LoadUint32(&request.ID)).
+					Msg("response")
+			}
 		}
 	}
 
