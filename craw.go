@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 11:01:28
+ * @Modified:  2021-11-07 12:17:56
  */
 
 package predator
@@ -725,6 +725,14 @@ func (c *Crawler) Wait() {
 
 func (c *Crawler) SetProxyInvalidCondition(condition ProxyInvalidCondition) {
 	c.proxyInvalidCondition = condition
+}
+
+func (c *Crawler) AddProxy(newProxy string) {
+	c.lock.Lock()
+
+	c.proxyURLPool = append(c.proxyURLPool, newProxy)
+
+	c.lock.Unlock()
 }
 
 /************************* 私有注册方法 ****************************/
