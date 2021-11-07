@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 10:35:53
+ * @Modified:  2021-11-07 10:42:25
  */
 
 package predator
@@ -445,8 +445,8 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		Ctx:        request.Ctx,
 		Request:    request,
 		Headers:    resp.Header,
-		remoteIP:   resp.RemoteAddr(),
-		clientIP:   resp.LocalAddr(),
+		clientIP:   resp.RemoteAddr(),
+		localIP:    resp.LocalAddr(),
 	}
 
 	if err == nil {

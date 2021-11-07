@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified:  2021-11-07 10:14:34
+ * @Modified:  2021-11-07 10:42:09
  */
 
 package predator
@@ -36,10 +36,10 @@ type Response struct {
 	Headers fasthttp.ResponseHeader
 	// 是否从缓存中取得的响应
 	FromCache bool
-	// 远端 ip
-	remoteIP net.Addr
-	// 客户端 ip
+	// 客户端公网 ip
 	clientIP net.Addr
+	// 本地局域网 ip
+	localIP net.Addr
 }
 
 // Save writes response body to disk
@@ -81,8 +81,8 @@ func (r Response) Marshal() ([]byte, error) {
 	return json.Marshal(r)
 }
 
-func (r Response) RemoteIP() net.Addr {
-	return r.remoteIP
+func (r Response) LocalIP() net.Addr {
+	return r.localIP
 }
 
 func (r Response) ClientIP() net.Addr {
