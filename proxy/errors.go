@@ -3,7 +3,7 @@
  * @Email:     2021-11-05 12:11:41
  * @File Name: errors.go
  * @Created:   2021-11-05 12:11:41
- * @Modified:  2021-11-07 11:07:22
+ * @Modified:  2021-11-07 12:45:09
  */
 
 package proxy
@@ -50,6 +50,8 @@ func (pe ProxyErr) Error() string {
 	if pe.Msg != "" {
 		s.WriteString("err=")
 		s.WriteString(pe.Msg)
+		s.WriteByte(',')
+		s.WriteByte(' ')
 	}
 
 	keys := make([]string, len(pe.Args))
@@ -61,6 +63,7 @@ func (pe ProxyErr) Error() string {
 	for i, k := range keys {
 		if i > 0 {
 			s.WriteByte(',')
+			s.WriteByte(' ')
 		}
 		s.WriteString(k)
 		s.WriteByte('=')
