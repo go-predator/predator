@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 13:53:33
+ * @Modified:  2021-11-07 13:56:00
  */
 
 package predator
@@ -352,7 +352,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 	} else {
 		if c.log != nil {
-			if c.ProxyPoolAmount() > 0 {
+			if !response.FromCache && c.ProxyPoolAmount() > 0 {
 				c.log.Info().
 					Str("method", request.Method).
 					Str("proxy", response.clientIP.String()).
