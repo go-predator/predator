@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 13:56:00
+ * @Modified:  2021-11-07 14:18:14
  */
 
 package predator
@@ -486,6 +486,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				"new_proxy_pool": c.proxyURLPool,
 			})
 
+			fasthttp.ReleaseRequest(req)
 			fasthttp.ReleaseResponse(resp)
 			ReleaseResponse(response, false)
 
