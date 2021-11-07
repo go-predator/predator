@@ -3,7 +3,7 @@
  * @Email:     2021-11-05 12:11:41
  * @File Name: errors.go
  * @Created:   2021-11-05 12:11:41
- * @Modified:  2021-11-07 12:45:09
+ * @Modified:  2021-11-07 12:49:26
  */
 
 package proxy
@@ -54,7 +54,7 @@ func (pe ProxyErr) Error() string {
 		s.WriteByte(' ')
 	}
 
-	keys := make([]string, len(pe.Args))
+	keys := make([]string, 0, len(pe.Args))
 	for k := range pe.Args {
 		keys = append(keys, k)
 	}
