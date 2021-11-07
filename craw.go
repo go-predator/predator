@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 10:26:38
+ * @Modified:  2021-11-07 10:35:53
  */
 
 package predator
@@ -867,6 +867,8 @@ func guessType(l *zerolog.Event, args ...map[string]interface{}) *zerolog.Event 
 				l = l.Floats64(k, v)
 			case []bool:
 				l = l.Bools(k, v)
+			case []string:
+				l = l.Strs(k, v)
 			default:
 				panic("unkown type")
 			}
