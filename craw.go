@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 14:35:49
+ * @Modified:  2021-11-07 14:48:54
  */
 
 package predator
@@ -23,7 +23,6 @@ import (
 	"github.com/go-predator/predator/html"
 	"github.com/go-predator/predator/json"
 	"github.com/go-predator/predator/proxy"
-	"github.com/go-predator/predator/tools"
 	"github.com/rs/zerolog"
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
@@ -429,14 +428,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	}
 
 	if c.ProxyPoolAmount() > 0 {
-		c.client.Dial = nil
-		proxyAddr := tools.Shuffle(c.proxyURLPool)[0]
-
-		c.Info("choose proxy", map[string]interface{}{
-			"addr": proxyAddr,
-		})
-
-		c.client.Dial = c.DialWithProxy(proxyAddr)
+		c.client.Dial = request.CustomDial
 	}
 
 	if req.Header.Peek("Accept") == nil {
