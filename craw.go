@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-06 23:34:34
+ * @Modified:  2021-11-07 09:21:25
  */
 
 package predator
@@ -50,6 +50,8 @@ type CustomRandomBoundary func() string
 
 type CacheCondition func(r Response) bool
 
+type ProxyInvalidCondition func(r Response) error
+
 // Crawler is the provider of crawlers
 type Crawler struct {
 	lock *sync.RWMutex
@@ -58,11 +60,12 @@ type Crawler struct {
 	retryCount uint32
 	// Retry conditions, the crawler will retry only
 	// if it returns true
-	retryConditions RetryConditions
-	client          *fasthttp.Client
-	cookies         map[string]string
-	goPool          *Pool
-	proxyURLPool    []string
+	retryConditions       RetryConditions
+	client                *fasthttp.Client
+	cookies               map[string]string
+	goPool                *Pool
+	proxyURLPool          []string
+	proxyInvalidCondition ProxyInvalidCondition
 	// TODO: 动态获取代理
 	// dynamicProxyFunc AcquireProxies
 	requestCount  uint32
@@ -306,6 +309,13 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		response, rawResp, err = c.do(request)
 		if err != nil {
 			return
+		}
+
+		// 能够正常获取到响应后，根据响应判断代理是否失效
+		if c.ProxyPoolAmount() > 0 && c.proxyInvalidCondition != nil {
+			if err := c.proxyInvalidCondition(*response); err != nil {
+				return err
+			}
 		}
 
 		// Cache the response from the request if the statuscode is 20X
@@ -701,8 +711,8 @@ func (c *Crawler) Wait() {
 	c.goPool.Close()
 }
 
-func (c *Crawler) UpdateDialWithNewProxy() {
-	c.client.Dial = c.DialWithProxy()
+func (c *Crawler) SetProxyInvalidCondition(condition ProxyInvalidCondition) {
+	c.proxyInvalidCondition = condition
 }
 
 /************************* 私有注册方法 ****************************/
