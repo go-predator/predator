@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified:  2021-11-07 14:47:25
+ * @Modified:  2021-11-07 14:52:25
  */
 
 package predator
@@ -378,7 +378,7 @@ func (mf *MultipartForm) Bytes() []byte {
 	return mf.buf.Bytes()
 }
 
-func (r Request) CustomDial(addr string) (net.Conn, error) {
+func (r *Request) CustomDial(addr string) (net.Conn, error) {
 	proxyAddr := tools.Shuffle(r.crawler.proxyURLPool)[0]
 	if r.crawler.log != nil {
 		r.crawler.log.Info().
