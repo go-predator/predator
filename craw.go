@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-08 21:34:52
+ * @Modified:  2021-11-08 21:55:34
  */
 
 package predator
@@ -55,7 +55,7 @@ type CacheCondition func(r Response) bool
 
 type ProxyInvalidCondition func(r Response) error
 
-type ComplementProxyPool func() string
+type ComplementProxyPool func() []string
 
 // Crawler is the provider of crawlers
 type Crawler struct {
@@ -848,18 +848,18 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 				Msg("invalid proxy have been deleted from the proxy pool")
 		}
 
-		if c.complementProxyPool != nil {
-			newProxy := c.complementProxyPool()
-			c.proxyURLPool = append(c.proxyURLPool, newProxy)
-			c.log.Info().
-				Str("new_proxy", newProxy).
-				Msg("a new proxy has been added to the proxy pool")
-		}
-
 		if len(c.proxyURLPool) == 0 {
-			return proxy.ProxyErr{
-				Code: proxy.ErrEmptyProxyPoolCode,
-				Msg:  "the current proxy pool is empty after removing a invalid proxy",
+			if c.complementProxyPool != nil {
+				newProxyPool := c.complementProxyPool()
+				c.proxyURLPool = append(c.proxyURLPool, newProxyPool...)
+				c.log.Info().
+					Strs("new_proxy_pool", newProxyPool).
+					Msg("a new proxy pool has replaced to the old proxy pool")
+			} else {
+				return proxy.ProxyErr{
+					Code: proxy.ErrEmptyProxyPoolCode,
+					Msg:  "the current proxy pool is empty after removing a invalid proxy",
+				}
 			}
 		}
 	} else {
