@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-08 21:10:32
+ * @Modified:  2021-11-08 21:16:30
  */
 
 package predator
@@ -242,6 +242,12 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 	if c.goPool != nil {
 		defer c.wg.Done()
+	}
+
+	if c.ProxyPoolAmount() > 0 {
+		if request.Headers.Peek("Connection") == nil {
+			request.Headers.Add("Connection", "close")
+		}
 	}
 
 	c.processRequestHandler(request)
