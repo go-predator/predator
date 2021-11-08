@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified:  2021-11-07 14:52:25
+ * @Modified:  2021-11-07 20:09:49
  */
 
 package predator
@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
-	"net"
 	"time"
 
 	// "io"
@@ -27,8 +26,6 @@ import (
 
 	pctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/json"
-	"github.com/go-predator/predator/proxy"
-	"github.com/go-predator/predator/tools"
 	"github.com/valyala/fasthttp"
 )
 
@@ -58,6 +55,8 @@ type Request struct {
 	// 重定向次数会影响爬虫效率。
 	maxRedirectsCount uint
 	timeout           time.Duration
+	proxyAddr         string
+	proxyDial         fasthttp.DialFunc
 }
 
 // New 使用原始请求的上下文创建一个新的请求
@@ -376,37 +375,4 @@ func (mf *MultipartForm) Bytes() []byte {
 	bodyBoundary := "--" + mf.boundary + "--"
 	mf.buf.WriteString(bodyBoundary)
 	return mf.buf.Bytes()
-}
-
-func (r *Request) CustomDial(addr string) (net.Conn, error) {
-	proxyAddr := tools.Shuffle(r.crawler.proxyURLPool)[0]
-	if r.crawler.log != nil {
-		r.crawler.log.Info().
-			Str("proxy_ip", proxyAddr).
-			Msg("an proxy ip is selected from the proxy pool")
-	}
-
-	if proxyAddr[:7] == "http://" || proxyAddr[:8] == "https://" {
-		return proxy.HttpProxy(proxyAddr, addr, r.timeout)
-	} else if proxyAddr[:9] == "socks5://" {
-		return proxy.Socks5Proxy(proxyAddr, addr)
-	} else {
-		err := proxy.ProxyErr{
-			Code: proxy.ErrUnknownProtocolCode,
-			Args: map[string]string{
-				"proxy_addr": proxyAddr,
-			},
-			Msg: "only support http and socks5 protocol, but the incoming proxy address uses an unknown protocol",
-		}
-		if r.crawler.log != nil {
-			r.crawler.log.Fatal().
-				Caller().
-				Err(err).
-				Str("proxy", proxyAddr).
-				Send()
-		} else {
-			panic(err)
-		}
-		return nil, nil
-	}
 }

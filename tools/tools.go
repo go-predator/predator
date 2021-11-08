@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: tools.go
  * @Created: 2021-07-23 14:55:04
- * @Modified: 2021-10-12 09:44:02
+ * @Modified:  2021-11-07 18:02:57
  */
 
 package tools
@@ -15,11 +15,9 @@ import (
 
 // Shuffle 洗牌算法，主要用于在代理池中等概率选择每个代理
 func Shuffle(pool []string) []string {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	ret := make([]string, len(pool))
-	perm := r.Perm(len(pool))
-	for i, randIndex := range perm {
-		ret[i] = pool[randIndex]
-	}
-	return ret
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(pool), func(i, j int) {
+		pool[i], pool[j] = pool[j], pool[i]
+	})
+	return pool
 }

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-07 14:48:54
+ * @Modified:  2021-11-08 20:42:09
  */
 
 package predator
@@ -12,10 +12,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
+	"net"
 	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-predator/predator/cache"
@@ -363,6 +366,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 				c.log.Info().
 					Str("method", request.Method).
 					Int("status_code", response.StatusCode).
+					Str("server_addr", response.clientIP.String()).
 					Bool("from_cache", response.FromCache).
 					Uint32("request_id", atomic.LoadUint32(&request.ID)).
 					Msg("response")
@@ -428,7 +432,11 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	}
 
 	if c.ProxyPoolAmount() > 0 {
-		c.client.Dial = request.CustomDial
+		rand.Seed(time.Now().UnixMicro())
+
+		c.client.Dial = func(addr string) (net.Conn, error) {
+			return c.ProxyDialerWithTimeout(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))], request.timeout)(addr)
+		}
 	}
 
 	if req.Header.Peek("Accept") == nil {

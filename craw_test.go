@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified:  2021-11-06 17:28:17
+ * @Modified:  2021-11-08 20:59:52
  */
 
 package predator
@@ -24,6 +24,8 @@ import (
 	"github.com/go-predator/predator/html"
 	"github.com/go-predator/predator/log"
 	"github.com/go-predator/predator/proxy"
+
+	// "github.com/go-predator/predator/proxy"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
@@ -245,9 +247,8 @@ func TestHTTPProxy(t *testing.T) {
 	ts := server()
 	defer ts.Close()
 
-	validIP := "http://123.73.209.237:46603"
 	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
-
+	validIP := "http://123.73.209.237:46603"
 	Convey("测试有效代理", t, func() {
 		c := NewCrawler(
 			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.55"),
@@ -302,6 +303,42 @@ func TestHTTPProxy(t *testing.T) {
 
 		err := c.Get(u)
 		So(err, ShouldBeNil)
+	})
+
+	Convey("测试多个有效代理的随机选择", t, func() {
+		count := 5
+		u := "http://t.ipjldl.com/index.php/api/entry?method=proxyServer.generate_api_url&packid=0&fa=0&fetch_key=&groupid=0&qty=%d&time=1&pro=&city=&port=1&format=txt&ss=1&css=&dt=1&specialTxt=3&specialJson=&usertype=2"
+		client := &fasthttp.Client{}
+		body := make([]byte, 0)
+		_, body, err := client.Get(body, fmt.Sprintf(u, count))
+		if err != nil {
+			panic(err)
+		}
+
+		ips := strings.Split(string(body), "\r\n")
+		for i := 0; i < len(ips); i++ {
+			ips[i] = "http://" + ips[i]
+		}
+
+		c := NewCrawler(WithProxyPool(ips), WithDefaultLogger())
+
+		c.BeforeRequest(func(r *Request) {
+			r.SetHeaders(map[string]string{
+				// 避免因 keep-alive 的响应无法改变代理
+				"Connection": "close",
+			})
+		})
+
+		c.AfterResponse(func(r *Response) {
+			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
+			t.Log(ip)
+		})
+
+		ipu := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
+		for i := 0; i < count*2; i++ {
+			err := c.Get(ipu)
+			So(err, ShouldBeNil)
+		}
 	})
 }
 
