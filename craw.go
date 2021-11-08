@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-08 20:42:09
+ * @Modified:  2021-11-08 21:10:32
  */
 
 package predator
@@ -354,23 +354,21 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 	} else {
 		if c.log != nil {
-			if !response.FromCache && c.ProxyPoolAmount() > 0 {
-				c.log.Info().
-					Str("method", request.Method).
-					Str("proxy", response.clientIP.String()).
-					Int("status_code", response.StatusCode).
-					Bool("from_cache", response.FromCache).
-					Uint32("request_id", atomic.LoadUint32(&request.ID)).
-					Msg("response")
-			} else {
-				c.log.Info().
-					Str("method", request.Method).
-					Int("status_code", response.StatusCode).
-					Str("server_addr", response.clientIP.String()).
-					Bool("from_cache", response.FromCache).
-					Uint32("request_id", atomic.LoadUint32(&request.ID)).
-					Msg("response")
+			l := c.log.Info().
+				Str("method", request.Method).
+				Int("status_code", response.StatusCode)
+
+			if !response.FromCache {
+				if c.ProxyPoolAmount() > 0 {
+					l = l.Str("proxy", response.clientIP.String())
+				} else {
+					l = l.Str("server_addr", response.clientIP.String())
+				}
 			}
+
+			l.Bool("from_cache", response.FromCache).
+				Uint32("request_id", atomic.LoadUint32(&request.ID)).
+				Msg("response")
 		}
 	}
 
