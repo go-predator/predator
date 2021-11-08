@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified:  2021-11-08 20:42:16
+ * @Modified:  2021-11-08 21:31:26
  */
 
 package predator
@@ -139,6 +139,12 @@ func WithProxy(proxyURL string) CrawlerOption {
 func WithProxyPool(proxyURLs []string) CrawlerOption {
 	return func(c *Crawler) {
 		c.proxyURLPool = proxyURLs
+	}
+}
+
+func WithComplementProxyPool(f ComplementProxyPool) CrawlerOption {
+	return func(c *Crawler) {
+		c.complementProxyPool = f
 	}
 }
 

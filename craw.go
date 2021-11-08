@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-08 21:16:30
+ * @Modified:  2021-11-08 21:34:52
  */
 
 package predator
@@ -55,6 +55,8 @@ type CacheCondition func(r Response) bool
 
 type ProxyInvalidCondition func(r Response) error
 
+type ComplementProxyPool func() string
+
 // Crawler is the provider of crawlers
 type Crawler struct {
 	lock *sync.RWMutex
@@ -69,6 +71,7 @@ type Crawler struct {
 	goPool                *Pool
 	proxyURLPool          []string
 	proxyInvalidCondition ProxyInvalidCondition
+	complementProxyPool   ComplementProxyPool
 	// TODO: 动态获取代理
 	// dynamicProxyFunc AcquireProxies
 	requestCount  uint32
@@ -843,6 +846,14 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 			c.log.Debug().
 				Str("proxy", proxyAddr).
 				Msg("invalid proxy have been deleted from the proxy pool")
+		}
+
+		if c.complementProxyPool != nil {
+			newProxy := c.complementProxyPool()
+			c.proxyURLPool = append(c.proxyURLPool, newProxy)
+			c.log.Info().
+				Str("new_proxy", newProxy).
+				Msg("a new proxy has been added to the proxy pool")
 		}
 
 		if len(c.proxyURLPool) == 0 {
