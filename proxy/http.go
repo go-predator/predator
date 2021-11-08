@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: http.go
  * @Created: 2021-07-23 09:22:36
- * @Modified:  2021-11-08 08:46:36
+ * @Modified:  2021-11-08 21:20:46
  */
 
 package proxy
@@ -11,7 +11,6 @@ package proxy
 import (
 	"bufio"
 	"encoding/base64"
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -30,9 +29,6 @@ func HttpProxyDialerWithTimeout(proxyAddr string, timeout time.Duration) fasthtt
 	}
 
 	return func(addr string) (net.Conn, error) {
-
-		fmt.Println("使用的代理", proxyAddr)
-
 		var conn net.Conn
 		var err error
 		if timeout == 0 {
