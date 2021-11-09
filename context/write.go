@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: write.go (c) 2021
+ * @File Name: write.go
  * @Created: 2021-07-24 08:56:16
- * @Modified: 2021-08-01 22:30:18
+ * @Modified:  2021-11-09 10:35:33
  */
 
 package context
@@ -91,20 +91,20 @@ func (w *wcontext) Length() int {
 
 func (w *wcontext) Bytes() []byte {
 	var b bytes.Buffer
-	b.WriteString("{")
+	b.WriteByte('{')
 	i := 0
 	for k, v := range w.m {
 		if i > 0 {
 			b.WriteString(`, `)
 		}
-		b.WriteString(`"`)
+		b.WriteByte('"')
 		b.WriteString(k)
 		b.WriteString(`": "`)
 		b.WriteString(fmt.Sprint(v))
-		b.WriteString(`"`)
+		b.WriteByte('"')
 		i++
 	}
-	b.WriteString("}")
+	b.WriteByte('}')
 	return b.Bytes()
 }
 
@@ -113,18 +113,18 @@ func (w *wcontext) String() string {
 	defer w.l.RUnlock()
 
 	var s strings.Builder
-	s.WriteString("{")
+	s.WriteByte('{')
 	i := 0
 	for k, v := range w.m {
 		if i > 0 {
 			s.WriteString(`, `)
 		}
-		s.WriteString(`"`)
+		s.WriteByte('"')
 		s.WriteString(k)
 		s.WriteString(`": "`)
 		s.WriteString(fmt.Sprint(v))
-		s.WriteString(`"`)
+		s.WriteByte('"')
 	}
-	s.WriteString("}")
+	s.WriteByte('}')
 	return s.String()
 }

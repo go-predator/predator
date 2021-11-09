@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-09 10:26:59
+ * @Modified:  2021-11-09 12:10:19
  */
 
 package predator
@@ -369,9 +369,9 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 			if !response.FromCache {
 				if c.ProxyPoolAmount() > 0 {
-					l = l.Str("proxy", response.clientIP.String())
+					l = l.Str("proxy", response.ClientIP())
 				} else {
-					l = l.Str("server_addr", response.clientIP.String())
+					l = l.Str("server_addr", response.ClientIP())
 				}
 			}
 
@@ -513,6 +513,21 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				}
 				if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
 					c.Warning("request timed out, will re-request")
+
+					atomic.AddUint32(&request.retryCounter, 1)
+					if c.log != nil {
+						c.log.Info().
+							Uint32("retry_count", atomic.LoadUint32(&request.retryCounter)).
+							Str("method", request.Method).
+							Str("url", request.URL).
+							Uint32("request_id", atomic.LoadUint32(&request.ID)).
+							Msg("retrying")
+					}
+
+					fasthttp.ReleaseRequest(req)
+					fasthttp.ReleaseResponse(resp)
+
+					return c.do(request)
 				}
 			} else {
 				c.FatalOrPanic(err)
@@ -536,6 +551,10 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 					Uint32("request_id", atomic.LoadUint32(&request.ID)).
 					Msg("retrying")
 			}
+
+			fasthttp.ReleaseRequest(req)
+			fasthttp.ReleaseResponse(resp)
+
 			return c.do(request)
 		}
 	}

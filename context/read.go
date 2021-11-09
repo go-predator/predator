@@ -1,9 +1,9 @@
 /*
  * @Author: thepoy
  * @Email: thepoy@163.com
- * @File Name: read.go (c) 2021
+ * @File Name: read.go
  * @Created: 2021-07-24 08:56:04
- * @Modified: 2021-08-01 22:46:38
+ * @Modified:  2021-11-09 10:33:38
  */
 
 package context
@@ -78,40 +78,40 @@ func (r *rcontext) Length() int {
 
 func (r *rcontext) Bytes() []byte {
 	var b bytes.Buffer
-	b.WriteString("{")
+	b.WriteByte('{')
 	i := 0
 	r.Range(func(key, value interface{}) bool {
 		if i > 0 {
 			b.WriteString(`, `)
 		}
-		b.WriteString(`"`)
+		b.WriteByte('"')
 		b.WriteString(key.(string))
 		b.WriteString(`": "`)
 		b.WriteString(fmt.Sprint(value))
-		b.WriteString(`"`)
+		b.WriteByte('"')
 		i++
 		return true
 	})
-	b.WriteString("}")
+	b.WriteByte('}')
 	return b.Bytes()
 }
 
 func (r *rcontext) String() string {
 	var s strings.Builder
-	s.WriteString("{")
+	s.WriteByte('{')
 	i := 0
 	r.Range(func(key, value interface{}) bool {
 		if i > 0 {
 			s.WriteString(`, `)
 		}
-		s.WriteString(`"`)
+		s.WriteByte('"')
 		s.WriteString(key.(string))
 		s.WriteString(`": "`)
 		s.WriteString(fmt.Sprint(value))
-		s.WriteString(`"`)
+		s.WriteByte('"')
 		i++
 		return true
 	})
-	s.WriteString("}")
+	s.WriteByte('}')
 	return strings.ReplaceAll(s.String(), ", }", "}")
 }

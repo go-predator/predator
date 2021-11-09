@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified:  2021-11-07 13:17:20
+ * @Modified:  2021-11-09 12:09:26
  */
 
 package predator
@@ -83,12 +83,18 @@ func (r Response) Marshal() ([]byte, error) {
 	return json.Marshal(r)
 }
 
-func (r Response) LocalIP() net.Addr {
-	return r.localIP
+func (r Response) LocalIP() string {
+	if r.localIP != nil {
+		return r.localIP.String()
+	}
+	return ""
 }
 
-func (r Response) ClientIP() net.Addr {
-	return r.clientIP
+func (r Response) ClientIP() string {
+	if r.clientIP != nil {
+		return r.clientIP.String()
+	}
+	return ""
 }
 
 var (
