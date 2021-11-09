@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-09 08:39:20
+ * @Modified:  2021-11-09 10:26:59
  */
 
 package predator
@@ -500,12 +500,23 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 			fasthttp.ReleaseRequest(req)
 			fasthttp.ReleaseResponse(resp)
-			// TODO: Request 和 Response 应该分开 release，否则在重新发出请求前释放 Response，会导致 Request 不能复用
+			// TODO: Request 和 Response 应该分开 release，否则在重新发出请求前释放 Response，会导致 Request 不能复用，请求的地址变为 /
 			// ReleaseResponse(response, false)
 
 			return c.do(request)
 		} else {
-			c.FatalOrPanic(err)
+			if x, ok := err.(interface{ Timeout() bool }); ok && x.Timeout() {
+				// re-request if the request timed out
+				// re-request 3 times by default when the request times out
+				if c.retryCount == 0 {
+					c.retryCount = 3
+				}
+				if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
+					c.Warning("request timed out, will re-request")
+				}
+			} else {
+				c.FatalOrPanic(err)
+			}
 		}
 	}
 
@@ -514,7 +525,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	// release req
 	fasthttp.ReleaseRequest(req)
 
-	if c.retryCount > 0 && request.retryCounter < c.retryCount {
+	if c.retryCount > 0 && atomic.LoadUint32(&request.retryCounter) < c.retryCount {
 		if c.retryConditions(*response) {
 			atomic.AddUint32(&request.retryCounter, 1)
 			if c.log != nil {
