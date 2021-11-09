@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-08 21:55:34
+ * @Modified:  2021-11-09 08:39:20
  */
 
 package predator
@@ -500,7 +500,8 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 			fasthttp.ReleaseRequest(req)
 			fasthttp.ReleaseResponse(resp)
-			ReleaseResponse(response, false)
+			// TODO: Request 和 Response 应该分开 release，否则在重新发出请求前释放 Response，会导致 Request 不能复用
+			// ReleaseResponse(response, false)
 
 			return c.do(request)
 		} else {

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: http.go
  * @Created: 2021-07-23 09:22:36
- * @Modified:  2021-11-08 21:20:46
+ * @Modified:  2021-11-08 23:14:24
  */
 
 package proxy
@@ -43,7 +43,7 @@ func HttpProxyDialerWithTimeout(proxyAddr string, timeout time.Duration) fasthtt
 					"proxy": pAddr,
 					"error": err.Error(),
 				},
-				Msg: "cannot connect to proxy ip",
+				Msg: "cannot connect to proxy",
 			}
 		}
 
@@ -74,7 +74,7 @@ func HttpProxyDialerWithTimeout(proxyAddr string, timeout time.Duration) fasthtt
 					"proxy":       pAddr,
 					"status_code": strconv.Itoa(res.Header.StatusCode()),
 				},
-				Msg: "cannot connect to proxy ip",
+				Msg: "cannot connect to proxy",
 			}
 		}
 		return conn, nil
