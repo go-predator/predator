@@ -11,7 +11,7 @@ require (
 	github.com/smartystreets/goconvey v1.6.6
 	github.com/tidwall/gjson v1.11.0
 	github.com/valyala/fasthttp v1.31.0
-	golang.org/x/net v0.0.0-20211104170005-ce137452f963
+	golang.org/x/net v0.0.0-20211109214657-ef0fda0de508
 	gorm.io/driver/mysql v1.1.3
 	gorm.io/driver/postgres v1.2.1
 	gorm.io/driver/sqlite v1.2.3
@@ -19,7 +19,7 @@ require (
 )
 
 require (
-	github.com/andybalholm/brotli v1.0.3 // indirect
+	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -43,6 +43,6 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
+	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa // indirect
 	golang.org/x/text v0.3.7 // indirect
 )
