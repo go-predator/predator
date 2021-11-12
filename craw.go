@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 16:12:22
+ * @Modified: 2021-11-12 16:27:46
  */
 
 package predator
@@ -317,6 +317,16 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			return
 		}
 
+		if response.StatusCode == fasthttp.StatusOK && len(response.Body) == 0 {
+			// fasthttp.Response 会将空响应的状态码设置为 200，这不合理
+			c.log.Warn().
+				Str("method", request.Method).
+				Str("url", request.URL).
+				Uint32("request_id", atomic.LoadUint32(&request.ID)).
+				Msg("request failed")
+			return
+		}
+
 		// Cache the response from the request if the statuscode is 20X
 		if c.cache != nil && c.cacheCondition(*response) && key != "" {
 			cacheVal, err := response.Marshal()
@@ -462,15 +472,14 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		err = c.client.DoRedirects(req, resp, int(request.maxRedirectsCount))
 	}
 
-	response := &Response{
-		StatusCode: resp.StatusCode(),
-		Body:       resp.Body(),
-		Ctx:        request.Ctx,
-		Request:    request,
-		Headers:    resp.Header,
-		clientIP:   resp.RemoteAddr(),
-		localIP:    resp.LocalAddr(),
-	}
+	response := AcquireResponse()
+	response.StatusCode == resp.StatusCode()
+	response.Body = append(response.Body, resp.Body()...)
+	response.Ctx = request.Ctx
+	response.Request = request
+	response.Headers = resp.Header
+	response.clientIP = resp.RemoteAddr()
+	response.localIP = resp.LocalAddr().String()
 
 	if err == nil {
 		if c.ProxyPoolAmount() > 0 && c.proxyInvalidCondition != nil {
