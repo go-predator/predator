@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 22:32:05
+ * @Modified: 2021-11-12 23:23:13
  */
 
 package predator
@@ -441,6 +441,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		rand.Seed(time.Now().UnixMicro())
 
 		c.client.Dial = func(addr string) (net.Conn, error) {
+			// TODO: 代理池中至少保证有一个代理，不然有可能报错
 			return c.ProxyDialerWithTimeout(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))], request.timeout)(addr)
 		}
 	}
@@ -884,6 +885,14 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 		}
 	}
 
+	if c.ProxyPoolAmount() == 1 && c.complementProxyPool != nil {
+		newProxyPool := c.complementProxyPool()
+		c.proxyURLPool = append(c.proxyURLPool, newProxyPool...)
+		c.log.Info().
+			Strs("new_proxy_pool", newProxyPool).
+			Msg("a new proxy pool has replaced to the old proxy pool")
+	}
+
 	targetIndex := -1
 	for i, p := range c.proxyURLPool {
 		addr := strings.Split(p, "//")[1]
@@ -906,17 +915,9 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 		}
 
 		if len(c.proxyURLPool) == 0 {
-			if c.complementProxyPool != nil {
-				newProxyPool := c.complementProxyPool()
-				c.proxyURLPool = append(c.proxyURLPool, newProxyPool...)
-				c.log.Info().
-					Strs("new_proxy_pool", newProxyPool).
-					Msg("a new proxy pool has replaced to the old proxy pool")
-			} else {
-				return proxy.ProxyErr{
-					Code: proxy.ErrEmptyProxyPoolCode,
-					Msg:  "the current proxy pool is empty after removing a invalid proxy",
-				}
+			return proxy.ProxyErr{
+				Code: proxy.ErrEmptyProxyPoolCode,
+				Msg:  "the current proxy pool is empty after removing a invalid proxy",
 			}
 		}
 	} else {
