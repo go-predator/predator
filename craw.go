@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 18:13:26
+ * @Modified: 2021-11-12 18:32:46
  */
 
 package predator
@@ -531,21 +531,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 					c.retryCount = 3
 				}
 				if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
-					c.Warning("request timed out, will re-request")
-
-					atomic.AddUint32(&request.retryCounter, 1)
-					if c.log != nil {
-						c.log.Info().
-							Uint32("retry_count", atomic.LoadUint32(&request.retryCounter)).
-							Str("method", request.Method).
-							Str("url", request.URL).
-							Uint32("request_id", atomic.LoadUint32(&request.ID)).
-							Msg("retrying after timeout")
-					}
-
-					fasthttp.ReleaseRequest(req)
-					fasthttp.ReleaseResponse(resp)
-
+					c.retryPrepare(request, req, resp)
 					return c.do(request)
 				}
 				fasthttp.ReleaseRequest(req)
@@ -553,6 +539,13 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				ReleaseResponse(response, true)
 				return nil, nil, ErrTimeout
 			} else {
+				if err == fasthttp.ErrConnectionClosed {
+					// Feature error of fasthttp, there is no solution yet, only try again if c.retryCount > 0 or panic
+					if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
+						c.retryPrepare(request, req, resp)
+						return c.do(request)
+					}
+				}
 				c.FatalOrPanic(err)
 			}
 		}
@@ -565,25 +558,27 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 	if c.retryCount > 0 && atomic.LoadUint32(&request.retryCounter) < c.retryCount {
 		if c.retryConditions(*response) {
-			atomic.AddUint32(&request.retryCounter, 1)
-			if c.log != nil {
-				c.log.Info().
-					Uint32("retry_count", atomic.LoadUint32(&request.retryCounter)).
-					Str("method", request.Method).
-					Str("url", request.URL).
-					Uint32("request_id", atomic.LoadUint32(&request.ID)).
-					Str("proxy_or_server_addr", resp.RemoteAddr().String()).
-					Msg("retrying")
-			}
-
-			fasthttp.ReleaseRequest(req)
-			fasthttp.ReleaseResponse(resp)
-
+			c.retryPrepare(request, req, resp)
 			return c.do(request)
 		}
 	}
 
 	return response, resp, nil
+}
+
+func (c *Crawler) retryPrepare(request *Request, req *fasthttp.Request, resp *fasthttp.Response) {
+	atomic.AddUint32(&request.retryCounter, 1)
+	if c.log != nil {
+		c.log.Info().
+			Uint32("retry_count", atomic.LoadUint32(&request.retryCounter)).
+			Str("method", request.Method).
+			Str("url", request.URL).
+			Uint32("request_id", atomic.LoadUint32(&request.ID)).
+			Msg("retrying after timeout")
+	}
+
+	fasthttp.ReleaseRequest(req)
+	fasthttp.ReleaseResponse(resp)
 }
 
 func createBody(requestData map[string]string) []byte {
