@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 18:00:22
+ * @Modified: 2021-11-12 18:13:26
  */
 
 package predator
@@ -756,6 +756,9 @@ func (c *Crawler) ClearCache() error {
 }
 
 func (c Crawler) ProxyInUse() string {
+	if strings.Contains(c.proxyInUse, "//") {
+		return strings.Split(c.proxyInUse, "//")[1]
+	}
 	return c.proxyInUse
 }
 
