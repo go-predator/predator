@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 18:32:46
+ * @Modified: 2021-11-12 22:32:05
  */
 
 package predator
@@ -437,7 +437,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	if c.ProxyPoolAmount() > 0 {
+	if len(c.proxyURLPool) > 0 {
 		rand.Seed(time.Now().UnixMicro())
 
 		c.client.Dial = func(addr string) (net.Conn, error) {
