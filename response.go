@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-11-12 17:45:38
+ * @Modified: 2021-11-12 17:58:12
  */
 
 package predator
@@ -96,6 +96,10 @@ func (r Response) ClientIP() string {
 		return r.clientIP.String()
 	}
 	return ""
+}
+
+func (r Response) IsTimeout() bool {
+	return r.timeout
 }
 
 var (
