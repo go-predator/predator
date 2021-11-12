@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 16:27:46
+ * @Modified: 2021-11-12 16:30:18
  */
 
 package predator
@@ -319,6 +319,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 		if response.StatusCode == fasthttp.StatusOK && len(response.Body) == 0 {
 			// fasthttp.Response 会将空响应的状态码设置为 200，这不合理
+			response.StatusCode = 0
 			c.log.Warn().
 				Str("method", request.Method).
 				Str("url", request.URL).
