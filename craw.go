@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 16:55:48
+ * @Modified: 2021-11-12 17:33:30
  */
 
 package predator
@@ -34,6 +34,7 @@ import (
 var (
 	ErrNoCacheSet    = errors.New("no cache set")
 	ErrRequestFailed = errors.New("request failed")
+	ErrTimeout       = errors.New("timeout, and it is recommended to try a new proxy if you are using a proxy pool")
 )
 
 // HandleRequest is used to patch the request
@@ -74,6 +75,7 @@ type Crawler struct {
 	goPool                *Pool
 	proxyURLPool          []string
 	proxyInvalidCondition ProxyInvalidCondition
+	proxyInUse            string
 	complementProxyPool   ComplementProxyPool
 	// TODO: 动态获取代理
 	// dynamicProxyFunc AcquireProxies
@@ -522,7 +524,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				// re-request 3 times by default when the request times out.
 
 				// if you are using a proxy, the timeout error is probably
-				// because the proxy address is invalid, and it is recommended
+				// because the proxy is invalid, and it is recommended
 				// to try a new proxy
 				if c.retryCount == 0 {
 					c.retryCount = 3
@@ -545,6 +547,10 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 					return c.do(request)
 				}
+				fasthttp.ReleaseRequest(req)
+				fasthttp.ReleaseResponse(resp)
+				ReleaseResponse(response, true)
+				return nil, nil, ErrTimeout
 			} else {
 				c.FatalOrPanic(err)
 			}
@@ -746,6 +752,10 @@ func (c *Crawler) ClearCache() error {
 		c.log.Warn().Msg("clear all cache")
 	}
 	return c.cache.Clear()
+}
+
+func (c Crawler) ProxyInUse() string {
+	return c.proxyInUse
 }
 
 /************************* 公共注册方法 ****************************/
