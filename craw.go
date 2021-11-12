@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 16:06:59
+ * @Modified: 2021-11-12 16:12:22
  */
 
 package predator
@@ -247,12 +247,6 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		defer c.wg.Done()
 	}
 
-	if c.ProxyPoolAmount() > 0 {
-		if request.Headers.Peek("Connection") == nil {
-			request.Headers.Add("Connection", "close")
-		}
-	}
-
 	c.processRequestHandler(request)
 
 	if request.abort {
@@ -455,6 +449,10 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	var err error
 
 	if request.maxRedirectsCount == 0 {
+		if c.ProxyPoolAmount() > 0 {
+			req.SetConnectionClose()
+		}
+
 		if request.timeout > 0 {
 			err = c.client.DoTimeout(req, resp, request.timeout)
 		} else {
