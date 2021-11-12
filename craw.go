@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 17:52:46
+ * @Modified: 2021-11-12 18:00:22
  */
 
 package predator
@@ -322,18 +322,6 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			return
 		}
 
-		if response.StatusCode == fasthttp.StatusOK && len(response.Body) == 0 {
-			// fasthttp.Response 会将空响应的状态码设置为 200，这不合理
-			response.StatusCode = 0
-			c.log.Error().Caller().
-				Err(ErrRequestFailed).
-				Str("method", request.Method).
-				Str("url", request.URL).
-				Uint32("request_id", atomic.LoadUint32(&request.ID)).
-				Send()
-			return
-		}
-
 		// Cache the response from the request if the statuscode is 20X
 		if c.cache != nil && c.cacheCondition(*response) && key != "" {
 			cacheVal, err := response.Marshal()
@@ -487,6 +475,11 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	response.Headers = resp.Header
 	response.clientIP = resp.RemoteAddr()
 	response.localIP = resp.LocalAddr()
+
+	if response.StatusCode == fasthttp.StatusOK && len(response.Body) == 0 {
+		// fasthttp.Response 会将空响应的状态码设置为 200，这不合理
+		response.StatusCode = 0
+	}
 
 	if x, ok := err.(interface{ Timeout() bool }); ok && x.Timeout() {
 		response.timeout = true
