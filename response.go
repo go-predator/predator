@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified:  2021-11-09 12:09:26
+ * @Modified: 2021-11-12 17:45:38
  */
 
 package predator
@@ -40,6 +40,7 @@ type Response struct {
 	clientIP net.Addr
 	// 本地局域网 ip
 	localIP net.Addr
+	timeout bool
 }
 
 // Save writes response body to disk
