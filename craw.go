@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 16:30:18
+ * @Modified: 2021-11-12 16:32:09
  */
 
 package predator
@@ -474,13 +474,13 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	}
 
 	response := AcquireResponse()
-	response.StatusCode == resp.StatusCode()
+	response.StatusCode = resp.StatusCode()
 	response.Body = append(response.Body, resp.Body()...)
 	response.Ctx = request.Ctx
 	response.Request = request
 	response.Headers = resp.Header
 	response.clientIP = resp.RemoteAddr()
-	response.localIP = resp.LocalAddr().String()
+	response.localIP = resp.LocalAddr()
 
 	if err == nil {
 		if c.ProxyPoolAmount() > 0 && c.proxyInvalidCondition != nil {
