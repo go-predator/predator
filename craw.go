@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-09 12:10:19
+ * @Modified: 2021-11-12 16:03:28
  */
 
 package predator
@@ -521,7 +521,8 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 							Str("method", request.Method).
 							Str("url", request.URL).
 							Uint32("request_id", atomic.LoadUint32(&request.ID)).
-							Msg("retrying")
+							Str("proxy_or_server_addr", resp.RemoteAddr().String()).
+							Msg("retrying after timeout")
 					}
 
 					fasthttp.ReleaseRequest(req)
@@ -549,6 +550,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 					Str("method", request.Method).
 					Str("url", request.URL).
 					Uint32("request_id", atomic.LoadUint32(&request.ID)).
+					Str("proxy_or_server_addr", resp.RemoteAddr().String()).
 					Msg("retrying")
 			}
 
