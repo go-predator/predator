@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified: 2021-11-12 23:23:13
+ * @Modified:  2021-11-14 08:30:54
  */
 
 package predator
@@ -538,6 +538,8 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				fasthttp.ReleaseRequest(req)
 				fasthttp.ReleaseResponse(resp)
 				ReleaseResponse(response, true)
+
+				c.Error(ErrTimeout)
 				return nil, nil, ErrTimeout
 			} else {
 				if err == fasthttp.ErrConnectionClosed {
@@ -547,7 +549,8 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 						return c.do(request)
 					}
 				}
-				c.FatalOrPanic(err)
+				c.Error(err)
+				return nil, nil, err
 			}
 		}
 	}
@@ -597,6 +600,7 @@ func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, i
 	// Parse the query parameters and create a `cachedMap` based on `cacheFields`
 	u, err := url.Parse(URL)
 	if err != nil {
+		c.Error(err)
 		return err
 	}
 
@@ -743,6 +747,7 @@ func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error {
 // ClearCache will clear all cache
 func (c *Crawler) ClearCache() error {
 	if c.cache == nil {
+		c.Error(ErrNoCacheSet)
 		return ErrNoCacheSet
 	}
 	if c.log != nil {
