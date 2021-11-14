@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: element.go
  * @Created: 2021-07-27 20:35:31
- * @Modified: 2021-10-26 22:09:59
+ * @Modified:  2021-11-14 20:35:53
  */
 
 package html
@@ -110,11 +110,15 @@ func (he *HTMLElement) ChildrenAttr(selector, attrName string) []string {
 
 // Each iterates over the elements matched by the first argument
 // and calls the callback function on every HTMLElement match.
-func (he *HTMLElement) Each(selector string, callback func(int, *HTMLElement)) {
+//
+// The for loop will break when the `callback` returns `true`.
+func (he *HTMLElement) Each(selector string, callback func(int, *HTMLElement) bool) {
 	i := 0
 	he.DOM.Find(selector).Each(func(_ int, s *goquery.Selection) {
 		for _, n := range s.Nodes {
-			callback(i, NewHTMLElementFromSelectionNode(s, n, i))
+			if callback(i, NewHTMLElementFromSelectionNode(s, n, i)) {
+				break
+			}
 			i++
 		}
 	})
@@ -179,4 +183,16 @@ func (he *HTMLElement) Parents() []*HTMLElement {
 	}
 
 	return parents
+}
+
+func (he *HTMLElement) FindChildByText(selector, text string) *HTMLElement {
+	target := new(HTMLElement)
+	he.Each(selector, func(i int, h *HTMLElement) bool {
+		if h.Node.Type == html.TextNode && h.Text() == text {
+			target = h
+			return true
+		}
+		return false
+	})
+	return target
 }
