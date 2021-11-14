@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: element.go
  * @Created: 2021-07-27 20:35:31
- * @Modified:  2021-11-14 20:35:53
+ * @Modified:  2021-11-14 20:47:17
  */
 
 package html
@@ -188,7 +188,7 @@ func (he *HTMLElement) Parents() []*HTMLElement {
 func (he *HTMLElement) FindChildByText(selector, text string) *HTMLElement {
 	target := new(HTMLElement)
 	he.Each(selector, func(i int, h *HTMLElement) bool {
-		if h.Node.Type == html.TextNode && h.Text() == text {
+		if h.Node.FirstChild != nil && h.Node.FirstChild.Type == html.TextNode && h.Node.FirstChild.Data == text {
 			target = h
 			return true
 		}
