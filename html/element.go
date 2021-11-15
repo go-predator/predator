@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: element.go
  * @Created: 2021-07-27 20:35:31
- * @Modified:  2021-11-14 22:27:31
+ * @Modified:  2021-11-15 15:45:33
  */
 
 package html
@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/go-predator/predator/tools"
 	"golang.org/x/net/html"
 )
 
@@ -189,6 +190,18 @@ func (he *HTMLElement) FindChildByText(selector, text string) *HTMLElement {
 	var target *HTMLElement
 	he.Each(selector, func(i int, h *HTMLElement) bool {
 		if h.Node.FirstChild != nil && h.Node.FirstChild.Type == html.TextNode && h.Node.FirstChild.Data == text {
+			target = h
+			return true
+		}
+		return false
+	})
+	return target
+}
+
+func (he *HTMLElement) FindChildByStripedText(selector, text string) *HTMLElement {
+	var target *HTMLElement
+	he.Each(selector, func(i int, h *HTMLElement) bool {
+		if h.Node.FirstChild != nil && h.Node.FirstChild.Type == html.TextNode && tools.Strip(h.Node.FirstChild.Data) == text {
 			target = h
 			return true
 		}
