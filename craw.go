@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-17 11:16:30
+ * @Modified:  2021-11-17 11:37:07
  */
 
 package predator
@@ -833,13 +833,13 @@ func (c *Crawler) AddProxy(newProxy string) {
 }
 
 // SetConcurrency 使用并发，参数为要创建的协程池数量
-func (c *Crawler) SetConcurrency(count uint64) {
+func (c *Crawler) SetConcurrency(count uint64, blockPanic bool) {
 	if c.goPool == nil {
 		p, err := NewPool(count)
 		if err != nil {
 			panic(err)
 		}
-
+		p.blockPanic = blockPanic
 		p.log = c.log
 
 		c.goPool = p

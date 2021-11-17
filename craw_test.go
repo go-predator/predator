@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified:  2021-11-08 20:59:52
+ * @Modified:  2021-11-17 11:38:28
  */
 
 package predator
@@ -45,7 +45,7 @@ func TestNewCrawler(t *testing.T) {
 	})
 	Convey("测试设置指定并发数量", t, func() {
 		count := 10
-		c := NewCrawler(WithConcurrency(uint64(count)))
+		c := NewCrawler(WithConcurrency(uint64(count), false))
 		So(c.goPool.GetCap(), ShouldEqual, count)
 	})
 	Convey("测试设置重试数量", t, func() {
@@ -645,7 +645,7 @@ func TestConcurrency(t *testing.T) {
 		Convey("并发", func() {
 			start := time.Now()
 			c := NewCrawler(
-				WithConcurrency(30),
+				WithConcurrency(30, false),
 			)
 
 			for i := 0; i < 10; i++ {
@@ -923,7 +923,7 @@ func TestClone(t *testing.T) {
 		rawCookie := getRawCookie(c, ts)
 
 		WithRawCookie(rawCookie)(c)
-		WithConcurrency(10)(c)
+		WithConcurrency(10, false)(c)
 
 		c.AfterResponse(func(r *Response) {
 			fmt.Println(r.StatusCode)

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: pool.go
  * @Created: 2021-07-29 22:30:37
- * @Modified:  2021-11-17 11:12:48
+ * @Modified:  2021-11-17 11:34:44
  */
 
 package predator
@@ -47,6 +47,7 @@ type Pool struct {
 	status         int64
 	chTask         chan *Task
 	log            *zerolog.Logger
+	blockPanic     bool
 	sync.Mutex
 }
 
@@ -119,12 +120,18 @@ func (p *Pool) run() {
 	go func() {
 		defer func() {
 			p.decRunning()
-			if r := recover(); r != nil {
-				// 打印panic的堆栈信息
-				debug.PrintStack()
 
-				p.log.Error().Err(fmt.Errorf("worker panic: %s", r))
+			if r := recover(); r != nil {
+				if p.blockPanic {
+					// 打印panic的堆栈信息
+					debug.PrintStack()
+
+					p.log.Error().Err(fmt.Errorf("worker panic: %s", r))
+				} else {
+					panic(r)
+				}
 			}
+
 			p.checkWorker() // check worker avoid no worker running
 		}()
 

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: async_test.go
  * @Created: 2021-07-31 13:14:09
- * @Modified:  2021-11-06 17:26:57
+ * @Modified:  2021-11-17 11:38:16
  */
 
 package predator
@@ -105,7 +105,7 @@ func TestAsync(t *testing.T) {
 		crawler := NewCrawler(
 			WithCache(nil, true, nil),
 			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0"),
-			WithConcurrency(30),
+			WithConcurrency(30, false),
 		)
 
 		testAsync(crawler, t)
