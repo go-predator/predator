@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-14 08:30:54
+ * @Modified:  2021-11-17 11:16:30
  */
 
 package predator
@@ -134,6 +134,10 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 				Bool("state", capacityState).
 				Msg("concurrent")
 		}
+	}
+
+	if c.log != nil && c.goPool != nil {
+		c.goPool.log = c.log
 	}
 
 	return c
@@ -826,6 +830,23 @@ func (c *Crawler) AddProxy(newProxy string) {
 	c.proxyURLPool = append(c.proxyURLPool, newProxy)
 
 	c.lock.Unlock()
+}
+
+// SetConcurrency 使用并发，参数为要创建的协程池数量
+func (c *Crawler) SetConcurrency(count uint64) {
+	if c.goPool == nil {
+		p, err := NewPool(count)
+		if err != nil {
+			panic(err)
+		}
+
+		p.log = c.log
+
+		c.goPool = p
+		c.wg = new(sync.WaitGroup)
+	} else {
+		c.FatalOrPanic(errors.New("`c.goPool` is not nil"))
+	}
 }
 
 /************************* 私有注册方法 ****************************/
