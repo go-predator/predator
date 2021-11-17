@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: pool.go
  * @Created: 2021-07-29 22:30:37
- * @Modified:  2021-11-17 11:34:44
+ * @Modified:  2021-11-17 11:57:44
  */
 
 package predator
@@ -25,6 +25,8 @@ var (
 	ErrInvalidPoolCap = errors.New("invalid pool cap")
 	// put task but pool already closed
 	ErrPoolAlreadyClosed = errors.New("pool already closed")
+	// only the error type can be captured and processed
+	ErrUnkownType = errors.New("recover only allows error type, but an unknown type is received")
 )
 
 // running status
@@ -128,7 +130,12 @@ func (p *Pool) run() {
 
 					p.log.Error().Err(fmt.Errorf("worker panic: %s", r))
 				} else {
-					panic(r)
+					// panic 只允许 error 类型
+					if e, ok := r.(error); ok {
+						panic(e)
+					} else {
+						panic(ErrUnkownType)
+					}
 				}
 			}
 
