@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: element.go
  * @Created: 2021-07-27 20:35:31
- * @Modified:  2021-11-15 15:45:33
+ * @Modified:  2021-11-17 10:14:16
  */
 
 package html
@@ -208,4 +208,26 @@ func (he *HTMLElement) FindChildByStripedText(selector, text string) *HTMLElemen
 		return false
 	})
 	return target
+}
+
+func (he *HTMLElement) FindChildrenByText(selector, text string) []*HTMLElement {
+	targets := make([]*HTMLElement, 0, 3)
+	he.Each(selector, func(i int, h *HTMLElement) bool {
+		if h.Node.FirstChild != nil && h.Node.FirstChild.Type == html.TextNode && h.Node.FirstChild.Data == text {
+			targets = append(targets, h)
+		}
+		return false
+	})
+	return targets
+}
+
+func (he *HTMLElement) FindChildrenByStripedText(selector, text string) []*HTMLElement {
+	targets := make([]*HTMLElement, 0, 3)
+	he.Each(selector, func(i int, h *HTMLElement) bool {
+		if h.Node.FirstChild != nil && h.Node.FirstChild.Type == html.TextNode && tools.Strip(h.Node.FirstChild.Data) == text {
+			targets = append(targets, h)
+		}
+		return false
+	})
+	return targets
 }
