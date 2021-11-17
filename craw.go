@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-17 11:37:07
+ * @Modified:  2021-11-17 18:11:45
  */
 
 package predator
@@ -565,7 +565,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	fasthttp.ReleaseRequest(req)
 
 	if c.retryCount > 0 && atomic.LoadUint32(&request.retryCounter) < c.retryCount {
-		if c.retryConditions(*response) {
+		if c.retryConditions != nil && c.retryConditions(*response) {
 			c.retryPrepare(request, req, resp)
 			return c.do(request)
 		}
