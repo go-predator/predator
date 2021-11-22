@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-22 08:48:06
+ * @Modified:  2021-11-22 21:40:02
  */
 
 package predator
@@ -491,7 +491,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		err = ErrTimeout
 	}
 
-	if err == nil || err == ErrTimeout {
+	if err == nil || err == ErrTimeout || err == fasthttp.ErrDialTimeout {
 		if c.ProxyPoolAmount() > 0 && c.proxyInvalidCondition != nil {
 			e := c.proxyInvalidCondition(*response)
 			if e != nil {
@@ -525,7 +525,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 			return c.do(request)
 		} else {
-			if err == ErrTimeout {
+			if err == ErrTimeout || err == fasthttp.ErrDialTimeout {
 				// re-request if the request timed out.
 				// re-request 3 times by default when the request times out.
 
