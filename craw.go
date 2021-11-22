@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-22 21:40:02
+ * @Modified:  2021-11-22 21:43:06
  */
 
 package predator
@@ -543,7 +543,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				fasthttp.ReleaseResponse(resp)
 				ReleaseResponse(response, true)
 
-				c.Error(ErrTimeout)
+				c.Error(err)
 				return nil, nil, ErrTimeout
 			} else {
 				if err == fasthttp.ErrConnectionClosed {
