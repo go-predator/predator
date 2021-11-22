@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-17 18:11:45
+ * @Modified:  2021-11-22 08:48:06
  */
 
 package predator
@@ -847,6 +847,11 @@ func (c *Crawler) SetConcurrency(count uint64, blockPanic bool) {
 	} else {
 		c.FatalOrPanic(errors.New("`c.goPool` is not nil"))
 	}
+}
+
+func (c *Crawler) SetRetry(count uint32, cond RetryConditions) {
+	c.retryCount = count
+	c.retryConditions = cond
 }
 
 /************************* 私有注册方法 ****************************/
