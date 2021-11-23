@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-22 21:43:06
+ * @Modified:  2021-11-23 11:57:01
  */
 
 package predator
@@ -532,6 +532,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				// if you are using a proxy, the timeout error is probably
 				// because the proxy is invalid, and it is recommended
 				// to try a new proxy
+				c.Error(err)
 				if c.retryCount == 0 {
 					c.retryCount = 3
 				}
@@ -548,6 +549,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 			} else {
 				if err == fasthttp.ErrConnectionClosed {
 					// Feature error of fasthttp, there is no solution yet, only try again if c.retryCount > 0 or panic
+					c.Error(err)
 					if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
 						c.retryPrepare(request, req, resp)
 						return c.do(request)
@@ -582,7 +584,7 @@ func (c *Crawler) retryPrepare(request *Request, req *fasthttp.Request, resp *fa
 			Str("method", request.Method).
 			Str("url", request.URL).
 			Uint32("request_id", atomic.LoadUint32(&request.ID)).
-			Msg("retrying after timeout")
+			Msg("retrying")
 	}
 
 	fasthttp.ReleaseRequest(req)
