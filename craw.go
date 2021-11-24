@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-23 11:57:01
+ * @Modified:  2021-11-24 20:42:18
  */
 
 package predator
@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-predator/predator/cache"
 	pctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/html"
 	"github.com/go-predator/predator/json"
@@ -85,7 +84,7 @@ type Crawler struct {
 	Context context.Context
 
 	// Cache successful response
-	cache cache.Cache
+	cache Cache
 	// List of fields to be cached in the request body, and
 	// the combination of these fields can represent the unique
 	// request body.

@@ -4,6 +4,8 @@ go 1.17
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
+	github.com/go-predator/cache v0.0.0-20211124123509-895f7caf698d
+	github.com/go-predator/tools v0.0.0-20211124120023-539337f1b3e7
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/json-iterator/go v1.1.12
 	github.com/klauspost/compress v1.13.6
@@ -11,11 +13,11 @@ require (
 	github.com/smartystreets/goconvey v1.6.6
 	github.com/tidwall/gjson v1.11.0
 	github.com/valyala/fasthttp v1.31.0
-	golang.org/x/net v0.0.0-20211109214657-ef0fda0de508
+	golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9
 	gorm.io/driver/mysql v1.1.3
 	gorm.io/driver/postgres v1.2.1
-	gorm.io/driver/sqlite v1.2.3
-	gorm.io/gorm v1.22.2
+	gorm.io/driver/sqlite v1.2.6
+	gorm.io/gorm v1.22.3
 )
 
 require (
@@ -34,7 +36,7 @@ require (
 	github.com/jackc/pgtype v1.8.1 // indirect
 	github.com/jackc/pgx/v4 v4.13.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jinzhu/now v1.1.2 // indirect
+	github.com/jinzhu/now v1.1.3 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/mattn/go-sqlite3 v1.14.9 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

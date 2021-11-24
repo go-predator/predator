@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified:  2021-11-17 11:38:28
+ * @Modified:  2021-11-24 20:51:59
  */
 
 package predator
@@ -20,12 +20,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-predator/predator/cache"
+	"github.com/go-predator/cache"
 	"github.com/go-predator/predator/html"
 	"github.com/go-predator/predator/log"
 	"github.com/go-predator/predator/proxy"
 
-	// "github.com/go-predator/predator/proxy"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
@@ -727,93 +726,6 @@ func TestCache(t *testing.T) {
 		})
 	})
 
-	Convey("测试 MySQL 缓存", t, func() {
-		Convey("测试不压缩", func() {
-			defer timeCost()()
-			c := NewCrawler(
-				WithCache(&cache.MySQLCache{
-					Host:     "127.0.0.1",
-					Port:     "3306",
-					Database: "predator",
-					Username: "root",
-					Password: "123456",
-				}, false, nil),
-			)
-
-			testCache(c, t)
-		})
-
-		Convey("测试压缩", func() {
-			defer timeCost()()
-			c := NewCrawler(
-				WithCache(&cache.MySQLCache{
-					Host:     "127.0.0.1",
-					Port:     "3306",
-					Database: "predator",
-					Username: "root",
-					Password: "123456",
-				}, true, nil),
-			)
-
-			testCache(c, t)
-		})
-	})
-
-	Convey("测试 PostgreSQL 缓存", t, func() {
-		Convey("测试不压缩", func() {
-			defer timeCost()()
-			c := NewCrawler(
-				WithCache(&cache.PostgreSQLCache{
-					Host:     "127.0.0.1",
-					Port:     "54322",
-					Database: "predator",
-					Username: "postgres",
-					Password: "123456",
-				}, false, nil),
-			)
-
-			testCache(c, t)
-		})
-
-		Convey("测试压缩", func() {
-			defer timeCost()()
-			c := NewCrawler(
-				WithCache(&cache.PostgreSQLCache{
-					Host:     "127.0.0.1",
-					Port:     "54322",
-					Database: "predator",
-					Username: "postgres",
-					Password: "123456",
-				}, true, nil),
-			)
-
-			testCache(c, t)
-		})
-	})
-
-	Convey("测试 Redis 缓存", t, func() {
-		Convey("测试不压缩", func() {
-			defer timeCost()()
-			c := NewCrawler(
-				WithCache(&cache.RedisCache{
-					Addr: "localhost:6379",
-				}, false, nil),
-			)
-
-			testCache(c, t)
-		})
-
-		Convey("测试压缩", func() {
-			defer timeCost()()
-			c := NewCrawler(
-				WithCache(&cache.RedisCache{
-					Addr: "localhost:6379",
-				}, true, nil),
-			)
-
-			testCache(c, t)
-		})
-	})
 }
 
 func TestLog(t *testing.T) {

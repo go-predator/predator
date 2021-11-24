@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified:  2021-11-07 20:09:49
+ * @Modified:  2021-11-24 20:48:45
  */
 
 package predator
@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"time"
 
-	// "io"
 	"net/http"
 	"net/url"
 	"os"
@@ -55,8 +54,6 @@ type Request struct {
 	// 重定向次数会影响爬虫效率。
 	maxRedirectsCount uint
 	timeout           time.Duration
-	proxyAddr         string
-	proxyDial         fasthttp.DialFunc
 }
 
 // New 使用原始请求的上下文创建一个新的请求

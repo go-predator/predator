@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified:  2021-11-17 11:37:34
+ * @Modified:  2021-11-24 20:52:16
  */
 
 package predator
@@ -15,7 +15,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/go-predator/predator/cache"
+	"github.com/go-predator/cache"
 	"github.com/go-predator/predator/log"
 	"github.com/rs/zerolog"
 )
@@ -158,11 +158,8 @@ func WithComplementProxyPool(f ComplementProxyPool) CrawlerOption {
 // 缓存标识，但由于 map 无序，同一个请求体生成的 key 很
 // 难保证相同，所以可能会有同一个请求缓存多次，或者无法
 // 从缓存中读取已请求过的请求的响应的情况出现。
-func WithCache(cc cache.Cache, compressed bool, cacheCondition CacheCondition, cacheFileds ...string) CrawlerOption {
+func WithCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFileds ...string) CrawlerOption {
 	return func(c *Crawler) {
-		if cc == nil {
-			cc = &cache.SQLiteCache{}
-		}
 		cc.Compressed(compressed)
 		err := cc.Init()
 		if err != nil {
@@ -183,7 +180,7 @@ func WithCache(cc cache.Cache, compressed bool, cacheCondition CacheCondition, c
 
 // WithDefaultCache 默认缓存为 sqlite3，不压缩
 func WithDefaultCache() CrawlerOption {
-	return WithCache(nil, false, nil)
+	return WithCache(&cache.SQLiteCache{}, false, nil)
 }
 
 func EnableIPv6() CrawlerOption {

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: pool.go
  * @Created: 2021-07-29 22:30:37
- * @Modified:  2021-11-17 11:57:44
+ * @Modified:  2021-11-24 20:50:22
  */
 
 package predator
@@ -134,7 +134,7 @@ func (p *Pool) run() {
 					if e, ok := r.(error); ok {
 						panic(e)
 					} else {
-						panic(ErrUnkownType)
+						panic(fmt.Sprintf("%s: %v", ErrUnkownType, r))
 					}
 				}
 			}

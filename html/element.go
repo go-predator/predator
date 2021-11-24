@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: element.go
  * @Created: 2021-07-27 20:35:31
- * @Modified:  2021-11-17 10:14:16
+ * @Modified:  2021-11-24 20:50:54
  */
 
 package html
@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-predator/predator/tools"
+	"github.com/go-predator/tools"
 	"golang.org/x/net/html"
 )
 
