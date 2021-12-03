@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-12-03 11:48:36
+ * @Modified:  2021-12-03 12:47:14
  */
 
 package predator
@@ -443,12 +443,12 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	if len(c.proxyURLPool) > 0 {
 		rand.Seed(time.Now().UnixMicro())
 
+		c.lock.Lock()
 		c.client.Dial = func(addr string) (net.Conn, error) {
-			c.lock.RLock()
-			defer c.lock.RUnlock()
 			// TODO: 代理池中至少保证有一个代理，不然有可能报错
 			return c.ProxyDialerWithTimeout(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))], request.timeout)(addr)
 		}
+		c.lock.Unlock()
 	}
 
 	if req.Header.Peek("Accept") == nil {
@@ -459,7 +459,6 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 	var err error
 
-	c.lock.RLock()
 	if request.maxRedirectsCount == 0 {
 		if c.ProxyPoolAmount() > 0 {
 			req.SetConnectionClose()
@@ -473,7 +472,6 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	} else {
 		err = c.client.DoRedirects(req, resp, int(request.maxRedirectsCount))
 	}
-	c.lock.RUnlock()
 
 	response := AcquireResponse()
 	response.StatusCode = resp.StatusCode()
@@ -523,8 +521,6 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 			fasthttp.ReleaseRequest(req)
 			fasthttp.ReleaseResponse(resp)
-			// TODO: Request 和 Response 应该分开 release，否则在重新发出请求前释放 Response，会导致 Request 不能复用，请求的地址变为 /
-			// ReleaseResponse(response, false)
 
 			return c.do(request)
 		} else {
@@ -960,6 +956,11 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 			}
 		}
 	} else {
+		// 并发时可能也会存在找不到失效的代理的情况，这时不能返回 error
+		if c.goPool != nil {
+			return nil
+		}
+
 		// 没有在代理池中找到失效代理，这个代理来路不明，一样报错
 		return &proxy.ProxyErr{
 			Code: proxy.ErrUnkownProxyIPCode,
