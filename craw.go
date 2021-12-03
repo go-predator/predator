@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-12-03 11:26:47
+ * @Modified:  2021-12-03 11:47:21
  */
 
 package predator
@@ -443,12 +443,12 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	if len(c.proxyURLPool) > 0 {
 		rand.Seed(time.Now().UnixMicro())
 
+		c.lock.RLock()
 		c.client.Dial = func(addr string) (net.Conn, error) {
-			c.lock.RLock()
-			defer c.lock.RUnlock()
 			// TODO: 代理池中至少保证有一个代理，不然有可能报错
 			return c.ProxyDialerWithTimeout(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))], request.timeout)(addr)
 		}
+		c.lock.RUnlock()
 	}
 
 	if req.Header.Peek("Accept") == nil {
@@ -459,6 +459,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 	var err error
 
+	c.lock.RLock()
 	if request.maxRedirectsCount == 0 {
 		if c.ProxyPoolAmount() > 0 {
 			req.SetConnectionClose()
@@ -472,6 +473,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	} else {
 		err = c.client.DoRedirects(req, resp, int(request.maxRedirectsCount))
 	}
+	c.lock.RUnlock()
 
 	response := AcquireResponse()
 	response.StatusCode = resp.StatusCode()
@@ -764,6 +766,9 @@ func (c *Crawler) ClearCache() error {
 }
 
 func (c Crawler) ProxyInUse() string {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
 	if strings.Contains(c.proxyInUse, "//") {
 		return strings.Split(c.proxyInUse, "//")[1]
 	}
