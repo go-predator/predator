@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: proxy.go
  * @Created: 2021-07-27 12:15:35
- * @Modified: 2021-11-12 17:38:39
+ * @Modified: 2021-12-03 11:41:15
  */
 
 package predator
@@ -19,8 +19,8 @@ import (
 type AcquireProxies func(n int) []string
 
 func (c *Crawler) ProxyDialerWithTimeout(proxyAddr string, timeout time.Duration) fasthttp.DialFunc {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 
 	c.proxyInUse = proxyAddr
 	if proxyAddr[:7] == "http://" || proxyAddr[:8] == "https://" {
