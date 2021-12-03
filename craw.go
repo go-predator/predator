@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-11-24 20:42:18
+ * @Modified:  2021-12-03 11:20:53
  */
 
 package predator
@@ -441,12 +441,14 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	}
 
 	if len(c.proxyURLPool) > 0 {
+		c.lock.RLock()
 		rand.Seed(time.Now().UnixMicro())
 
 		c.client.Dial = func(addr string) (net.Conn, error) {
 			// TODO: 代理池中至少保证有一个代理，不然有可能报错
 			return c.ProxyDialerWithTimeout(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))], request.timeout)(addr)
 		}
+		c.lock.RUnlock()
 	}
 
 	if req.Header.Peek("Accept") == nil {
