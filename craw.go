@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2021-12-03 12:47:14
+ * @Modified:  2022-01-11 13:24:28
  */
 
 package predator
@@ -554,7 +554,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 						return c.do(request)
 					}
 				}
-				c.Error(err)
+				c.FatalOrPanic(err)
 				return nil, nil, err
 			}
 		}
