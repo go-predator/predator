@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2022-01-11 13:24:28
+ * @Modified:  2022-01-23 16:18:22
  */
 
 package predator
@@ -414,8 +414,9 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 	if !ok {
 		return nil, nil
 	}
-	var resp Response
-	err = json.Unmarshal(cachedBody, &resp)
+
+	resp := new(Response)
+	err = resp.Unmarshal(cachedBody)
 	if err != nil {
 		if c.log != nil {
 			c.log.Error().Caller().Err(err).Send()
@@ -423,7 +424,7 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 		return nil, err
 	}
 	resp.FromCache = true
-	return &resp, nil
+	return resp, nil
 }
 
 func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {

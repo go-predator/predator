@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2021-11-12 17:58:12
+ * @Modified: 2022-01-23 16:17:18
  */
 
 package predator
@@ -80,8 +80,61 @@ func (r *Response) Reset(releaseCtx bool) {
 	r.clientIP = nil
 }
 
+type cachedHeaders struct {
+	StatusCode    int
+	ContentType   []byte // this is the most important field
+	ContentLength int
+	Server        []byte
+}
+
+type cachedResponse struct {
+	Body    []byte
+	Headers cachedHeaders
+}
+
+func (r Response) convertHeaders() cachedHeaders {
+	ch := cachedHeaders{}
+	ch.StatusCode = r.StatusCode
+	ch.ContentType = r.Headers.ContentType()
+	ch.ContentLength = r.Headers.ContentLength()
+	ch.Server = r.Headers.Server()
+
+	return ch
+}
+
 func (r Response) Marshal() ([]byte, error) {
-	return json.Marshal(r)
+	// The cached response does not need to save all the response headers,
+	// so the following code is not used to convert the response headers to bytes
+	// var buf bytes.Buffer
+	// b := bufio.NewWriter(&buf)
+	// r.Headers.Write(b)
+	// b.Flush()
+
+	var cr cachedResponse
+	cr.Body = r.Body
+	cr.Headers = r.convertHeaders()
+
+	return json.Marshal(cr)
+}
+
+func (r *Response) Unmarshal(cachedBody []byte) error {
+	var (
+		cr  cachedResponse
+		err error
+	)
+	err = json.Unmarshal(cachedBody, &cr)
+	if err != nil {
+		return err
+	}
+
+	r.Body = cr.Body
+	r.StatusCode = cr.Headers.StatusCode
+	r.Headers.SetStatusCode(r.StatusCode)
+	r.Headers.SetContentTypeBytes(cr.Headers.ContentType)
+	r.Headers.SetContentLength(cr.Headers.ContentLength)
+	r.Headers.SetServerBytes(cr.Headers.Server)
+
+	return nil
 }
 
 func (r Response) LocalIP() string {
