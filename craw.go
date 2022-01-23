@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2022-01-23 16:18:22
+ * @Modified:  2022-01-23 17:17:10
  */
 
 package predator
@@ -385,9 +385,11 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 	c.processResponseHandler(response)
 
-	err = c.processHTMLHandler(response)
-	if err != nil {
-		return
+	if !response.invalid {
+		err = c.processHTMLHandler(response)
+		if err != nil {
+			return
+		}
 	}
 
 	// 这里不需要调用 ReleaseRequest，因为 ReleaseResponse 中执行了 ReleaseRequest 方法

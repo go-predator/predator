@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2022-01-23 16:17:18
+ * @Modified: 2022-01-23 17:16:32
  */
 
 package predator
@@ -41,11 +41,19 @@ type Response struct {
 	// 本地局域网 ip
 	localIP net.Addr
 	timeout bool
+	// Whether the response is valid,
+	// html for invalid responses will not be parsed
+	invalid bool
 }
 
 // Save writes response body to disk
 func (r *Response) Save(fileName string) error {
 	return ioutil.WriteFile(fileName, r.Body, 0644)
+}
+
+// Invalidate marks the current response as invalid and skips the html parsing process
+func (r *Response) Invalidate() {
+	r.invalid = true
 }
 
 func (r *Response) GetSetCookie() string {
