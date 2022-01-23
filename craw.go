@@ -639,7 +639,6 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 func (c *Crawler) post(URL string, requestData map[string]string, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
-
 		cachedMap = make(map[string]string)
 		for _, field := range cacheFields {
 			if val, ok := requestData[field]; ok {
@@ -856,6 +855,26 @@ func (c *Crawler) SetConcurrency(count uint64, blockPanic bool) {
 func (c *Crawler) SetRetry(count uint32, cond RetryConditions) {
 	c.retryCount = count
 	c.retryConditions = cond
+}
+
+func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFileds ...string) {
+	cc.Compressed(compressed)
+	err := cc.Init()
+	if err != nil {
+		panic(err)
+	}
+	c.cache = cc
+	if cacheCondition == nil {
+		cacheCondition = func(r Response) bool {
+			return r.StatusCode/100 == 2
+		}
+	}
+	c.cacheCondition = cacheCondition
+	if len(cacheFileds) > 0 {
+		c.cacheFields = cacheFileds
+	} else {
+		c.cacheFields = nil
+	}
 }
 
 /************************* 私有注册方法 ****************************/
