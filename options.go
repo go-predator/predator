@@ -168,7 +168,7 @@ func WithCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFi
 		c.cache = cc
 		if cacheCondition == nil {
 			cacheCondition = func(r Response) bool {
-				return r.StatusCode/100 != 2
+				return r.StatusCode/100 == 2
 			}
 		}
 		c.cacheCondition = cacheCondition
