@@ -812,8 +812,12 @@ func (c *Crawler) ParseHTML(selector string, f HandleHTML) {
 	c.lock.Unlock()
 }
 
-// ParseHTML can parse html to find the data you need,
+// ParseJSON can parse json to find the data you need,
 // and process the data.
+//
+// If you set `strict` to true, responses that do not contain
+// `application/json` in the content-type of the response header will
+// not be processed.
 //
 // It is recommended to do full processing of the json response in one
 // call to `ParseJSON` instead of multiple calls to `ParseJSON`.
@@ -933,7 +937,7 @@ func (c *Crawler) processJSONHandler(r *Response) {
 	resp := json.ParseBytesToJSON(r.Body)
 	for _, parser := range c.jsonHandler {
 		if parser.strict {
-			if !strings.Contains(strings.ToLower(r.ContentType()), "json") {
+			if !strings.Contains(strings.ToLower(r.ContentType()), "application/json") {
 				if c.log != nil {
 					c.log.
 						Debug().
