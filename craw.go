@@ -164,6 +164,7 @@ func (c *Crawler) Clone() *Crawler {
 		proxyURLPool:    c.proxyURLPool,
 		Context:         c.Context,
 		cache:           c.cache,
+		cacheCondition:  c.cacheCondition,
 		cacheFields:     c.cacheFields,
 		requestHandler:  make([]HandleRequest, 0, 5),
 		responseHandler: make([]HandleResponse, 0, 5),
