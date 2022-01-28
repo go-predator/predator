@@ -153,6 +153,18 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 // Clone creates an exact copy of a Crawler without callbacks.
 func (c *Crawler) Clone() *Crawler {
+	var (
+		pool *Pool
+		err  error
+	)
+	if c.goPool == nil {
+		pool = nil
+	} else {
+		pool, err = NewPool(c.goPool.capacity)
+		if err != nil {
+			c.FatalOrPanic(err)
+		}
+	}
 	return &Crawler{
 		lock:            c.lock,
 		UserAgent:       c.UserAgent,
@@ -160,7 +172,7 @@ func (c *Crawler) Clone() *Crawler {
 		retryConditions: c.retryConditions,
 		client:          c.client,
 		cookies:         c.cookies,
-		goPool:          c.goPool,
+		goPool:          pool,
 		proxyURLPool:    c.proxyURLPool,
 		Context:         c.Context,
 		cache:           c.cache,
