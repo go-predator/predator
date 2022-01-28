@@ -53,6 +53,12 @@ type HTMLParser struct {
 	Handle   HandleHTML
 }
 
+// JSONParser is used to parse json
+type JSONParser struct {
+	strict bool
+	Handle HandleJSON
+}
+
 // CustomRandomBoundary generates a custom boundary
 type CustomRandomBoundary func() string
 
@@ -100,7 +106,7 @@ type Crawler struct {
 	responseHandler []HandleResponse
 	// 响应后处理 html
 	htmlHandler []*HTMLParser
-	jsonHandler HandleJSON
+	jsonHandler []*JSONParser
 
 	wg *sync.WaitGroup
 
@@ -162,6 +168,7 @@ func (c *Crawler) Clone() *Crawler {
 		requestHandler:  make([]HandleRequest, 0, 5),
 		responseHandler: make([]HandleResponse, 0, 5),
 		htmlHandler:     make([]*HTMLParser, 0, 5),
+		jsonHandler:     make([]*JSONParser, 0, 1),
 		wg:              &sync.WaitGroup{},
 		log:             c.log,
 	}
@@ -806,10 +813,16 @@ func (c *Crawler) ParseHTML(selector string, f HandleHTML) {
 }
 
 // ParseHTML can parse html to find the data you need,
-// and process the data
-func (c *Crawler) ParseJSON(f HandleJSON) {
+// and process the data.
+//
+// It is recommended to do full processing of the json response in one
+// call to `ParseJSON` instead of multiple calls to `ParseJSON`.
+func (c *Crawler) ParseJSON(strict bool, f HandleJSON) {
 	c.lock.Lock()
-	c.jsonHandler = f
+	if c.jsonHandler == nil {
+		c.jsonHandler = make([]*JSONParser, 0, 1)
+	}
+	c.jsonHandler = append(c.jsonHandler, &JSONParser{strict, f})
 	c.lock.Unlock()
 }
 
@@ -911,19 +924,28 @@ func (c *Crawler) processJSONHandler(r *Response) {
 		return
 	}
 
-	if !strings.Contains(strings.ToLower(r.ContentType()), "json") {
+	if len(c.jsonHandler) > 1 {
 		if c.log != nil {
-			c.log.
-				Debug().
-				Caller().
-				Str("Content-Type", r.ContentType()).
-				Msg(`the "Content-Type" of the response header is not of the "json" type`)
+			c.Warning("it is recommended to do full processing of the json response in one call to `ParseJSON` instead of multiple calls to `ParseJSON`")
 		}
-		return
 	}
 
 	resp := json.ParseBytesToJSON(r.Body)
-	c.jsonHandler(resp)
+	for _, parser := range c.jsonHandler {
+		if parser.strict {
+			if !strings.Contains(strings.ToLower(r.ContentType()), "json") {
+				if c.log != nil {
+					c.log.
+						Debug().
+						Caller().
+						Str("Content-Type", r.ContentType()).
+						Msg(`the "Content-Type" of the response header is not of the "json" type`)
+				}
+				continue
+			}
+		}
+		parser.Handle(resp)
+	}
 }
 
 func (c *Crawler) processHTMLHandler(r *Response) error {
