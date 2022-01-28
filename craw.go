@@ -401,6 +401,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			return
 		}
 
+		c.processJSONHandler(response)
 	}
 
 	// 这里不需要调用 ReleaseRequest，因为 ReleaseResponse 中执行了 ReleaseRequest 方法
