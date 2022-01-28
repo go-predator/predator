@@ -45,6 +45,8 @@ type HandleResponse func(r *Response)
 // HandleHTML is used to process html
 type HandleHTML func(he *html.HTMLElement, r *Response)
 
+type HandleJSON func(j json.JSONResult)
+
 // HTMLParser is used to parse html
 type HTMLParser struct {
 	Selector string
@@ -98,6 +100,7 @@ type Crawler struct {
 	responseHandler []HandleResponse
 	// 响应后处理 html
 	htmlHandler []*HTMLParser
+	jsonHandler HandleJSON
 
 	wg *sync.WaitGroup
 
@@ -390,6 +393,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		if err != nil {
 			return
 		}
+
 	}
 
 	// 这里不需要调用 ReleaseRequest，因为 ReleaseResponse 中执行了 ReleaseRequest 方法
@@ -801,6 +805,14 @@ func (c *Crawler) ParseHTML(selector string, f HandleHTML) {
 	c.lock.Unlock()
 }
 
+// ParseHTML can parse html to find the data you need,
+// and process the data
+func (c *Crawler) ParseJSON(f HandleJSON) {
+	c.lock.Lock()
+	c.jsonHandler = f
+	c.lock.Unlock()
+}
+
 // AfterResponse is used to process the response, this
 // method should be used for the response body in non-html format
 func (c *Crawler) AfterResponse(f HandleResponse) {
@@ -892,6 +904,26 @@ func (c *Crawler) processResponseHandler(r *Response) {
 	for _, f := range c.responseHandler {
 		f(r)
 	}
+}
+
+func (c *Crawler) processJSONHandler(r *Response) {
+	if c.jsonHandler == nil {
+		return
+	}
+
+	if !strings.Contains(strings.ToLower(r.ContentType()), "json") {
+		if c.log != nil {
+			c.log.
+				Debug().
+				Caller().
+				Str("Content-Type", r.ContentType()).
+				Msg(`the "Content-Type" of the response header is not of the "json" type`)
+		}
+		return
+	}
+
+	resp := json.ParseBytesToJSON(r.Body)
+	c.jsonHandler(resp)
 }
 
 func (c *Crawler) processHTMLHandler(r *Response) error {
