@@ -25,6 +25,7 @@ const (
 
 // NewLogger returns a new zerolog instance
 func NewLogger(level zerolog.Level, out io.Writer) *zerolog.Logger {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMicro
 	logger := zerolog.New(out).
 		Level(func() zerolog.Level {
 			// 环境变量是 DEBUG 时，优先设置日志等级为 DEBUG

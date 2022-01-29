@@ -14,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-predator/cache"
 	"github.com/go-predator/predator/log"
@@ -40,7 +41,7 @@ func (l *LogOp) SetLevel(level zerolog.Level) {
 }
 
 func (l *LogOp) ToConsole() {
-	l.Out = zerolog.ConsoleWriter{Out: os.Stdout}
+	l.Out = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05.000000"}
 }
 
 func fileWriter(filepath string) (io.Writer, error) {
