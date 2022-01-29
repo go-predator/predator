@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/go-predator/cache"
 	"github.com/go-predator/predator/log"
