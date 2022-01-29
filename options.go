@@ -72,7 +72,7 @@ func WithLogger(lop *LogOp) CrawlerOption {
 	}
 
 	if lop.Out == nil {
-		lop.Out = zerolog.ConsoleWriter{Out: os.Stdout}
+		lop.ToConsole()
 	}
 
 	return func(c *Crawler) {
