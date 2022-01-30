@@ -16,6 +16,7 @@ import (
 
 	ctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/json"
+	"github.com/valyala/bytebufferpool"
 	"github.com/valyala/fasthttp"
 )
 
@@ -62,6 +63,15 @@ func (r *Response) GetSetCookie() string {
 
 func (r *Response) ContentType() string {
 	return string(r.Headers.Peek("Content-Type"))
+}
+
+func (r *Response) BodyGunzip() ([]byte, error) {
+	var bb bytebufferpool.ByteBuffer
+	_, err := fasthttp.WriteGunzip(&bb, r.Body)
+	if err != nil {
+		return nil, err
+	}
+	return bb.B, nil
 }
 
 func (r *Response) String() string {
