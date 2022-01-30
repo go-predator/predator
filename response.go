@@ -65,6 +65,11 @@ func (r *Response) ContentType() string {
 	return string(r.Headers.Peek("Content-Type"))
 }
 
+// BodyGunzip returns un-gzipped body data.
+//
+// This method may be used if the response header contains
+// 'Content-Encoding: gzip' for reading un-gzipped body.
+// Use Body for reading gzipped response body.
 func (r *Response) BodyGunzip() ([]byte, error) {
 	var bb bytebufferpool.ByteBuffer
 	_, err := fasthttp.WriteGunzip(&bb, r.Body)
