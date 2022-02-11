@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2022-02-11 23:51:11
+ * @Modified:  2022-02-11 23:54:36
  */
 
 package predator
@@ -601,7 +601,7 @@ func (c *Crawler) retryPrepare(request *Request, req *fasthttp.Request, resp *fa
 			log.Arg{Key: "retry_count", Value: atomic.LoadUint32(&request.retryCounter)},
 			log.Arg{Key: "method", Value: request.Method},
 			log.Arg{Key: "url", Value: request.URL},
-			log.A000rg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
+			log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
 		)
 	}
 
