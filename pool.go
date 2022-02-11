@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: pool.go
  * @Created: 2021-07-29 22:30:37
- * @Modified:  2021-11-24 20:50:22
+ * @Modified:  2022-02-11 09:07:13
  */
 
 package predator
@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/rs/zerolog"
+	"github.com/go-predator/predator/log"
 )
 
 // errors
@@ -48,7 +48,7 @@ type Pool struct {
 	runningWorkers uint64
 	status         int64
 	chTask         chan *Task
-	log            *zerolog.Logger
+	log            *log.Logger
 	blockPanic     bool
 	sync.Mutex
 }
@@ -128,7 +128,7 @@ func (p *Pool) run() {
 					// 打印panic的堆栈信息
 					debug.PrintStack()
 
-					p.log.Error().Err(fmt.Errorf("worker panic: %s", r))
+					p.log.Error(fmt.Errorf("worker panic: %s", r))
 				} else {
 					// panic 只允许 error 类型
 					if e, ok := r.(error); ok {

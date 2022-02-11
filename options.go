@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified:  2021-11-24 20:52:16
+ * @Modified:  2022-02-11 23:47:01
  */
 
 package predator
@@ -31,16 +31,21 @@ func SkipVerification() CrawlerOption {
 }
 
 type LogOp struct {
-	level zerolog.Level
+	Level log.Level
 	Out   io.Writer
+	Skip  int
 }
 
-func (l *LogOp) SetLevel(level zerolog.Level) {
-	l.level = level
+func (l *LogOp) SetLevel(level log.Level) {
+	l.Level = level
+}
+
+func (l *LogOp) SetSkip(skip int) {
+	l.Skip = skip
 }
 
 func (l *LogOp) ToConsole() {
-	l.Out = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05.000000"}
+	l.Out = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05.000"}
 }
 
 func fileWriter(filepath string) (io.Writer, error) {
@@ -68,7 +73,7 @@ func (l *LogOp) ToConsoleAndFile(filepath string) error {
 func WithLogger(lop *LogOp) CrawlerOption {
 	if lop == nil {
 		lop = new(LogOp)
-		lop.level = zerolog.InfoLevel
+		lop.Level = log.INFO
 	}
 
 	if lop.Out == nil {
@@ -76,7 +81,7 @@ func WithLogger(lop *LogOp) CrawlerOption {
 	}
 
 	return func(c *Crawler) {
-		c.log = log.NewLogger(lop.level, lop.Out)
+		c.log = log.NewLogger(lop.Level, lop.Out, lop.Skip)
 	}
 }
 

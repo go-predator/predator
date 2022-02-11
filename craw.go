@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2022-01-23 17:17:10
+ * @Modified:  2022-02-11 23:51:11
  */
 
 package predator
@@ -24,8 +24,8 @@ import (
 	pctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/html"
 	"github.com/go-predator/predator/json"
+	"github.com/go-predator/predator/log"
 	"github.com/go-predator/predator/proxy"
-	"github.com/rs/zerolog"
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
 )
@@ -110,7 +110,7 @@ type Crawler struct {
 
 	wg *sync.WaitGroup
 
-	log *zerolog.Logger
+	log *log.Logger
 }
 
 // NewCrawler creates a new Crawler instance with some CrawlerOptions
@@ -133,14 +133,9 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	if c.log != nil {
 		if capacityState {
-			c.log.Info().
-				Bool("state", capacityState).
-				Uint64("capacity", c.goPool.capacity).
-				Msg("concurrent")
+			c.Info("concurrent", log.Arg{Key: "state", Value: capacityState}, log.Arg{Key: "capacity", Value: c.goPool.capacity})
 		} else {
-			c.log.Info().
-				Bool("state", capacityState).
-				Msg("concurrent")
+			c.Info("concurrent", log.Arg{Key: "state", Value: capacityState})
 		}
 	}
 
@@ -206,7 +201,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 	u, err := url.Parse(URL)
 	if err != nil {
 		if c.log != nil {
-			c.log.Error().Caller().Err(err).Send()
+			c.log.Error(err)
 		}
 		return err
 	}
@@ -221,9 +216,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 			reqHeaders.SetCookie(k, v)
 		}
 		if c.log != nil {
-			c.log.Debug().
-				Bytes("cookies", reqHeaders.Peek("Cookie")).
-				Msg("cookies is set")
+			c.Debug("cookies is set", log.Arg{Key: "cookies", Value: reqHeaders.Peek("Cookie")})
 		}
 	}
 
@@ -231,7 +224,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 		ctx, err = pctx.AcquireCtx()
 		if err != nil {
 			if c.log != nil {
-				c.log.Error().Caller().Err(err).Send()
+				c.log.Error(err)
 			}
 			return err
 		}
@@ -258,7 +251,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 		err = c.goPool.Put(task)
 		if err != nil {
 			if c.log != nil {
-				c.log.Error().Caller().Err(err).Send()
+				c.log.Error(err)
 			}
 			return err
 		}
@@ -282,27 +275,24 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 	if request.abort {
 		if c.log != nil {
-			c.log.Debug().
-				Uint32("request_id", atomic.LoadUint32(&request.ID)).
-				Msg("the request is aborted")
+			c.Debug("the request is aborted", log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)})
 		}
 		return
 	}
 
 	if c.log != nil {
-		c.log.Info().
-			Uint32("request_id", atomic.LoadUint32(&request.ID)).
-			Str("method", request.Method).
-			Str("url", request.URL).
-			Str("timeout", request.timeout.String()).
-			Msg("requesting")
+		c.Info(
+			"requesting",
+			log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
+			log.Arg{Key: "method", Value: request.Method},
+			log.Arg{Key: "url", Value: request.URL},
+			log.Arg{Key: "timeout", Value: request.timeout.String()},
+		)
 	}
 
 	if request.Ctx.Length() > 0 {
 		if c.log != nil {
-			c.log.Debug().
-				RawJSON("context", request.Ctx.Bytes()).
-				Msg("using context")
+			c.Debug("using context", log.Arg{Key: "context", Value: request.Ctx.String()})
 		}
 	}
 
@@ -314,16 +304,17 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		key, err = request.Hash()
 		if err != nil {
 			if c.log != nil {
-				c.log.Error().Caller().Err(err).Send()
+				c.log.Error(err)
 			}
 			return
 		}
 
 		if c.log != nil {
-			c.log.Debug().
-				Uint32("request_id", atomic.LoadUint32(&request.ID)).
-				Str("cache_key", key).
-				Msg("generate cache key")
+			c.Debug(
+				"generate cache key",
+				log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
+				log.Arg{Key: "cache_key", Value: key},
+			)
 		}
 
 		response, err = c.checkCache(key)
@@ -332,10 +323,10 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 
 		if response != nil && c.log != nil {
-			c.log.Debug().
-				Uint32("request_id", atomic.LoadUint32(&request.ID)).
-				Str("cache_key", key).
-				Msg("response is in the cache")
+			c.log.Debug("response is in the cache",
+				log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
+				log.Arg{Key: "cache_key", Value: key},
+			)
 		}
 	}
 
@@ -353,7 +344,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			cacheVal, err := response.Marshal()
 			if err != nil {
 				if c.log != nil {
-					c.log.Error().Caller().Err(err).Send()
+					c.log.Error(err)
 				}
 				return err
 			}
@@ -363,7 +354,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 				err = c.cache.Cache(key, cacheVal)
 				if err != nil {
 					if c.log != nil {
-						c.log.Error().Caller().Err(err).Send()
+						c.log.Error(err)
 					}
 					return err
 				}
@@ -379,16 +370,16 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		location := response.Headers.Peek("location")
 
 		if c.log != nil {
-			c.log.Info().
-				Str("method", request.Method).
-				Int("status_code", response.StatusCode).
-				Str("location", string(location)).
-				Uint32("request_id", atomic.LoadUint32(&request.ID)).
-				Msg("response")
+			c.log.Info("response",
+				log.Arg{Key: "method", Value: request.Method},
+				log.Arg{Key: "status_code", Value: response.StatusCode},
+				log.Arg{Key: "location", Value: string(location)},
+				log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
+			)
 		}
 	} else {
 		if c.log != nil {
-			l := c.log.Info().
+			l := c.log.L.Info().
 				Str("method", request.Method).
 				Int("status_code", response.StatusCode)
 
@@ -429,7 +420,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 func (c *Crawler) FatalOrPanic(err error) {
 	if c.log != nil {
-		c.log.Fatal().Caller(1).Err(err).Send()
+		c.Fatal(err)
 	} else {
 		panic(err)
 	}
@@ -446,7 +437,7 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 	err = resp.Unmarshal(cachedBody)
 	if err != nil {
 		if c.log != nil {
-			c.log.Error().Caller().Err(err).Send()
+			c.log.Error(err)
 		}
 		return nil, err
 	}
@@ -531,21 +522,21 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 	if err != nil {
 		if p, ok := proxy.IsProxyInvalid(err); ok {
-			c.Warning("proxy is invalid", map[string]interface{}{
-				"proxy":      p,
-				"proxy_pool": c.proxyURLPool,
-				"msg":        err.Error(),
-			})
+			c.Warning("proxy is invalid",
+				log.Arg{Key: "proxy", Value: p},
+				log.Arg{Key: "proxy_pool", Value: c.proxyURLPool},
+				log.Arg{Key: "msg", Value: err},
+			)
 
 			err = c.removeInvalidProxy(p)
 			if err != nil {
 				c.FatalOrPanic(err)
 			}
 
-			c.Info("removed invalid proxy", map[string]interface{}{
-				"invalid_proxy":  p,
-				"new_proxy_pool": c.proxyURLPool,
-			})
+			c.Info("removed invalid proxy",
+				log.Arg{Key: "invalid_proxy", Value: p},
+				log.Arg{Key: "new_proxy_pool", Value: c.proxyURLPool},
+			)
 
 			fasthttp.ReleaseRequest(req)
 			fasthttp.ReleaseResponse(resp)
@@ -606,12 +597,12 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 func (c *Crawler) retryPrepare(request *Request, req *fasthttp.Request, resp *fasthttp.Response) {
 	atomic.AddUint32(&request.retryCounter, 1)
 	if c.log != nil {
-		c.log.Info().
-			Uint32("retry_count", atomic.LoadUint32(&request.retryCounter)).
-			Str("method", request.Method).
-			Str("url", request.URL).
-			Uint32("request_id", atomic.LoadUint32(&request.ID)).
-			Msg("retrying")
+		c.log.Info("retrying",
+			log.Arg{Key: "retry_count", Value: atomic.LoadUint32(&request.retryCounter)},
+			log.Arg{Key: "method", Value: request.Method},
+			log.Arg{Key: "url", Value: request.URL},
+			log.A000rg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
+		)
 	}
 
 	fasthttp.ReleaseRequest(req)
@@ -783,7 +774,7 @@ func (c *Crawler) ClearCache() error {
 		return ErrNoCacheSet
 	}
 	if c.log != nil {
-		c.log.Warn().Msg("clear all cache")
+		c.Warning("clear all cache")
 	}
 	return c.cache.Clear()
 }
@@ -953,11 +944,10 @@ func (c *Crawler) processJSONHandler(r *Response) {
 		if parser.strict {
 			if !strings.Contains(strings.ToLower(r.ContentType()), "application/json") {
 				if c.log != nil {
-					c.log.
-						Debug().
-						Caller().
-						Str("Content-Type", r.ContentType()).
-						Msg(`the "Content-Type" of the response header is not of the "json" type`)
+					c.Debug(
+						`the "Content-Type" of the response header is not of the "json" type`,
+						log.Arg{Key: "Content-Type", Value: r.ContentType()},
+					)
 				}
 				continue
 			}
@@ -973,11 +963,10 @@ func (c *Crawler) processHTMLHandler(r *Response) error {
 
 	if !strings.Contains(strings.ToLower(r.ContentType()), "html") {
 		if c.log != nil {
-			c.log.
-				Debug().
-				Caller().
-				Str("Content-Type", r.ContentType()).
-				Msg(`the "Content-Type" of the response header is not of the "html" type`)
+			c.Debug(
+				`the "Content-Type" of the response header is not of the "html" type`,
+				log.Arg{Key: "Content-Type", Value: r.ContentType()},
+			)
 		}
 		return nil
 	}
@@ -985,7 +974,7 @@ func (c *Crawler) processHTMLHandler(r *Response) error {
 	doc, err := html.ParseHTML(r.Body)
 	if err != nil {
 		if c.log != nil {
-			c.log.Error().Caller().Err(err).Send()
+			c.log.Error(err)
 		}
 		return err
 	}
@@ -1017,9 +1006,10 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 	if c.ProxyPoolAmount() == 1 && c.complementProxyPool != nil {
 		newProxyPool := c.complementProxyPool()
 		c.proxyURLPool = append(c.proxyURLPool, newProxyPool...)
-		c.log.Info().
-			Strs("new_proxy_pool", newProxyPool).
-			Msg("a new proxy pool has replaced to the old proxy pool")
+		c.log.Info(
+			"a new proxy pool has replaced to the old proxy pool",
+			log.Arg{Key: "new_proxy_pool", Value: newProxyPool},
+		)
 	}
 
 	targetIndex := -1
@@ -1038,9 +1028,10 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 		)
 
 		if c.log != nil {
-			c.log.Debug().
-				Str("proxy", proxyAddr).
-				Msg("invalid proxy have been deleted from the proxy pool")
+			c.Debug(
+				"invalid proxy have been deleted from the proxy pool",
+				log.Arg{Key: "proxy", Value: proxyAddr},
+			)
 		}
 
 		if len(c.proxyURLPool) == 0 {
@@ -1068,95 +1059,32 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 	return nil
 }
 
-func guessType(l *zerolog.Event, args ...map[string]interface{}) *zerolog.Event {
-	if len(args) > 1 {
-		panic("too many args")
-	}
-	if len(args) == 1 {
-		for k, arg := range args[0] {
-			switch v := arg.(type) {
-			case string:
-				l = l.Str(k, v)
-			case int:
-				l = l.Int(k, v)
-			case int32:
-				l = l.Int32(k, v)
-			case int64:
-				l = l.Int64(k, v)
-			case uint:
-				l = l.Uint(k, v)
-			case uint32:
-				l = l.Uint32(k, v)
-			case uint64:
-				l = l.Uint64(k, v)
-			case float32:
-				l = l.Float32(k, v)
-			case float64:
-				l = l.Float64(k, v)
-			case bool:
-				l = l.Bool(k, v)
-			case []int:
-				l = l.Ints(k, v)
-			case []int32:
-				l = l.Ints32(k, v)
-			case []uint:
-				l = l.Uints(k, v)
-			case []uint32:
-				l = l.Uints32(k, v)
-			case []uint64:
-				l = l.Uints64(k, v)
-			case []float32:
-				l = l.Floats32(k, v)
-			case []float64:
-				l = l.Floats64(k, v)
-			case []bool:
-				l = l.Bools(k, v)
-			case []string:
-				l = l.Strs(k, v)
-			default:
-				panic("unkown type")
-			}
-		}
-	}
-	return l
-}
-
-func (c *Crawler) Debug(msg string, args ...map[string]interface{}) {
+func (c *Crawler) Debug(msg string, args ...log.Arg) {
 	if c.log != nil {
-		l := c.log.Debug().Caller(1)
-		l = guessType(l, args...)
-		l.Msg(msg)
+		c.log.Debug(msg, args...)
 	}
 }
 
-func (c *Crawler) Info(msg string, args ...map[string]interface{}) {
+func (c *Crawler) Info(msg string, args ...log.Arg) {
 	if c.log != nil {
-		l := c.log.Info()
-		l = guessType(l, args...)
-		l.Msg(msg)
+		c.log.Info(msg, args...)
 	}
 }
 
-func (c *Crawler) Warning(msg string, args ...map[string]interface{}) {
+func (c *Crawler) Warning(msg string, args ...log.Arg) {
 	if c.log != nil {
-		l := c.log.Warn().Caller(1)
-		l = guessType(l, args...)
-		l.Msg(msg)
+		c.log.Warning(msg, args...)
 	}
 }
 
-func (c *Crawler) Error(err error, args ...map[string]interface{}) {
+func (c *Crawler) Error(err error, args ...log.Arg) {
 	if c.log != nil {
-		l := c.log.Error().Caller(1).Err(err)
-		l = guessType(l, args...)
-		l.Send()
+		c.log.Error(err, args...)
 	}
 }
 
-func (c *Crawler) Fatal(err error, args ...map[string]interface{}) {
+func (c *Crawler) Fatal(err error, args ...log.Arg) {
 	if c.log != nil {
-		l := c.log.Fatal().Caller(1).Err(err)
-		l = guessType(l, args...)
-		l.Send()
+		c.log.Fatal(err, args...)
 	}
 }

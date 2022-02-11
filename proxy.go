@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: proxy.go
  * @Created: 2021-07-27 12:15:35
- * @Modified: 2021-12-03 11:43:52
+ * @Modified:  2022-02-11 09:30:53
  */
 
 package predator
@@ -11,6 +11,7 @@ package predator
 import (
 	"time"
 
+	"github.com/go-predator/predator/log"
 	"github.com/go-predator/predator/proxy"
 	"github.com/valyala/fasthttp"
 )
@@ -36,11 +37,7 @@ func (c *Crawler) ProxyDialerWithTimeout(proxyAddr string, timeout time.Duration
 			Msg: "only support http and socks5 protocol, but the incoming proxy address uses an unknown protocol",
 		}
 		if c.log != nil {
-			c.log.Fatal().
-				Caller().
-				Err(err).
-				Str("proxy", proxyAddr).
-				Send()
+			c.Fatal(err, log.Arg{Key: "proxy", Value: proxyAddr})
 		} else {
 			panic(err)
 		}

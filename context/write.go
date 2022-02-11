@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: write.go
  * @Created: 2021-07-24 08:56:16
- * @Modified:  2021-11-09 10:35:33
+ * @Modified:  2022-02-11 09:15:46
  */
 
 package context
@@ -23,6 +23,7 @@ type wcontext struct {
 func (w *wcontext) GetAny(key string) interface{} {
 	w.l.RLock()
 	defer w.l.RUnlock()
+
 	if v, ok := w.m[key]; ok {
 		return v
 	}
@@ -90,6 +91,9 @@ func (w *wcontext) Length() int {
 }
 
 func (w *wcontext) Bytes() []byte {
+	w.l.RLock()
+	defer w.l.RUnlock()
+
 	var b bytes.Buffer
 	b.WriteByte('{')
 	i := 0
@@ -124,6 +128,7 @@ func (w *wcontext) String() string {
 		s.WriteString(`": "`)
 		s.WriteString(fmt.Sprint(v))
 		s.WriteByte('"')
+		i++
 	}
 	s.WriteByte('}')
 	return s.String()
