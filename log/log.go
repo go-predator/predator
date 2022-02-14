@@ -183,3 +183,43 @@ func NewLogger(level Level, out io.Writer, skip ...int) *Logger {
 
 	return l
 }
+
+func ToConsole() io.Writer {
+	return zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05.000"}
+}
+
+func fileWriter(filepath string) (io.Writer, error) {
+	return os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+}
+
+func ToFile(filename string) (io.Writer, error) {
+	writer, err := fileWriter(filename)
+	if err != nil {
+		return nil, err
+	}
+	return writer, nil
+}
+
+func MustToFile(filename string) io.Writer {
+	writer, err := fileWriter(filename)
+	if err != nil {
+		panic(err)
+	}
+	return writer
+}
+
+func ToConsoleAndFile(filepath string) (io.Writer, error) {
+	fw, err := fileWriter(filepath)
+	if err != nil {
+		return nil, err
+	}
+	return zerolog.MultiLevelWriter(fw, zerolog.ConsoleWriter{Out: os.Stdout}), nil
+}
+
+func MustToConsoleAndFile(filepath string) io.Writer {
+	fw, err := fileWriter(filepath)
+	if err != nil {
+		panic(err)
+	}
+	return zerolog.MultiLevelWriter(fw, zerolog.ConsoleWriter{Out: os.Stdout})
+}
