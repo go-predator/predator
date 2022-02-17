@@ -3,10 +3,15 @@
  * @Email:     thepoy@163.com
  * @File Name: api.go
  * @Created:   2021-11-24 20:39:11
- * @Modified:  2021-11-24 20:39:23
+ * @Modified:  2022-02-17 16:23:11
  */
 
 package predator
+
+import (
+	"fmt"
+	"net/url"
+)
 
 type Cache interface {
 	// 是否开启压缩。压缩后能减小数据量，但压缩过程会耗时。
@@ -31,4 +36,39 @@ type CacheModel struct {
 
 func (CacheModel) TableName() string {
 	return "cache"
+}
+
+type cacheFieldType uint8
+
+const (
+	// A key or field from URL query parameters
+	QueryParam cacheFieldType = iota
+	// A key or field from request body parameters
+	RequestBodyParam
+)
+
+type CacheField struct {
+	code  cacheFieldType
+	Field string
+}
+
+func (cf CacheField) String() string {
+	return fmt.Sprintf("%d-%s", cf.code, cf.Field)
+}
+
+func addQueryParamCacheField(params url.Values, field CacheField) (string, string, error) {
+	if val := params.Get(field.Field); val != "" {
+		return field.String(), val, nil
+	} else {
+		// 如果设置了 cachedFields，但 url 查询参数中却没有某个 field，则报异常退出
+		return "", "", fmt.Errorf("there is no such field [%s] in the query parameters: %v", field.Field, params.Encode())
+	}
+}
+
+func NewQueryParamField(field string) CacheField {
+	return CacheField{QueryParam, field}
+}
+
+func NewRequestBodyParamField(field string) CacheField {
+	return CacheField{RequestBodyParam, field}
 }

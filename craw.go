@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2022-02-11 23:54:36
+ * @Modified:  2022-02-17 16:23:32
  */
 
 package predator
@@ -28,12 +28,6 @@ import (
 	"github.com/go-predator/predator/proxy"
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
-)
-
-var (
-	ErrNoCacheSet    = errors.New("no cache set")
-	ErrRequestFailed = errors.New("request failed")
-	ErrTimeout       = errors.New("timeout, and it is recommended to try a new proxy if you are using a proxy pool")
 )
 
 // HandleRequest is used to patch the request
@@ -97,7 +91,7 @@ type Crawler struct {
 	// the combination of these fields can represent the unique
 	// request body.
 	// The fewer fields the better.
-	cacheFields    []string
+	cacheFields    []CacheField
 	cacheCondition CacheCondition
 
 	requestHandler []HandleRequest
@@ -620,7 +614,7 @@ func createBody(requestData map[string]string) []byte {
 	return []byte(form.Encode())
 }
 
-func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
+func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	// Parse the query parameters and create a `cachedMap` based on `cacheFields`
 	u, err := url.Parse(URL)
 	if err != nil {
@@ -633,12 +627,16 @@ func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, i
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
 		for _, field := range cacheFields {
-			if val := params.Get(field); val != "" {
-				cachedMap[field] = val
-			} else {
-				// 如果设置了 cachedFields，但 url 查询参数中却没有某个 field，则报异常退出
-				c.FatalOrPanic(fmt.Errorf("there is no such field [%s] in the query parameters: %v", field, params.Encode()))
+			if field.code != QueryParam {
+				c.FatalOrPanic(ErrNotAllowedCacheFieldType)
 			}
+
+			key, value, err := addQueryParamCacheField(params, field)
+			if err != nil {
+				c.FatalOrPanic(err)
+			}
+
+			cachedMap[key] = value
 		}
 	}
 
@@ -655,21 +653,50 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 	return c.get(URL, nil, ctx, false, c.cacheFields...)
 }
 
-func (c *Crawler) post(URL string, requestData map[string]string, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
+func (c *Crawler) post(URL string, requestData map[string]string, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
+
+		var queryParams url.Values
 		for _, field := range cacheFields {
-			if val, ok := requestData[field]; ok {
-				cachedMap[field] = val
-			} else {
-				keys := make([]string, 0, len(requestData))
-				for _, k := range requestData {
-					keys = append(keys, k)
+			var (
+				err        error
+				key, value string
+			)
+
+			switch field.code {
+			case QueryParam:
+				if queryParams == nil {
+					u, err := url.Parse(URL)
+					if err != nil {
+						c.FatalOrPanic(err)
+					}
+
+					queryParams = u.Query()
 				}
-				// 如果 cachedFields 中某个 field 是请求表单中没有的，则报异常退出
-				c.FatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
+
+				key, value, err = addQueryParamCacheField(queryParams, field)
+			case RequestBodyParam:
+				if val, ok := requestData[field.Field]; ok {
+					key, value = field.String(), val
+				} else {
+					keys := make([]string, 0, len(requestData))
+					for k := range requestData {
+						keys = append(keys, k)
+					}
+
+					err = fmt.Errorf("there is no such field [%s] in the request body: %v", field.Field, keys)
+				}
+			default:
+				err = ErrInvalidCacheTypeCode
 			}
+
+			if err != nil {
+				c.FatalOrPanic(err)
+			}
+
+			cachedMap[key] = value
 		}
 	}
 	return c.request(fasthttp.MethodPost, URL, createBody(requestData), cachedMap, headers, ctx, isChained)
@@ -691,25 +718,55 @@ func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
 	return body
 }
 
-func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
+func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	body := c.createJSONBody(requestData)
 
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
 		bodyJson := gjson.ParseBytes(body)
+
+		var queryParams url.Values
+
 		for _, field := range cacheFields {
-			if !bodyJson.Get(field).Exists() {
-				m := bodyJson.Map()
-				var keys = make([]string, 0, len(m))
-				for k := range m {
-					keys = append(keys, k)
+			var (
+				err        error
+				key, value string
+			)
+
+			switch field.code {
+			case QueryParam:
+				if queryParams == nil {
+					u, err := url.Parse(URL)
+					if err != nil {
+						c.FatalOrPanic(err)
+					}
+
+					queryParams = u.Query()
 				}
-				// 如果 cachedFields 中某个 field 是请求 json 中没有的，则报异常退出
-				c.FatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
+
+				key, value, err = addQueryParamCacheField(queryParams, field)
+			case RequestBodyParam:
+				if !bodyJson.Get(field.Field).Exists() {
+					m := bodyJson.Map()
+					var keys = make([]string, 0, len(m))
+					for k := range m {
+						keys = append(keys, k)
+					}
+					// 如果 cachedFields 中某个 field 是请求 json 中没有的，则报异常退出
+					err = fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys)
+				} else {
+					key, value = field.String(), bodyJson.Get(field.Field).String()
+				}
+			default:
+				err = ErrInvalidCacheTypeCode
 			}
-			val := bodyJson.Get(field).String()
-			cachedMap[field] = val
+
+			if err != nil {
+				c.FatalOrPanic(err)
+			}
+
+			cachedMap[key] = value
 		}
 	}
 
@@ -726,21 +783,51 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 	return c.postJSON(URL, requestData, nil, ctx, false, c.cacheFields...)
 }
 
-func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...string) error {
+func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
+
+		var queryParams url.Values
+
 		for _, field := range cacheFields {
-			if val, ok := form.bodyMap[field]; ok {
-				cachedMap[field] = val
-			} else {
-				var keys = make([]string, 0, len(form.bodyMap))
-				for k := range form.bodyMap {
-					keys = append(keys, k)
+			var (
+				err        error
+				key, value string
+			)
+
+			switch field.code {
+			case QueryParam:
+				if queryParams == nil {
+					u, err := url.Parse(URL)
+					if err != nil {
+						c.FatalOrPanic(err)
+					}
+
+					queryParams = u.Query()
 				}
-				// 如果 cachedFields 中某个 field 是请求表单中没有的，则报异常退出
-				c.FatalOrPanic(fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys))
+
+				key, value, err = addQueryParamCacheField(queryParams, field)
+			case RequestBodyParam:
+				if val, ok := form.bodyMap[field.Field]; ok {
+					key, value = field.String(), val
+				} else {
+					var keys = make([]string, 0, len(form.bodyMap))
+					for k := range form.bodyMap {
+						keys = append(keys, k)
+					}
+					// 如果 cachedFields 中某个 field 是请求表单中没有的，则报异常退出
+					err = fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys)
+				}
+			default:
+				err = ErrInvalidCacheTypeCode
 			}
+
+			if err != nil {
+				c.FatalOrPanic(err)
+			}
+
+			cachedMap[key] = value
 		}
 	}
 
@@ -894,7 +981,7 @@ func (c *Crawler) SetRetry(count uint32, cond RetryConditions) {
 	c.retryConditions = cond
 }
 
-func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFileds ...string) {
+func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFileds ...CacheField) {
 	cc.Compressed(compressed)
 	err := cc.Init()
 	if err != nil {

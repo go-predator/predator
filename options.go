@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified:  2022-02-11 23:47:01
+ * @Modified:  2022-02-17 16:17:49
  */
 
 package predator
@@ -163,7 +163,7 @@ func WithComplementProxyPool(f ComplementProxyPool) CrawlerOption {
 // 缓存标识，但由于 map 无序，同一个请求体生成的 key 很
 // 难保证相同，所以可能会有同一个请求缓存多次，或者无法
 // 从缓存中读取已请求过的请求的响应的情况出现。
-func WithCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFileds ...string) CrawlerOption {
+func WithCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFileds ...CacheField) CrawlerOption {
 	return func(c *Crawler) {
 		cc.Compressed(compressed)
 		err := cc.Init()

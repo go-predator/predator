@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified:  2021-11-24 20:48:45
+ * @Modified:  2022-02-17 16:18:09
  */
 
 package predator
@@ -112,7 +112,7 @@ func (r Request) Get(u string) error {
 	return r.Request(fasthttp.MethodGet, u, nil, nil)
 }
 
-func (r Request) GetWithCache(URL string, cacheFields ...string) error {
+func (r Request) GetWithCache(URL string, cacheFields ...CacheField) error {
 	return r.crawler.get(URL, r.headers(), r.Ctx, true, cacheFields...)
 }
 
@@ -120,21 +120,21 @@ func (r Request) Post(URL string, requestData map[string]string) error {
 	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true)
 }
 
-func (r Request) PostWithCache(URL string, requestData map[string]string, cacheFields ...string) error {
+func (r Request) PostWithCache(URL string, requestData map[string]string, cacheFields ...CacheField) error {
 	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
 }
 func (r Request) PostJSON(URL string, requestData map[string]interface{}) error {
 	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true)
 }
 
-func (r Request) PostJSONWithCache(URL string, requestData map[string]interface{}, cacheFields ...string) error {
+func (r Request) PostJSONWithCache(URL string, requestData map[string]interface{}, cacheFields ...CacheField) error {
 	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
 }
 func (r Request) PostMultipart(URL string, form *MultipartForm) error {
 	return r.crawler.postMultipart(URL, form, r.headers(), r.Ctx, true)
 }
 
-func (r Request) PostMultipartWithCache(URL string, form *MultipartForm, cacheFields ...string) error {
+func (r Request) PostMultipartWithCache(URL string, form *MultipartForm, cacheFields ...CacheField) error {
 	return r.crawler.postMultipart(URL, form, r.headers(), r.Ctx, true, cacheFields...)
 }
 
