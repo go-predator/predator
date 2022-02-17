@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2022-02-17 16:47:43
+ * @Modified:  2022-02-17 17:00:08
  */
 
 package predator
@@ -117,6 +117,15 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	for _, op := range opts {
 		op(c)
+	}
+
+	// If there is `DEBUG` in the environment variable and `c.log` is nil,
+	// create a logger with a level of `DEBUG`
+	if c.log == nil && log.IsDebug() {
+		c.log = log.NewLogger(
+			log.DEBUG,
+			log.ToConsole(),
+		)
 	}
 
 	c.lock = &sync.RWMutex{}

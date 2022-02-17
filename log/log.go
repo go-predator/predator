@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-02-11 09:35:15
+ * @Modified:  2022-02-17 16:59:52
  */
 
 package log
@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -156,13 +157,17 @@ func (log *Logger) Fatal(err error, args ...Arg) {
 	l.Send()
 }
 
+func IsDebug() bool {
+	return os.Getenv("DEBUG") != "" && os.Getenv("DEBUG") != "0" && strings.ToLower(os.Getenv("DEBUG")) != "false"
+}
+
 // NewLogger returns a new zerolog instance
 func NewLogger(level Level, out io.Writer, skip ...int) *Logger {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMicro
 	logger := zerolog.New(out).
 		Level(func() zerolog.Level {
 			// 环境变量是 DEBUG 时，优先设置日志等级为 DEBUG
-			if os.Getenv("DEBUG") != "" {
+			if IsDebug() {
 				return zerolog.DebugLevel
 			} else {
 				return zerolog.Level(level)
