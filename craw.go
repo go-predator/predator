@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw.go
  * @Created: 2021-07-23 08:52:17
- * @Modified:  2022-02-17 16:23:32
+ * @Modified:  2022-02-17 16:47:43
  */
 
 package predator
@@ -638,6 +638,8 @@ func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, i
 
 			cachedMap[key] = value
 		}
+
+		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
 	return c.request(fasthttp.MethodGet, URL, nil, cachedMap, headers, ctx, isChained)
@@ -698,6 +700,8 @@ func (c *Crawler) post(URL string, requestData map[string]string, headers map[st
 
 			cachedMap[key] = value
 		}
+
+		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 	return c.request(fasthttp.MethodPost, URL, createBody(requestData), cachedMap, headers, ctx, isChained)
 }
@@ -768,6 +772,8 @@ func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, heade
 
 			cachedMap[key] = value
 		}
+
+		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
 	if len(headers) == 0 {
@@ -829,6 +835,8 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[str
 
 			cachedMap[key] = value
 		}
+
+		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
 	if len(headers) == 0 {
