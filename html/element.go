@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: element.go
  * @Created: 2021-07-27 20:35:31
- * @Modified:  2021-11-24 20:50:54
+ * @Modified:  2022-02-19 14:16:03
  */
 
 package html
@@ -186,6 +186,7 @@ func (he *HTMLElement) Parents() []*HTMLElement {
 	return parents
 }
 
+// FindChildByText returns the first child element matching the target text.
 func (he *HTMLElement) FindChildByText(selector, text string) *HTMLElement {
 	var target *HTMLElement
 	he.Each(selector, func(i int, h *HTMLElement) bool {
@@ -198,6 +199,7 @@ func (he *HTMLElement) FindChildByText(selector, text string) *HTMLElement {
 	return target
 }
 
+// FindChildByStripedText returns the first child element matching the stripped text.
 func (he *HTMLElement) FindChildByStripedText(selector, text string) *HTMLElement {
 	var target *HTMLElement
 	he.Each(selector, func(i int, h *HTMLElement) bool {
@@ -210,6 +212,17 @@ func (he *HTMLElement) FindChildByStripedText(selector, text string) *HTMLElemen
 	return target
 }
 
+// Children returns all child elements matching the selector
+func (he *HTMLElement) Children(selector string) []*HTMLElement {
+	children := make([]*HTMLElement, 0, 3)
+	he.Each(selector, func(i int, h *HTMLElement) bool {
+		children = append(children, h)
+		return false
+	})
+	return children
+}
+
+// FindChildrenByText returns all the child elements matching the target text.
 func (he *HTMLElement) FindChildrenByText(selector, text string) []*HTMLElement {
 	targets := make([]*HTMLElement, 0, 3)
 	he.Each(selector, func(i int, h *HTMLElement) bool {
@@ -221,6 +234,7 @@ func (he *HTMLElement) FindChildrenByText(selector, text string) []*HTMLElement 
 	return targets
 }
 
+// FindChildrenByStripedText returns all the child elements matching the stripped text.
 func (he *HTMLElement) FindChildrenByStripedText(selector, text string) []*HTMLElement {
 	targets := make([]*HTMLElement, 0, 3)
 	he.Each(selector, func(i int, h *HTMLElement) bool {
