@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-02-17 16:59:52
+ * @Modified:  2022-02-22 13:08:19
  */
 
 package log
@@ -31,6 +31,7 @@ const (
 
 type Logger struct {
 	L    *zerolog.Logger
+	out  io.Writer
 	skip int
 }
 
@@ -97,10 +98,6 @@ func guessType(l *zerolog.Event, args ...Arg) *zerolog.Event {
 				l = l.Strs(arg.Key, v)
 			case []byte:
 				l = l.Bytes(arg.Key, v)
-			case fmt.Stringer:
-				l = l.Stringer(arg.Key, v)
-			case []fmt.Stringer:
-				l = l.Stringers(arg.Key, v)
 			case error:
 				l = l.AnErr(arg.Key, v)
 			case []error:
@@ -119,6 +116,10 @@ func guessType(l *zerolog.Event, args ...Arg) *zerolog.Event {
 				l = l.IPPrefix(arg.Key, v)
 			case net.HardwareAddr:
 				l = l.MACAddr(arg.Key, v)
+			case fmt.Stringer:
+				l = l.Stringer(arg.Key, v)
+			case []fmt.Stringer:
+				l = l.Stringers(arg.Key, v)
 			default:
 				l = l.Interface(arg.Key, v)
 			}
@@ -157,6 +158,23 @@ func (log *Logger) Fatal(err error, args ...Arg) {
 	l.Send()
 }
 
+func (log *Logger) SetLevel(level Level) {
+	logger := zerolog.New(log.out).
+		Level(func() zerolog.Level {
+			// 环境变量是 DEBUG 时，优先设置日志等级为 DEBUG
+			if IsDebug() {
+				return zerolog.DebugLevel
+			} else {
+				return zerolog.Level(level)
+			}
+		}()).
+		With().
+		Timestamp().
+		Logger()
+
+	log.L = &logger
+}
+
 func IsDebug() bool {
 	return os.Getenv("DEBUG") != "" && os.Getenv("DEBUG") != "0" && strings.ToLower(os.Getenv("DEBUG")) != "false"
 }
@@ -179,6 +197,8 @@ func NewLogger(level Level, out io.Writer, skip ...int) *Logger {
 
 	l := new(Logger)
 	l.L = &logger
+
+	l.out = out
 
 	if len(skip) > 0 {
 		l.skip = skip[0]
