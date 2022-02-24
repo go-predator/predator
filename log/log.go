@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-02-24 17:13:20
+ * @Modified:  2022-02-24 17:16:34
  */
 
 package log
@@ -238,7 +238,7 @@ func ToConsoleAndFile(filepath string) (io.Writer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return zerolog.MultiLevelWriter(fw, zerolog.ConsoleWriter{Out: os.Stdout}), nil
+	return zerolog.MultiLevelWriter(fw, ToConsole()), nil
 }
 
 func MustToConsoleAndFile(filepath string) io.Writer {
@@ -246,5 +246,5 @@ func MustToConsoleAndFile(filepath string) io.Writer {
 	if err != nil {
 		panic(err)
 	}
-	return zerolog.MultiLevelWriter(fw, zerolog.ConsoleWriter{Out: os.Stdout})
+	return zerolog.MultiLevelWriter(fw, ToConsole())
 }
