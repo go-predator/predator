@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-02-22 13:08:19
+ * @Modified:  2022-02-24 16:21:31
  */
 
 package log
@@ -192,7 +192,6 @@ func NewLogger(level Level, out io.Writer, skip ...int) *Logger {
 			}
 		}()).
 		With().
-		Timestamp().
 		Logger()
 
 	l := new(Logger)
