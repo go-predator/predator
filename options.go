@@ -3,21 +3,18 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified:  2022-02-17 16:17:49
+ * @Modified:  2022-02-25 10:53:26
  */
 
 package predator
 
 import (
 	"crypto/tls"
-	"io"
-	"os"
 	"strings"
 	"sync"
 
 	"github.com/go-predator/cache"
 	"github.com/go-predator/predator/log"
-	"github.com/rs/zerolog"
 )
 
 type CrawlerOption func(*Crawler)
@@ -30,58 +27,13 @@ func SkipVerification() CrawlerOption {
 	}
 }
 
-type LogOp struct {
-	Level log.Level
-	Out   io.Writer
-	Skip  int
-}
-
-func (l *LogOp) SetLevel(level log.Level) {
-	l.Level = level
-}
-
-func (l *LogOp) SetSkip(skip int) {
-	l.Skip = skip
-}
-
-func (l *LogOp) ToConsole() {
-	l.Out = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05.000"}
-}
-
-func fileWriter(filepath string) (io.Writer, error) {
-	return os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
-}
-
-func (l *LogOp) ToFile(filepath string) error {
-	writer, err := fileWriter(filepath)
-	if err != nil {
-		return err
-	}
-	l.Out = writer
-	return nil
-}
-
-func (l *LogOp) ToConsoleAndFile(filepath string) error {
-	fw, err := fileWriter(filepath)
-	if err != nil {
-		return err
-	}
-	l.Out = zerolog.MultiLevelWriter(fw, zerolog.ConsoleWriter{Out: os.Stdout})
-	return nil
-}
-
-func WithLogger(lop *LogOp) CrawlerOption {
-	if lop == nil {
-		lop = new(LogOp)
-		lop.Level = log.INFO
-	}
-
-	if lop.Out == nil {
-		lop.ToConsole()
+func WithLogger(logger *log.Logger) CrawlerOption {
+	if logger == nil {
+		logger = log.NewLogger(log.WARNING, log.ToConsole(), 1)
 	}
 
 	return func(c *Crawler) {
-		c.log = log.NewLogger(lop.Level, lop.Out, lop.Skip)
+		c.log = logger
 	}
 }
 

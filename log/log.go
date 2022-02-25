@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-02-24 17:16:34
+ * @Modified:  2022-02-24 17:25:04
  */
 
 package log
@@ -27,6 +27,10 @@ const (
 	WARNING
 	ERROR
 	FATAL
+)
+
+const (
+	TimeFormat = "15:04:05.000"
 )
 
 type Logger struct {
@@ -210,7 +214,7 @@ func NewLogger(level Level, out io.Writer, skip ...int) *Logger {
 }
 
 func ToConsole() io.Writer {
-	return zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05.000"}
+	return zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: TimeFormat}
 }
 
 func fileWriter(filepath string) (io.Writer, error) {

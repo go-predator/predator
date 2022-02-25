@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: main.go
  * @Created: 2021-07-31 11:50:11
- * @Modified:  2021-11-06 17:27:04
+ * @Modified:  2022-02-25 10:53:15
  */
 
 package main
@@ -34,18 +34,13 @@ func randomBoundary() string {
 }
 
 func main() {
-	// 创建日志option
-	logOp := &predator.LogOp{}
-	logOp.SetLevel(log.DEBUG)
-	logOp.ToConsole()
-
 	c := predator.NewCrawler(
 		// 使用 cookie
 		predator.WithCookies(map[string]string{
 			"PHPSESSID": "7ijqglcno1cljiqs76t2vo5oh2",
 		}),
 		// 使用日志
-		predator.WithLogger(logOp),
+		predator.WithLogger(log.NewLogger(log.DEBUG, log.ToConsole())),
 		predator.WithCache(nil, false, nil),
 	)
 

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified:  2022-02-17 16:19:40
+ * @Modified:  2022-02-25 10:52:42
  */
 
 package predator
@@ -741,10 +741,8 @@ func TestLog(t *testing.T) {
 	})
 
 	Convey("在终端美化输出 DEBUG 等级\n", t, func() {
-		l := new(LogOp)
-		l.SetLevel(log.DEBUG)
 		c := NewCrawler(
-			WithLogger(l),
+			WithLogger(log.NewLogger(log.DEBUG, log.ToConsole())),
 		)
 
 		c.BeforeRequest(func(r *Request) {
@@ -755,24 +753,16 @@ func TestLog(t *testing.T) {
 	})
 
 	Convey("保存到文件\n", t, func() {
-		l := new(LogOp)
-		l.SetLevel(log.DEBUG)
-		l.ToFile("test.log")
-
 		c := NewCrawler(
-			WithLogger(l),
+			WithLogger(log.NewLogger(log.DEBUG, log.MustToFile("test.log"))),
 		)
 
 		c.Get(ts.URL)
 	})
 
 	Convey("既保存到文件，也输出到终端\n", t, func() {
-		l := new(LogOp)
-		l.SetLevel(log.DEBUG)
-		l.ToConsoleAndFile("test2.log")
-
 		c := NewCrawler(
-			WithLogger(l),
+			WithLogger(log.NewLogger(log.DEBUG, log.MustToConsoleAndFile("test2.log"))),
 		)
 
 		c.BeforeRequest(func(r *Request) {
