@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-02-24 17:25:04
+ * @Modified:  2022-02-28 09:25:47
  */
 
 package log
@@ -30,7 +30,8 @@ const (
 )
 
 const (
-	TimeFormat = "15:04:05.000"
+	ConsoleTimeFormat = "15:04:05.000"
+	TimeFormat        = "2006-01-02 15:04:05.999999999"
 )
 
 type Logger struct {
@@ -185,7 +186,7 @@ func IsDebug() bool {
 
 // NewLogger returns a new zerolog instance
 func NewLogger(level Level, out io.Writer, skip ...int) *Logger {
-	zerolog.TimeFieldFormat = time.RFC3339Nano
+	zerolog.TimeFieldFormat = TimeFormat
 	logger := zerolog.New(out).
 		Level(func() zerolog.Level {
 			// 环境变量是 DEBUG 时，优先设置日志等级为 DEBUG
@@ -214,7 +215,7 @@ func NewLogger(level Level, out io.Writer, skip ...int) *Logger {
 }
 
 func ToConsole() io.Writer {
-	return zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: TimeFormat}
+	return zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: ConsoleTimeFormat}
 }
 
 func fileWriter(filepath string) (io.Writer, error) {
