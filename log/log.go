@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-02-28 09:25:47
+ * @Modified:  2022-02-28 09:38:04
  */
 
 package log
@@ -29,9 +29,9 @@ const (
 	FATAL
 )
 
-const (
-	ConsoleTimeFormat = "15:04:05.000"
+var (
 	TimeFormat        = "2006-01-02 15:04:05.999999999"
+	ConsoleTimeFormat = "15:04:05.000"
 )
 
 type Logger struct {
