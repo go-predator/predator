@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-02-28 09:38:04
+ * @Modified:  2022-02-28 10:53:34
  */
 
 package log
@@ -19,8 +19,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// Level defines the log level
 type Level uint8
 
+// log level
 const (
 	DEBUG Level = iota
 	INFO
@@ -30,16 +32,23 @@ const (
 )
 
 var (
-	TimeFormat        = "2006-01-02 15:04:05.999999999"
+	// Default time format with nanosecond precision
+	TimeFormat = "2006-01-02 15:04:05.999999999"
+
+	// Console default time format with millisecond accuracy
 	ConsoleTimeFormat = "15:04:05.000"
 )
 
+// Logger records a `zerolog.Logger` pointer and uses this pointer
+// to implement all logging methods
 type Logger struct {
 	L    *zerolog.Logger
 	out  io.Writer
 	skip int
 }
 
+// Arg records the parameters required in the log as key-value pairs,
+// the key is of type `string`, and the value can be of any type.
 type Arg struct {
 	Key   string
 	Value interface{}
@@ -133,36 +142,44 @@ func guessType(l *zerolog.Event, args ...Arg) *zerolog.Event {
 	return l
 }
 
+// Debug logs a `DEBUG` message with some `Arg`s.
 func (log *Logger) Debug(msg string, args ...Arg) {
 	l := log.L.Debug().Caller(log.skip)
 	l = guessType(l, args...)
 	l.Msg(msg)
 }
 
+// Info logs a `INFO` message with some `Arg`s.
 func (log *Logger) Info(msg string, args ...Arg) {
 	l := log.L.Info()
 	l = guessType(l, args...)
 	l.Msg(msg)
 }
 
+// Warning logs a `WARNING` message with some `Arg`s.
 func (log *Logger) Warning(msg string, args ...Arg) {
 	l := log.L.Warn().Caller(log.skip)
 	l = guessType(l, args...)
 	l.Msg(msg)
 }
 
+// Error logs a `ERROR` message with some `Arg`s.
 func (log *Logger) Error(err error, args ...Arg) {
 	l := log.L.Error().Caller(log.skip).Err(err)
 	l = guessType(l, args...)
 	l.Send()
 }
 
+// Fatal logs a `FATAL` message with some `Arg`s, and calls `os.Exit(1)`
+// to exit the application.
 func (log *Logger) Fatal(err error, args ...Arg) {
 	l := log.L.Fatal().Caller(log.skip).Err(err)
 	l = guessType(l, args...)
 	l.Send()
 }
 
+// SetLevel will create a `zerolog.Logger` instance with a new `LEVEL`
+// using the existing `out`(io.Writer)
 func (log *Logger) SetLevel(level Level) {
 	logger := zerolog.New(log.out).
 		Level(func() zerolog.Level {
@@ -180,11 +197,15 @@ func (log *Logger) SetLevel(level Level) {
 	log.L = &logger
 }
 
+// IsDebug determines whether the current environment is `DEBUG` through
+// the `DEBUG` variable in the current environment variables.
 func IsDebug() bool {
-	return os.Getenv("DEBUG") != "" && os.Getenv("DEBUG") != "0" && strings.ToLower(os.Getenv("DEBUG")) != "false"
+	return os.Getenv("DEBUG") != "" &&
+		os.Getenv("DEBUG") != "0" &&
+		strings.ToLower(os.Getenv("DEBUG")) != "false"
 }
 
-// NewLogger returns a new zerolog instance
+// NewLogger returns a new `Logger` pointer.
 func NewLogger(level Level, out io.Writer, skip ...int) *Logger {
 	zerolog.TimeFieldFormat = TimeFormat
 	logger := zerolog.New(out).
@@ -214,40 +235,65 @@ func NewLogger(level Level, out io.Writer, skip ...int) *Logger {
 	return l
 }
 
+// ToConsole returns an `io.Writer` that outputs the log to the
+// console or terminal emulator or an `error`.
 func ToConsole() io.Writer {
 	return zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: ConsoleTimeFormat}
 }
 
-func fileWriter(filepath string) (io.Writer, error) {
-	return os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+func fileWriter(filepath string, flag int) (io.Writer, error) {
+	if flag < 0 {
+		flag = os.O_RDWR | os.O_CREATE | os.O_TRUNC
+	}
+	return os.OpenFile(filepath, flag, 0666)
 }
 
-func ToFile(filename string) (io.Writer, error) {
-	writer, err := fileWriter(filename)
+// ToFile returns an `io.Writer` that saves the log to a local file or an `error`.
+//
+// The `flag` parameter is passed to the `os.OpenFile` function.
+// If flag < 0, it will be assigned the value `os.O_RDWR|os.O_CREATE|os.O_TRUNC`.
+func ToFile(filename string, flag int) (io.Writer, error) {
+	writer, err := fileWriter(filename, flag)
 	if err != nil {
 		return nil, err
 	}
 	return writer, nil
 }
 
-func MustToFile(filename string) io.Writer {
-	writer, err := fileWriter(filename)
+// MustToFile returns an `io.Writer` that saves the log to a local file and will
+// panic if there is an error opening the file.
+//
+// The `flag` parameter is passed to the `os.OpenFile` function.
+// If flag < 0, it will be assigned the value `os.O_RDWR|os.O_CREATE|os.O_TRUNC`.
+func MustToFile(filename string, flag int) io.Writer {
+	writer, err := fileWriter(filename, flag)
 	if err != nil {
 		panic(err)
 	}
 	return writer
 }
 
-func ToConsoleAndFile(filepath string) (io.Writer, error) {
-	fw, err := fileWriter(filepath)
+// ToConsoleAndFile returns an `io.Writer` that can both output the log to a
+// control or terminal emulator and save the log to a local file, or an `error`.
+//
+// The `flag` parameter is passed to the `os.OpenFile` function.
+// If flag < 0, it will be assigned the value `os.O_RDWR|os.O_CREATE|os.O_TRUNC`.
+func ToConsoleAndFile(filepath string, flag int) (io.Writer, error) {
+	fw, err := fileWriter(filepath, flag)
 	if err != nil {
 		return nil, err
 	}
 	return zerolog.MultiLevelWriter(fw, ToConsole()), nil
 }
 
-func MustToConsoleAndFile(filepath string) io.Writer {
-	fw, err := fileWriter(filepath)
+// MustToConsoleAndFile returns an `io.Writer` that can both output the log to a
+// control or terminal emulator and save the log to a local file, which will
+// panic if there is an error opening the file.
+//
+// The `flag` parameter is passed to the `os.OpenFile` function.
+// If flag < 0, it will be assigned the value `os.O_RDWR|os.O_CREATE|os.O_TRUNC`.
+func MustToConsoleAndFile(filepath string, flag int) io.Writer {
+	fw, err := fileWriter(filepath, flag)
 	if err != nil {
 		panic(err)
 	}

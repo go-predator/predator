@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: craw_test.go
  * @Created: 2021-07-23 09:22:36
- * @Modified:  2022-02-25 10:52:42
+ * @Modified:  2022-02-28 09:50:40
  */
 
 package predator
@@ -754,7 +754,7 @@ func TestLog(t *testing.T) {
 
 	Convey("保存到文件\n", t, func() {
 		c := NewCrawler(
-			WithLogger(log.NewLogger(log.DEBUG, log.MustToFile("test.log"))),
+			WithLogger(log.NewLogger(log.DEBUG, log.MustToFile("test.log", -1))),
 		)
 
 		c.Get(ts.URL)
@@ -762,7 +762,7 @@ func TestLog(t *testing.T) {
 
 	Convey("既保存到文件，也输出到终端\n", t, func() {
 		c := NewCrawler(
-			WithLogger(log.NewLogger(log.DEBUG, log.MustToConsoleAndFile("test2.log"))),
+			WithLogger(log.NewLogger(log.DEBUG, log.MustToConsoleAndFile("test2.log", -1))),
 		)
 
 		c.BeforeRequest(func(r *Request) {
