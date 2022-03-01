@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: request.go
  * @Created: 2021-07-24 13:29:11
- * @Modified:  2022-02-17 16:18:09
+ * @Modified:  2022-03-01 16:10:11
  */
 
 package predator
@@ -91,6 +91,7 @@ func (r *Request) SetTimeout(t time.Duration) {
 }
 
 func (r *Request) SetHeaders(headers map[string]string) {
+	r.Headers.Reset()
 	for k, v := range headers {
 		r.Headers.Set(k, v)
 	}
