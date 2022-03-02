@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-02-28 10:53:34
+ * @Modified:  2022-03-02 15:46:51
  */
 
 package log
@@ -178,12 +178,11 @@ func (log *Logger) Fatal(err error, args ...Arg) {
 	l.Send()
 }
 
-// SetLevel will create a `zerolog.Logger` instance with a new `LEVEL`
-// using the existing `out`(io.Writer)
-func (log *Logger) SetLevel(level Level) {
-	logger := zerolog.New(log.out).
+func newZerologLogger(level Level, out io.Writer) zerolog.Logger {
+	return zerolog.New(out).
 		Level(func() zerolog.Level {
-			// 环境变量是 DEBUG 时，优先设置日志等级为 DEBUG
+			// If the current running environment is DEBUG,
+			// set the level to DEBUG first
 			if IsDebug() {
 				return zerolog.DebugLevel
 			} else {
@@ -193,6 +192,12 @@ func (log *Logger) SetLevel(level Level) {
 		With().
 		Timestamp().
 		Logger()
+}
+
+// SetLevel will create a `zerolog.Logger` instance with a new `LEVEL`
+// using the existing `out`(io.Writer)
+func (log *Logger) SetLevel(level Level) {
+	logger := newZerologLogger(level, log.out)
 
 	log.L = &logger
 }
@@ -208,18 +213,7 @@ func IsDebug() bool {
 // NewLogger returns a new `Logger` pointer.
 func NewLogger(level Level, out io.Writer, skip ...int) *Logger {
 	zerolog.TimeFieldFormat = TimeFormat
-	logger := zerolog.New(out).
-		Level(func() zerolog.Level {
-			// 环境变量是 DEBUG 时，优先设置日志等级为 DEBUG
-			if IsDebug() {
-				return zerolog.DebugLevel
-			} else {
-				return zerolog.Level(level)
-			}
-		}()).
-		With().
-		Timestamp().
-		Logger()
+	logger := newZerologLogger(level, out)
 
 	l := new(Logger)
 	l.L = &logger
