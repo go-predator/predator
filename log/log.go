@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: log.go
  * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-03-02 15:46:51
+ * @Modified:  2022-03-03 14:35:25
  */
 
 package log
@@ -200,6 +200,10 @@ func (log *Logger) SetLevel(level Level) {
 	logger := newZerologLogger(level, log.out)
 
 	log.L = &logger
+}
+
+func (log Logger) Out() io.Writer {
+	return log.out
 }
 
 // IsDebug determines whether the current environment is `DEBUG` through
