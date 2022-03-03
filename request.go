@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: request.go
  * @Created:   2021-07-24 13:29:11
- * @Modified:  2022-03-03 15:40:10
+ * @Modified:  2022-03-03 16:23:20
  */
 
 package predator
@@ -28,7 +28,7 @@ import (
 )
 
 type Request struct {
-	uri fasthttp.URI
+	uri *fasthttp.URI
 	// 请求头
 	Headers *fasthttp.RequestHeader
 	// 请求和响应之间共享的上下文
@@ -267,7 +267,7 @@ func AcquireRequest() *Request {
 // no longer needed. This allows Request Header recycling, reduces GC pressure
 // and usually improves performance.
 func AcquireRequestHeader() *fasthttp.RequestHeader {
-	v := requestPool.Get()
+	v := requestHeaderPool.Get()
 	if v == nil {
 		return &fasthttp.RequestHeader{}
 	}

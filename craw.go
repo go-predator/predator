@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-03 15:41:21
+ * @Modified:  2022-03-03 16:48:27
  */
 
 package predator
@@ -201,13 +201,6 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 	reqHeader := AcquireRequestHeader()
 	reqHeader.SetMethod(method)
 
-	// check if raw url/uri is valid
-	u, err := url.Parse(URL)
-	if err != nil {
-		c.Fatal(err)
-	}
-
-	reqHeader.SetRequestURI(u.RequestURI())
 	reqHeader.SetUserAgent(c.UserAgent)
 
 	if c.cookies != nil {
@@ -229,6 +222,17 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 		}
 	}
 
+	u, err := url.Parse(URL)
+	if err != nil {
+		return err
+	}
+
+	uri := fasthttp.AcquireURI()
+	uri.SetHost(u.Host)
+	uri.SetPath(u.Path)
+	uri.SetScheme(u.Scheme)
+	uri.SetQueryString(u.RawQuery)
+
 	request := AcquireRequest()
 	request.Headers = reqHeader
 	request.Ctx = ctx
@@ -236,6 +240,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 	request.cachedMap = cachedMap
 	request.ID = atomic.AddUint32(&c.requestCount, 1)
 	request.crawler = c
+	request.uri = uri
 
 	// TODO: 链式请求用 go pool 会阻塞？
 	if c.goPool != nil {
@@ -446,7 +451,8 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	req := fasthttp.AcquireRequest()
 
 	req.Header = *request.Headers
-	req.SetRequestURI(request.URL())
+
+	req.SetURI(request.uri)
 
 	if request.Method() == MethodPost {
 		req.SetBody(request.Body)
@@ -471,9 +477,9 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		req.Header.Set("Accept", "*/*")
 	}
 
-	resp := fasthttp.AcquireResponse()
-
 	var err error
+
+	resp := fasthttp.AcquireResponse()
 
 	if request.maxRedirectsCount == 0 {
 		if c.ProxyPoolAmount() > 0 {
@@ -488,6 +494,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	} else {
 		err = c.client.DoRedirects(req, resp, int(request.maxRedirectsCount))
 	}
+	req.Header.CopyTo(request.Headers)
 
 	response := AcquireResponse()
 	response.StatusCode = resp.StatusCode()
