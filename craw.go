@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-03 13:21:07
+ * @Modified:  2022-03-03 14:15:44
  */
 
 package predator
@@ -233,6 +233,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 	request.cachedMap = cachedMap
 	request.ID = atomic.AddUint32(&c.requestCount, 1)
 	request.crawler = c
+	request.isChained = isChained
 
 	// TODO: 链式请求用 go pool 会阻塞？
 	if c.goPool != nil {

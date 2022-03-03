@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: request.go
  * @Created:   2021-07-24 13:29:11
- * @Modified:  2022-03-03 12:30:16
+ * @Modified:  2022-03-03 14:14:33
  */
 
 package predator
@@ -29,6 +29,7 @@ import (
 )
 
 type Request struct {
+	uri fasthttp.URI
 	// 请求头
 	Headers *fasthttp.RequestHeader
 	// 请求和响应之间共享的上下文
@@ -50,6 +51,7 @@ type Request struct {
 	// 重定向次数会影响爬虫效率。
 	maxRedirectsCount uint
 	timeout           time.Duration
+	isChained         bool
 }
 
 // New 使用原始请求的上下文创建一个新的请求
@@ -229,7 +231,24 @@ func (r Request) Hash() (string, error) {
 }
 
 func (r *Request) Reset() {
-	r.Headers.Reset()
+	if r.isChained {
+		host := []byte{}
+		proto := []byte{}
+		requestURI := []byte{}
+
+		host = append(host, r.Headers.Host()...)
+		proto = append(proto, r.Headers.Protocol()...)
+		requestURI = append(requestURI, r.Headers.RequestURI()...)
+
+		r.Headers.Reset()
+
+		r.Headers.SetHostBytes(host)
+		r.Headers.SetProtocolBytes(proto)
+		r.Headers.SetRequestURIBytes(requestURI)
+	} else {
+		r.Headers.Reset()
+	}
+
 	if r.Body != nil {
 		// 将 body 长度截为 0，这样不会删除引用关系，GC 不会回收，
 		// 可以实现 body 的复用
