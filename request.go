@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: request.go
  * @Created:   2021-07-24 13:29:11
- * @Modified:  2022-03-03 16:49:35
+ * @Modified:  2022-03-03 16:55:42
  */
 
 package predator
@@ -227,6 +227,7 @@ func (r Request) Hash() (string, error) {
 
 func (r *Request) Reset() {
 	ReleaseRequestHeader(r.Headers)
+	fasthttp.ReleaseURI(r.uri)
 
 	if r.Body != nil {
 		// 将 body 长度截为 0，这样不会删除引用关系，GC 不会回收，
