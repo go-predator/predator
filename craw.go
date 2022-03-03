@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-03 11:26:06
+ * @Modified:  2022-03-03 12:29:52
  */
 
 package predator
@@ -278,8 +278,8 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		c.Info(
 			"requesting",
 			log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
-			log.Arg{Key: "method", Value: request.Method},
-			log.Arg{Key: "url", Value: request.URL},
+			log.Arg{Key: "method", Value: request.Method()},
+			log.Arg{Key: "url", Value: request.URL()},
 			log.Arg{Key: "timeout", Value: request.timeout.String()},
 		)
 	}
@@ -365,7 +365,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 		if c.log != nil {
 			c.log.Info("response",
-				log.Arg{Key: "method", Value: request.Method},
+				log.Arg{Key: "method", Value: request.Method()},
 				log.Arg{Key: "status_code", Value: response.StatusCode},
 				log.Arg{Key: "location", Value: string(location)},
 				log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
@@ -593,8 +593,8 @@ func (c *Crawler) retryPrepare(request *Request, req *fasthttp.Request, resp *fa
 	if c.log != nil {
 		c.log.Info("retrying",
 			log.Arg{Key: "retry_count", Value: atomic.LoadUint32(&request.retryCounter)},
-			log.Arg{Key: "method", Value: request.Method},
-			log.Arg{Key: "url", Value: request.URL},
+			log.Arg{Key: "method", Value: request.Method()},
+			log.Arg{Key: "url", Value: request.URL()},
 			log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
 		)
 	}
@@ -652,7 +652,7 @@ func (c *Crawler) get(URL string, headers *fasthttp.RequestHeader, ctx pctx.Cont
 		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
-	return c.request(fasthttp.MethodGet, URL, nil, cachedMap, headers, ctx, isChained)
+	return c.request(MethodGet, URL, nil, cachedMap, headers, ctx, isChained)
 }
 
 // Get is used to send GET requests
@@ -713,7 +713,7 @@ func (c *Crawler) post(URL string, requestData map[string]string, headers *fasth
 
 		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
-	return c.request(fasthttp.MethodPost, URL, createBody(requestData), cachedMap, headers, ctx, isChained)
+	return c.request(MethodPost, URL, createBody(requestData), cachedMap, headers, ctx, isChained)
 }
 
 // Post is used to send POST requests
@@ -791,7 +791,7 @@ func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, heade
 	}
 	headers.SetContentType("application/json")
 
-	return c.request(fasthttp.MethodPost, URL, body, cachedMap, headers, ctx, isChained)
+	return c.request(MethodPost, URL, body, cachedMap, headers, ctx, isChained)
 }
 
 // PostJSON is used to send a POST request body in json format
@@ -854,7 +854,7 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers *fastht
 	}
 	headers.SetContentType(form.FormDataContentType())
 
-	return c.request(fasthttp.MethodPost, URL, form.Bytes(), cachedMap, headers, ctx, isChained)
+	return c.request(MethodPost, URL, form.Bytes(), cachedMap, headers, ctx, isChained)
 }
 
 // PostMultipart
@@ -867,7 +867,7 @@ func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error {
 	cachedMap := map[string]string{
 		"cache": string(body),
 	}
-	return c.request(fasthttp.MethodPost, URL, body, cachedMap, nil, ctx, false)
+	return c.request(MethodPost, URL, body, cachedMap, nil, ctx, false)
 }
 
 /************************* 公共方法 ****************************/

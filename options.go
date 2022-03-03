@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: options.go
  * @Created: 2021-07-23 08:58:31
- * @Modified:  2022-02-25 10:53:26
+ * @Modified:  2022-03-03 12:27:23
  */
 
 package predator
@@ -51,7 +51,7 @@ func WithRawCookie(cookie string) CrawlerOption {
 	cookies := make(map[string]string)
 	cookieSlice := strings.Split(cookie, "; ")
 	for _, c := range cookieSlice {
-		temp := strings.Split(c, "=")
+		temp := strings.SplitN(c, "=", 2)
 		cookies[temp[0]] = temp[1]
 	}
 	return WithCookies(cookies)
