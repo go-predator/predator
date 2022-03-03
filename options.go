@@ -1,9 +1,9 @@
 /*
- * @Author: thepoy
- * @Email: thepoy@163.com
+ * @Author:    thepoy
+ * @Email:     thepoy@163.com
  * @File Name: options.go
- * @Created: 2021-07-23 08:58:31
- * @Modified:  2022-03-03 12:27:23
+ * @Created:   2021-07-23 08:58:31
+ * @Modified:  2022-03-03 13:20:15
  */
 
 package predator
@@ -77,13 +77,13 @@ func WithConcurrency(count uint64, blockPanic bool) CrawlerOption {
 	}
 }
 
-type RetryConditions func(r Response) bool
+type RetryCondition func(r Response) bool
 
 // WithRetry 请求失败时重试多少次，什么条件的响应是请求失败
-func WithRetry(count uint32, cond RetryConditions) CrawlerOption {
+func WithRetry(count uint32, cond RetryCondition) CrawlerOption {
 	return func(c *Crawler) {
 		c.retryCount = count
-		c.retryConditions = cond
+		c.retryCondition = cond
 	}
 }
 

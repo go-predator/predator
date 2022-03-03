@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-03 12:48:12
+ * @Modified:  2022-03-03 13:21:07
  */
 
 package predator
@@ -68,9 +68,9 @@ type Crawler struct {
 	// UserAgent is the User-Agent string used by HTTP requests
 	UserAgent  string
 	retryCount uint32
-	// Retry conditions, the crawler will retry only
+	// Retry condition, the crawler will retry only
 	// if it returns true
-	retryConditions       RetryConditions
+	retryCondition        RetryCondition
 	client                *fasthttp.Client
 	cookies               map[string]string
 	goPool                *Pool
@@ -167,7 +167,7 @@ func (c *Crawler) Clone() *Crawler {
 		lock:            c.lock,
 		UserAgent:       c.UserAgent,
 		retryCount:      c.retryCount,
-		retryConditions: c.retryConditions,
+		retryCondition:  c.retryCondition,
 		client:          c.client,
 		cookies:         c.cookies,
 		goPool:          pool,
@@ -442,7 +442,10 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	req := fasthttp.AcquireRequest()
 
-	req.Header = *request.Headers
+	reqHeader := fasthttp.RequestHeader{}
+	request.Headers.CopyTo(&reqHeader)
+
+	req.Header = reqHeader
 
 	if request.Method() == MethodPost {
 		req.SetBody(request.Body)
@@ -578,7 +581,8 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	fasthttp.ReleaseRequest(req)
 
 	if c.retryCount > 0 && atomic.LoadUint32(&request.retryCounter) < c.retryCount {
-		if c.retryConditions != nil && c.retryConditions(*response) {
+		if c.retryCondition != nil && c.retryCondition(*response) {
+			c.Warning("the response meets the retry condition and will be retried soon")
 			c.retryPrepare(request, req, resp)
 			return c.do(request)
 		}
@@ -589,15 +593,13 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 func (c *Crawler) retryPrepare(request *Request, req *fasthttp.Request, resp *fasthttp.Response) {
 	atomic.AddUint32(&request.retryCounter, 1)
-	if c.log != nil {
-		c.log.Info("retrying",
-			log.Arg{Key: "retry_count", Value: atomic.LoadUint32(&request.retryCounter)},
-			log.Arg{Key: "method", Value: request.Method()},
-			log.Arg{Key: "url", Value: request.URL()},
-			log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
-		)
-	}
-
+	c.Info(
+		"retrying",
+		log.Arg{Key: "retry_count", Value: atomic.LoadUint32(&request.retryCounter)},
+		log.Arg{Key: "method", Value: request.Method()},
+		log.Arg{Key: "url", Value: request.URL()},
+		log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
+	)
 	fasthttp.ReleaseRequest(req)
 	fasthttp.ReleaseResponse(resp)
 }
@@ -993,9 +995,9 @@ func (c *Crawler) SetConcurrency(count uint64, blockPanic bool) {
 	}
 }
 
-func (c *Crawler) SetRetry(count uint32, cond RetryConditions) {
+func (c *Crawler) SetRetry(count uint32, cond RetryCondition) {
 	c.retryCount = count
-	c.retryConditions = cond
+	c.retryCondition = cond
 }
 
 func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFileds ...CacheField) {
