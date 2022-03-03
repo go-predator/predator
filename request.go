@@ -1,9 +1,9 @@
 /*
- * @Author: thepoy
- * @Email: thepoy@163.com
+ * @Author:    thepoy
+ * @Email:     thepoy@163.com
  * @File Name: request.go
- * @Created: 2021-07-24 13:29:11
- * @Modified:  2022-03-01 16:16:18
+ * @Created:   2021-07-24 13:29:11
+ * @Modified:  2022-03-03 11:06:44
  */
 
 package predator
@@ -29,10 +29,6 @@ import (
 )
 
 type Request struct {
-	// 访问的链接
-	URL string
-	// 请求方法
-	Method string
 	// 请求头
 	Headers *fasthttp.RequestHeader
 	// 请求和响应之间共享的上下文
@@ -59,8 +55,6 @@ type Request struct {
 // New 使用原始请求的上下文创建一个新的请求
 func (r *Request) New(method, URL string, body []byte) *Request {
 	return &Request{
-		Method:  method,
-		URL:     URL,
 		Body:    body,
 		Ctx:     r.Ctx,
 		Headers: &fasthttp.RequestHeader{},
@@ -96,12 +90,12 @@ func (r *Request) SetHeaders(headers map[string]string) {
 	}
 }
 
-func (r Request) headers() map[string]string {
-	h := make(map[string]string)
-	r.Headers.VisitAll(func(key, value []byte) {
-		h[string(key)] = string(value)
-	})
-	return h
+func (r Request) URL() string {
+	return string(r.Headers.RequestURI())
+}
+
+func (r Request) Method() string {
+	return string(r.Headers.Method())
 }
 
 func (r Request) NumberOfRetries() uint32 {
@@ -113,33 +107,33 @@ func (r Request) Get(u string) error {
 }
 
 func (r Request) GetWithCache(URL string, cacheFields ...CacheField) error {
-	return r.crawler.get(URL, r.headers(), r.Ctx, true, cacheFields...)
+	return r.crawler.get(URL, r.Headers, r.Ctx, true, cacheFields...)
 }
 
 func (r Request) Post(URL string, requestData map[string]string) error {
-	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true)
+	return r.crawler.post(URL, requestData, r.Headers, r.Ctx, true)
 }
 
 func (r Request) PostWithCache(URL string, requestData map[string]string, cacheFields ...CacheField) error {
-	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
+	return r.crawler.post(URL, requestData, r.Headers, r.Ctx, true, cacheFields...)
 }
 func (r Request) PostJSON(URL string, requestData map[string]interface{}) error {
-	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true)
+	return r.crawler.postJSON(URL, requestData, r.Headers, r.Ctx, true)
 }
 
 func (r Request) PostJSONWithCache(URL string, requestData map[string]interface{}, cacheFields ...CacheField) error {
-	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
+	return r.crawler.postJSON(URL, requestData, r.Headers, r.Ctx, true, cacheFields...)
 }
 func (r Request) PostMultipart(URL string, form *MultipartForm) error {
-	return r.crawler.postMultipart(URL, form, r.headers(), r.Ctx, true)
+	return r.crawler.postMultipart(URL, form, r.Headers, r.Ctx, true)
 }
 
 func (r Request) PostMultipartWithCache(URL string, form *MultipartForm, cacheFields ...CacheField) error {
-	return r.crawler.postMultipart(URL, form, r.headers(), r.Ctx, true, cacheFields...)
+	return r.crawler.postMultipart(URL, form, r.Headers, r.Ctx, true, cacheFields...)
 }
 
 func (r Request) Request(method, URL string, cachedMap map[string]string, body []byte) error {
-	return r.crawler.request(method, URL, body, cachedMap, r.headers(), r.Ctx, true)
+	return r.crawler.request(method, URL, body, cachedMap, r.Headers, r.Ctx, true)
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
@@ -150,7 +144,7 @@ func (r Request) AbsoluteURL(src string) string {
 		return ""
 	}
 
-	u, err := url.Parse(r.URL)
+	u, err := url.Parse(r.URL())
 	if err != nil {
 		return ""
 	}
@@ -203,8 +197,8 @@ func marshalCachedMap(cachedMap map[string]string) []byte {
 
 func (r Request) marshal() ([]byte, error) {
 	cr := &cacheRequest{
-		URL:    r.URL,
-		Method: r.Method,
+		URL:    r.URL(),
+		Method: r.Method(),
 	}
 
 	if r.cachedMap != nil {
@@ -213,13 +207,13 @@ func (r Request) marshal() ([]byte, error) {
 		cr.CacheKey = r.Body
 	}
 
-	if r.Method == fasthttp.MethodGet {
+	if r.Method() == MethodGet {
 		// 为 GET 设置 cachedFields，则说明一定是因为 url 是变化的，所以不能将整个 url 作为缓存标志，
 		// 此时将 CacheKey 作为缓存标志是最佳选择
 		if cr.CacheKey != nil {
 			return cr.CacheKey, nil
 		} else {
-			return []byte(r.URL), nil
+			return []byte(r.URL()), nil
 		}
 	}
 
@@ -235,8 +229,6 @@ func (r Request) Hash() (string, error) {
 }
 
 func (r *Request) Reset() {
-	r.URL = ""
-	r.Method = ""
 	r.Headers.Reset()
 	if r.Body != nil {
 		// 将 body 长度截为 0，这样不会删除引用关系，GC 不会回收，
