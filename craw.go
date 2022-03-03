@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-03 12:29:52
+ * @Modified:  2022-03-03 12:48:12
  */
 
 package predator
@@ -443,14 +443,13 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	req := fasthttp.AcquireRequest()
 
 	req.Header = *request.Headers
-	req.SetRequestURI(request.URL())
 
 	if request.Method() == MethodPost {
 		req.SetBody(request.Body)
 	}
 
-	if request.Method() == MethodPost && req.Header.Peek("Content-Type") == nil {
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if request.Method() == MethodPost && req.Header.ContentType() == nil {
+		req.Header.SetContentType("application/x-www-form-urlencoded")
 	}
 
 	if len(c.proxyURLPool) > 0 {
