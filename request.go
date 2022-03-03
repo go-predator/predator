@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: request.go
  * @Created:   2021-07-24 13:29:11
- * @Modified:  2022-03-03 16:23:20
+ * @Modified:  2022-03-03 16:49:35
  */
 
 package predator
@@ -88,7 +88,7 @@ func (r Request) headers() map[string]string {
 }
 
 func (r Request) URL() string {
-	return string(r.Headers.RequestURI())
+	return r.uri.String()
 }
 
 func (r Request) Method() string {
