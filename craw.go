@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-03 11:06:07
+ * @Modified:  2022-03-03 11:26:06
  */
 
 package predator
@@ -204,15 +204,8 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 
 	headers.SetMethod(method)
 
-	u, err := url.Parse(URL)
-	if err != nil {
-		if c.log != nil {
-			c.log.Error(err)
-		}
-		return err
-	}
 	headers.SetUserAgent(c.UserAgent)
-	headers.SetRequestURI(u.RequestURI())
+	headers.SetRequestURI(URL)
 
 	if c.cookies != nil {
 		for k, v := range c.cookies {
