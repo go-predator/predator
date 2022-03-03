@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: request.go
  * @Created:   2021-07-24 13:29:11
- * @Modified:  2022-03-03 14:14:33
+ * @Modified:  2022-03-03 15:40:10
  */
 
 package predator
@@ -21,7 +21,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	pctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/json"
@@ -51,18 +50,6 @@ type Request struct {
 	// 重定向次数会影响爬虫效率。
 	maxRedirectsCount uint
 	timeout           time.Duration
-	isChained         bool
-}
-
-// New 使用原始请求的上下文创建一个新的请求
-func (r *Request) New(method, URL string, body []byte) *Request {
-	return &Request{
-		Body:    body,
-		Ctx:     r.Ctx,
-		Headers: &fasthttp.RequestHeader{},
-		ID:      atomic.AddUint32(&r.crawler.requestCount, 1),
-		crawler: r.crawler,
-	}
 }
 
 func (r *Request) Abort() {
@@ -92,6 +79,14 @@ func (r *Request) SetHeaders(headers map[string]string) {
 	}
 }
 
+func (r Request) headers() map[string]string {
+	h := make(map[string]string)
+	r.Headers.VisitAll(func(key, value []byte) {
+		h[string(key)] = string(value)
+	})
+	return h
+}
+
 func (r Request) URL() string {
 	return string(r.Headers.RequestURI())
 }
@@ -109,33 +104,33 @@ func (r Request) Get(u string) error {
 }
 
 func (r Request) GetWithCache(URL string, cacheFields ...CacheField) error {
-	return r.crawler.get(URL, r.Headers, r.Ctx, true, cacheFields...)
+	return r.crawler.get(URL, r.headers(), r.Ctx, true, cacheFields...)
 }
 
 func (r Request) Post(URL string, requestData map[string]string) error {
-	return r.crawler.post(URL, requestData, r.Headers, r.Ctx, true)
+	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true)
 }
 
 func (r Request) PostWithCache(URL string, requestData map[string]string, cacheFields ...CacheField) error {
-	return r.crawler.post(URL, requestData, r.Headers, r.Ctx, true, cacheFields...)
+	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
 }
 func (r Request) PostJSON(URL string, requestData map[string]interface{}) error {
-	return r.crawler.postJSON(URL, requestData, r.Headers, r.Ctx, true)
+	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true)
 }
 
 func (r Request) PostJSONWithCache(URL string, requestData map[string]interface{}, cacheFields ...CacheField) error {
-	return r.crawler.postJSON(URL, requestData, r.Headers, r.Ctx, true, cacheFields...)
+	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
 }
 func (r Request) PostMultipart(URL string, form *MultipartForm) error {
-	return r.crawler.postMultipart(URL, form, r.Headers, r.Ctx, true)
+	return r.crawler.postMultipart(URL, form, r.headers(), r.Ctx, true)
 }
 
 func (r Request) PostMultipartWithCache(URL string, form *MultipartForm, cacheFields ...CacheField) error {
-	return r.crawler.postMultipart(URL, form, r.Headers, r.Ctx, true, cacheFields...)
+	return r.crawler.postMultipart(URL, form, r.headers(), r.Ctx, true, cacheFields...)
 }
 
 func (r Request) Request(method, URL string, cachedMap map[string]string, body []byte) error {
-	return r.crawler.request(method, URL, body, cachedMap, r.Headers, r.Ctx, true)
+	return r.crawler.request(method, URL, body, cachedMap, r.headers(), r.Ctx, true)
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
@@ -231,23 +226,7 @@ func (r Request) Hash() (string, error) {
 }
 
 func (r *Request) Reset() {
-	if r.isChained {
-		host := []byte{}
-		proto := []byte{}
-		requestURI := []byte{}
-
-		host = append(host, r.Headers.Host()...)
-		proto = append(proto, r.Headers.Protocol()...)
-		requestURI = append(requestURI, r.Headers.RequestURI()...)
-
-		r.Headers.Reset()
-
-		r.Headers.SetHostBytes(host)
-		r.Headers.SetProtocolBytes(proto)
-		r.Headers.SetRequestURIBytes(requestURI)
-	} else {
-		r.Headers.Reset()
-	}
+	ReleaseRequestHeader(r.Headers)
 
 	if r.Body != nil {
 		// 将 body 长度截为 0，这样不会删除引用关系，GC 不会回收，
@@ -265,7 +244,8 @@ func (r *Request) Reset() {
 }
 
 var (
-	requestPool sync.Pool
+	requestPool       sync.Pool
+	requestHeaderPool sync.Pool
 )
 
 // AcquireRequest returns an empty Request instance from request pool.
@@ -281,6 +261,19 @@ func AcquireRequest() *Request {
 	return v.(*Request)
 }
 
+// AcquireRequestHeader returns an empty Request Header instance from request-header pool.
+//
+// The returned Request Header instance may be passed to ReleaseRequestHeader when it is
+// no longer needed. This allows Request Header recycling, reduces GC pressure
+// and usually improves performance.
+func AcquireRequestHeader() *fasthttp.RequestHeader {
+	v := requestPool.Get()
+	if v == nil {
+		return &fasthttp.RequestHeader{}
+	}
+	return v.(*fasthttp.RequestHeader)
+}
+
 // ReleaseRequest returns req acquired via AcquireRequest to request pool.
 //
 // It is forbidden accessing req and/or its' members after returning
@@ -288,6 +281,16 @@ func AcquireRequest() *Request {
 func ReleaseRequest(req *Request) {
 	req.Reset()
 	requestPool.Put(req)
+}
+
+// ReleaseRequestHeader returns request header acquired via AcquireRequestHeader to
+// request-header pool.
+//
+// It is forbidden accessing request-header and/or its' members after returning
+// it to request-header pool.
+func ReleaseRequestHeader(rh *fasthttp.RequestHeader) {
+	rh.Reset()
+	requestHeaderPool.Put(rh)
 }
 
 // MultipartForm 请求体的构造

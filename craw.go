@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-03 14:15:44
+ * @Modified:  2022-03-03 15:41:21
  */
 
 package predator
@@ -187,7 +187,7 @@ func (c *Crawler) Clone() *Crawler {
 
 /************************* http 请求方法 ****************************/
 
-func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, headers *fasthttp.RequestHeader, ctx pctx.Context, isChained bool) error {
+func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, headers map[string]string, ctx pctx.Context, isChained bool) error {
 	defer func() {
 		if c.goPool != nil {
 			if err := recover(); err != nil {
@@ -198,21 +198,24 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 
 	var err error
 
-	if headers == nil {
-		headers = new(fasthttp.RequestHeader)
+	reqHeader := AcquireRequestHeader()
+	reqHeader.SetMethod(method)
+
+	// check if raw url/uri is valid
+	u, err := url.Parse(URL)
+	if err != nil {
+		c.Fatal(err)
 	}
 
-	headers.SetMethod(method)
-
-	headers.SetUserAgent(c.UserAgent)
-	headers.SetRequestURI(URL)
+	reqHeader.SetRequestURI(u.RequestURI())
+	reqHeader.SetUserAgent(c.UserAgent)
 
 	if c.cookies != nil {
 		for k, v := range c.cookies {
-			headers.SetCookie(k, v)
+			reqHeader.SetCookie(k, v)
 		}
 		if c.log != nil {
-			c.Debug("cookies is set", log.Arg{Key: "cookies", Value: headers.Peek("Cookie")})
+			c.Debug("cookies is set", log.Arg{Key: "cookies", Value: reqHeader.Peek("Cookie")})
 		}
 	}
 
@@ -227,13 +230,12 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 	}
 
 	request := AcquireRequest()
-	request.Headers = headers
+	request.Headers = reqHeader
 	request.Ctx = ctx
 	request.Body = body
 	request.cachedMap = cachedMap
 	request.ID = atomic.AddUint32(&c.requestCount, 1)
 	request.crawler = c
-	request.isChained = isChained
 
 	// TODO: 链式请求用 go pool 会阻塞？
 	if c.goPool != nil {
@@ -443,10 +445,8 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	req := fasthttp.AcquireRequest()
 
-	reqHeader := fasthttp.RequestHeader{}
-	request.Headers.CopyTo(&reqHeader)
-
-	req.Header = reqHeader
+	req.Header = *request.Headers
+	req.SetRequestURI(request.URL())
 
 	if request.Method() == MethodPost {
 		req.SetBody(request.Body)
@@ -626,7 +626,7 @@ func NewRequestHeaders(headers map[string]string) *fasthttp.RequestHeader {
 	return reqHeaders
 }
 
-func (c *Crawler) get(URL string, headers *fasthttp.RequestHeader, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	// Parse the query parameters and create a `cachedMap` based on `cacheFields`
 	u, err := url.Parse(URL)
 	if err != nil {
@@ -667,7 +667,7 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 	return c.get(URL, nil, ctx, false, c.cacheFields...)
 }
 
-func (c *Crawler) post(URL string, requestData map[string]string, headers *fasthttp.RequestHeader, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) post(URL string, requestData, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
@@ -734,7 +734,7 @@ func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
 	return body
 }
 
-func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, headers *fasthttp.RequestHeader, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	body := c.createJSONBody(requestData)
 
 	var cachedMap map[string]string
@@ -788,10 +788,10 @@ func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, heade
 		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
-	if headers == nil {
-		headers = new(fasthttp.RequestHeader)
+	if len(headers) == 0 {
+		headers = make(map[string]string)
 	}
-	headers.SetContentType("application/json")
+	headers["Content-Type"] = "application/json"
 
 	return c.request(MethodPost, URL, body, cachedMap, headers, ctx, isChained)
 }
@@ -801,7 +801,7 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 	return c.postJSON(URL, requestData, nil, ctx, false, c.cacheFields...)
 }
 
-func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers *fasthttp.RequestHeader, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
@@ -851,10 +851,10 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers *fastht
 		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
-	if headers == nil {
-		headers = new(fasthttp.RequestHeader)
+	if len(headers) == 0 {
+		headers = make(map[string]string)
 	}
-	headers.SetContentType(form.FormDataContentType())
+	headers["Content-Type"] = form.FormDataContentType()
 
 	return c.request(MethodPost, URL, form.Bytes(), cachedMap, headers, ctx, isChained)
 }
