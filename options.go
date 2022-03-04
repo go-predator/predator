@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: options.go
  * @Created:   2021-07-23 08:58:31
- * @Modified:  2022-03-03 14:36:54
+ * @Modified:  2022-03-04 10:17:33
  */
 
 package predator
@@ -29,11 +29,11 @@ func SkipVerification() CrawlerOption {
 
 func WithLogger(logger *log.Logger) CrawlerOption {
 	if logger == nil {
-		logger = log.NewLogger(log.WARNING, log.ToConsole(), 1)
+		logger = log.NewLogger(log.WARNING, log.ToConsole(), 2)
 	}
 
 	return func(c *Crawler) {
-		c.log = log.NewLogger(log.Level(logger.L.GetLevel()), logger.Out(), 1)
+		c.log = log.NewLogger(log.Level(logger.L.GetLevel()), logger.Out(), 2)
 	}
 }
 

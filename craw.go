@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-03 16:48:27
+ * @Modified:  2022-03-04 10:18:13
  */
 
 package predator
@@ -187,7 +187,7 @@ func (c *Crawler) Clone() *Crawler {
 
 /************************* http 请求方法 ****************************/
 
-func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, headers map[string]string, ctx pctx.Context, isChained bool) error {
+func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers map[string]string, ctx pctx.Context, isChained bool) error {
 	defer func() {
 		if c.goPool != nil {
 			if err := recover(); err != nil {
@@ -200,8 +200,10 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 
 	reqHeader := AcquireRequestHeader()
 	reqHeader.SetMethod(method)
-
 	reqHeader.SetUserAgent(c.UserAgent)
+	for k, v := range headers {
+		reqHeader.Set(k, v)
+	}
 
 	if c.cookies != nil {
 		for k, v := range c.cookies {
@@ -228,10 +230,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 	}
 
 	uri := fasthttp.AcquireURI()
-	uri.SetHost(u.Host)
-	uri.SetPath(u.Path)
-	uri.SetScheme(u.Scheme)
-	uri.SetQueryString(u.RawQuery)
+	uri.Parse([]byte(u.Host), []byte(u.String()))
 
 	request := AcquireRequest()
 	request.Headers = reqHeader
@@ -447,11 +446,10 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 	return resp, nil
 }
 
-func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
+func newFasthttpRequest(request *Request) *fasthttp.Request {
 	req := fasthttp.AcquireRequest()
 
 	req.Header = *request.Headers
-
 	req.SetURI(request.uri)
 
 	if request.Method() == MethodPost {
@@ -462,6 +460,23 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		req.Header.SetContentType("application/x-www-form-urlencoded")
 	}
 
+	if req.Header.Peek("Accept") == nil {
+		req.Header.Set("Accept", "*/*")
+	}
+
+	uri := req.URI()
+	if len(req.Header.Host()) == 0 {
+		host := uri.Host()
+		req.Header.SetHostBytes(host)
+	}
+	req.Header.SetRequestURIBytes(uri.RequestURI())
+
+	return req
+}
+
+func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
+	req := newFasthttpRequest(request)
+
 	if len(c.proxyURLPool) > 0 {
 		rand.Seed(time.Now().UnixMicro())
 
@@ -471,10 +486,6 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 			return c.ProxyDialerWithTimeout(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))], request.timeout)(addr)
 		}
 		c.lock.Unlock()
-	}
-
-	if req.Header.Peek("Accept") == nil {
-		req.Header.Set("Accept", "*/*")
 	}
 
 	var err error
@@ -554,7 +565,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				// if you are using a proxy, the timeout error is probably
 				// because the proxy is invalid, and it is recommended
 				// to try a new proxy
-				c.Error(err)
+				c.Error(err, log.Arg{Key: "timeout", Value: request.timeout})
 				if c.retryCount == 0 {
 					c.retryCount = 3
 				}
