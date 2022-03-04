@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-04 10:18:13
+ * @Modified:  2022-03-04 10:34:32
  */
 
 package predator
@@ -477,6 +477,8 @@ func newFasthttpRequest(request *Request) *fasthttp.Request {
 func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	req := newFasthttpRequest(request)
 
+	c.Debug("request header", log.Arg{Key: "header", Value: req.Header.String()})
+
 	if len(c.proxyURLPool) > 0 {
 		rand.Seed(time.Now().UnixMicro())
 
@@ -565,10 +567,12 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				// if you are using a proxy, the timeout error is probably
 				// because the proxy is invalid, and it is recommended
 				// to try a new proxy
-				c.Error(err, log.Arg{Key: "timeout", Value: request.timeout})
 				if c.retryCount == 0 {
 					c.retryCount = 3
 				}
+
+				c.Error(err, log.Arg{Key: "timeout", Value: request.timeout.String()})
+
 				if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
 					c.retryPrepare(request, req, resp)
 					return c.do(request)
@@ -577,7 +581,6 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				fasthttp.ReleaseResponse(resp)
 				ReleaseResponse(response, true)
 
-				c.Error(err)
 				return nil, nil, ErrTimeout
 			} else {
 				if err == fasthttp.ErrConnectionClosed {
@@ -593,6 +596,8 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 			}
 		}
 	}
+
+	c.Debug("response header", log.Arg{Key: "header", Value: resp.Header.String()})
 
 	// Only count successful responses
 	atomic.AddUint32(&c.responseCount, 1)

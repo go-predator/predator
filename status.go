@@ -3,17 +3,12 @@
  * @Email:     thepoy@163.com
  * @File Name: status.go
  * @Created:   2022-03-01 12:48:11
- * @Modified:  2022-03-01 12:51:47
+ * @Modified:  2022-03-04 10:48:00
  */
 
 package predator
 
 import "github.com/valyala/fasthttp"
-
-const (
-	statusMessageMin = 100
-	statusMessageMax = 511
-)
 
 // HTTP status codes were stolen from net/http.
 const (

@@ -1,15 +1,14 @@
 /*
- * @Author: thepoy
- * @Email: thepoy@163.com
+ * @Author:    thepoy
+ * @Email:     thepoy@163.com
  * @File Name: socks5.go
- * @Created: 2021-07-23 09:22:36
- * @Modified:  2021-11-08 08:23:27
+ * @Created:   2021-07-23 09:22:36
+ * @Modified:  2022-03-04 10:45:38
  */
 
 package proxy
 
 import (
-	"errors"
 	"net"
 	"net/url"
 
@@ -17,21 +16,23 @@ import (
 	netProxy "golang.org/x/net/proxy"
 )
 
-var AddrIsNULL = errors.New("ip and port cannot be empty")
-
 func Socks5ProxyDialer(proxyAddr string) fasthttp.DialFunc {
-	if proxyAddr == "" {
-		panic(AddrIsNULL)
-	}
-
 	var (
 		u      *url.URL
 		err    error
 		dialer netProxy.Dialer
 	)
 
-	if u, err = url.Parse(proxyAddr); err == nil {
-		dialer, err = netProxy.FromURL(u, netProxy.Direct)
+	if proxyAddr == "" {
+		err = ProxyErr{
+			Code: ErrInvalidProxyCode,
+			Args: map[string]string{"addr": proxyAddr},
+			Msg:  "ip and port cannot be empty",
+		}
+	} else {
+		if u, err = url.Parse(proxyAddr); err == nil {
+			dialer, err = netProxy.FromURL(u, netProxy.Direct)
+		}
 	}
 
 	// It would be nice if we could return the error here. But we can't

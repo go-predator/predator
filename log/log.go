@@ -1,9 +1,9 @@
 /*
- * @Author: thepoy
- * @Email: thepoy@163.com
+ * @Author:    thepoy
+ * @Email:     thepoy@163.com
  * @File Name: log.go
- * @Created: 2021-08-01 11:09:18
- * @Modified:  2022-03-03 14:35:25
+ * @Created:   2021-08-01 11:09:18
+ * @Modified:  2022-03-04 10:42:57
  */
 
 package log
