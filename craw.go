@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-04 10:34:32
+ * @Modified:  2022-03-07 10:32:14
  */
 
 package predator
@@ -228,6 +228,8 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 	if err != nil {
 		return err
 	}
+	// Convert non-ascii characters in query parameters to ascii characters
+	u.RawQuery = u.Query().Encode()
 
 	uri := fasthttp.AcquireURI()
 	uri.Parse([]byte(u.Host), []byte(u.String()))
