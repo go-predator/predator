@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: options.go
  * @Created:   2021-07-23 08:58:31
- * @Modified:  2022-03-04 10:17:33
+ * @Modified:  2022-03-07 10:37:51
  */
 
 package predator
@@ -34,6 +34,24 @@ func WithLogger(logger *log.Logger) CrawlerOption {
 
 	return func(c *Crawler) {
 		c.log = log.NewLogger(log.Level(logger.L.GetLevel()), logger.Out(), 2)
+	}
+}
+
+func WithConsoleLogger(level log.Level) CrawlerOption {
+	return func(c *Crawler) {
+		c.log = log.NewLogger(level, log.ToConsole(), 2)
+	}
+}
+
+func WithFileLogger(level log.Level, filename string) CrawlerOption {
+	return func(c *Crawler) {
+		c.log = log.NewLogger(level, log.MustToFile(filename, -1), 2)
+	}
+}
+
+func WithConsoleAndFileLogger(level log.Level, filename string) CrawlerOption {
+	return func(c *Crawler) {
+		c.log = log.NewLogger(level, log.MustToConsoleAndFile(filename, -1), 2)
 	}
 }
 
