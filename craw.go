@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-07 10:32:14
+ * @Modified:  2022-03-07 13:25:52
  */
 
 package predator
@@ -902,8 +902,8 @@ func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error {
 // ClearCache will clear all cache
 func (c *Crawler) ClearCache() error {
 	if c.cache == nil {
-		c.Error(ErrNoCacheSet)
-		return ErrNoCacheSet
+		c.Error(ErrNoCache)
+		return ErrNoCache
 	}
 	if c.log != nil {
 		c.Warning("clear all cache")

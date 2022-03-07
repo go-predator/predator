@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: request.go
  * @Created:   2021-07-24 13:29:11
- * @Modified:  2022-03-03 16:55:42
+ * @Modified:  2022-03-07 13:31:17
  */
 
 package predator
@@ -50,6 +50,20 @@ type Request struct {
 	// 重定向次数会影响爬虫效率。
 	maxRedirectsCount uint
 	timeout           time.Duration
+}
+
+func (r Request) IsCached() (bool, error) {
+	if r.crawler.cache == nil {
+		return false, ErrNoCache
+	}
+
+	hash, err := r.Hash()
+	if err != nil {
+		return false, err
+	}
+
+	_, ok := r.crawler.cache.IsCached(hash)
+	return ok, nil
 }
 
 func (r *Request) Abort() {
