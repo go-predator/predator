@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-07 13:25:52
+ * @Modified:  2022-03-08 14:45:30
  */
 
 package predator
@@ -1046,6 +1046,22 @@ func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondit
 	}
 }
 
+func (c Crawler) Lock() {
+	c.lock.Lock()
+}
+
+func (c Crawler) Unlock() {
+	c.lock.Unlock()
+}
+
+func (c Crawler) RLock() {
+	c.lock.RLock()
+}
+
+func (c Crawler) RUnlock() {
+	c.lock.RUnlock()
+}
+
 /************************* 私有注册方法 ****************************/
 
 func (c *Crawler) processRequestHandler(r *Request) {
@@ -1056,6 +1072,9 @@ func (c *Crawler) processRequestHandler(r *Request) {
 
 func (c *Crawler) processResponseHandler(r *Response) {
 	for _, f := range c.responseHandler {
+		if r.invalid {
+			break
+		}
 		f(r)
 	}
 }
@@ -1112,6 +1131,10 @@ func (c *Crawler) processHTMLHandler(r *Response) error {
 	}
 
 	for _, parser := range c.htmlHandler {
+		if r.invalid {
+			break
+		}
+
 		i := 0
 		doc.Find(parser.Selector).Each(func(_ int, s *goquery.Selection) {
 			for _, n := range s.Nodes {
