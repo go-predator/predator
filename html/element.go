@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: element.go
  * @Created:   2021-07-27 20:35:31
- * @Modified:  2022-03-29 13:53:29
+ * @Modified:  2022-03-29 13:55:14
  */
 
 package html
@@ -43,6 +43,7 @@ func (he HTMLElement) String() string {
 		s.WriteString(attr.Key)
 
 		if len(attr.Val) > 0 {
+			s.WriteByte('=')
 			s.WriteByte('"')
 			s.WriteString(attr.Val)
 			s.WriteByte('"')
