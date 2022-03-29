@@ -1,9 +1,9 @@
 /*
- * @Author: thepoy
- * @Email: thepoy@163.com
+ * @Author:    thepoy
+ * @Email:     thepoy@163.com
  * @File Name: element.go
- * @Created: 2021-07-27 20:35:31
- * @Modified:  2022-02-19 14:16:03
+ * @Created:   2021-07-27 20:35:31
+ * @Modified:  2022-03-29 13:53:29
  */
 
 package html
@@ -30,6 +30,28 @@ type HTMLElement struct {
 	Index int
 
 	Node *html.Node
+}
+
+func (he HTMLElement) String() string {
+	var s strings.Builder
+
+	s.WriteByte('<')
+	s.WriteString(he.Name)
+
+	for _, attr := range he.Node.Attr {
+		s.WriteByte(' ')
+		s.WriteString(attr.Key)
+
+		if len(attr.Val) > 0 {
+			s.WriteByte('"')
+			s.WriteString(attr.Val)
+			s.WriteByte('"')
+		}
+	}
+
+	s.WriteByte('>')
+
+	return s.String()
 }
 
 // NewHTMLElementFromSelectionNode creates a HTMLElement from a goquery.Selection Node.
