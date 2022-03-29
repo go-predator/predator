@@ -3,12 +3,13 @@
  * @Email:     thepoy@163.com
  * @File Name: log.go
  * @Created:   2021-08-01 11:09:18
- * @Modified:  2022-03-04 10:42:57
+ * @Modified:  2022-03-29 15:11:43
  */
 
 package log
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -163,17 +164,33 @@ func (log *Logger) Warning(msg string, args ...Arg) {
 	l.Msg(msg)
 }
 
+func validte(err any) error {
+	var e error
+
+	switch t := err.(type) {
+	case string:
+		e = errors.New(t)
+	case error:
+		e = t
+	default:
+		panic("type not allowed")
+	}
+
+	return e
+}
+
 // Error logs a `ERROR` message with some `Arg`s.
-func (log *Logger) Error(err error, args ...Arg) {
-	l := log.L.Error().Caller(log.skip).Err(err)
+func (log *Logger) Error(err any, args ...Arg) {
+
+	l := log.L.Error().Caller(log.skip).Err(validte(err))
 	l = guessType(l, args...)
 	l.Send()
 }
 
 // Fatal logs a `FATAL` message with some `Arg`s, and calls `os.Exit(1)`
 // to exit the application.
-func (log *Logger) Fatal(err error, args ...Arg) {
-	l := log.L.Fatal().Caller(log.skip).Err(err)
+func (log *Logger) Fatal(err any, args ...Arg) {
+	l := log.L.Error().Caller(log.skip).Err(validte(err))
 	l = guessType(l, args...)
 	l.Send()
 }
