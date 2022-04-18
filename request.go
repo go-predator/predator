@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: request.go
  * @Created:   2021-07-24 13:29:11
- * @Modified:  2022-03-07 13:31:17
+ * @Modified:  2022-04-18 10:35:02
  */
 
 package predator
@@ -128,11 +128,11 @@ func (r Request) Post(URL string, requestData map[string]string) error {
 func (r Request) PostWithCache(URL string, requestData map[string]string, cacheFields ...CacheField) error {
 	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
 }
-func (r Request) PostJSON(URL string, requestData map[string]interface{}) error {
+func (r Request) PostJSON(URL string, requestData map[string]any) error {
 	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true)
 }
 
-func (r Request) PostJSONWithCache(URL string, requestData map[string]interface{}, cacheFields ...CacheField) error {
+func (r Request) PostJSONWithCache(URL string, requestData map[string]any, cacheFields ...CacheField) error {
 	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
 }
 func (r Request) PostMultipart(URL string, form *MultipartForm) error {

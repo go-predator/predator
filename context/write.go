@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: write.go
  * @Created: 2021-07-24 08:56:16
- * @Modified:  2022-02-11 09:15:46
+ * @Modified:  2022-04-18 13:28:52
  */
 
 package context
@@ -16,11 +16,11 @@ import (
 )
 
 type wcontext struct {
-	m map[string]interface{}
+	m map[string]any
 	l *sync.RWMutex
 }
 
-func (w *wcontext) GetAny(key string) interface{} {
+func (w *wcontext) GetAny(key string) any {
 	w.l.RLock()
 	defer w.l.RUnlock()
 
@@ -38,13 +38,13 @@ func (w *wcontext) Get(key string) string {
 	return val.(string)
 }
 
-func (w *wcontext) Put(key string, val interface{}) {
+func (w *wcontext) Put(key string, val any) {
 	w.l.Lock()
 	w.m[key] = val
 	w.l.Unlock()
 }
 
-func (w *wcontext) GetAndDelete(key string) interface{} {
+func (w *wcontext) GetAndDelete(key string) any {
 	w.l.Lock()
 	defer w.l.Unlock()
 
@@ -63,11 +63,11 @@ func (w *wcontext) Delete(key string) {
 }
 
 // ForEach 将上下文中的全部 key 和 value 用传入的函数处理后返回一个处理结果的切片
-func (w *wcontext) ForEach(f func(key string, val interface{}) interface{}) []interface{} {
+func (w *wcontext) ForEach(f func(key string, val any) any) []any {
 	w.l.RLock()
 	defer w.l.RUnlock()
 
-	result := make([]interface{}, 0, len(w.m))
+	result := make([]any, 0, len(w.m))
 	for k, v := range w.m {
 		result = append(result, f(k, v))
 	}

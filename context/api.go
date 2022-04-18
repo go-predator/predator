@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: api.go
  * @Created: 2021-07-24 08:55:30
- * @Modified: 2021-10-12 09:44:50
+ * @Modified:  2022-04-18 13:29:17
  */
 
 package context
@@ -17,16 +17,16 @@ type Context interface {
 	// Get 通过 key 在上下文中获取一个字符串
 	Get(key string) string
 	// GetAny 通过 key 在上下文中获取一个任意类型
-	GetAny(key string) interface{}
+	GetAny(key string) any
 	// Put 向上下文中传入一个 key: value
-	Put(key string, val interface{})
+	Put(key string, val any)
 	// GetAndDelete 获取并删除一个 key
-	GetAndDelete(key string) interface{}
+	GetAndDelete(key string) any
 	// Delete 在上下文中删除指定的 key
 	Delete(key string)
 	// ForEach 将上下文中的全部 key 和 value 用传
 	// 入的函数处理后返回一个处理结果的切片
-	ForEach(func(key string, val interface{}) interface{}) []interface{}
+	ForEach(func(key string, val any) any) []any
 	// Clear 清空一个上下文
 	Clear()
 	// Length 返回上下文的长度
@@ -93,7 +93,7 @@ func NewContext(ops ...CtxOp) (Context, error) {
 		return &rcontext{}, nil
 	case WriteOp:
 		return &wcontext{
-			m: make(map[string]interface{}),
+			m: make(map[string]any),
 			l: &sync.RWMutex{},
 		}, nil
 	default:

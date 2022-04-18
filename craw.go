@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-03-08 14:45:30
+ * @Modified:  2022-04-18 10:34:27
  */
 
 package predator
@@ -748,7 +748,7 @@ func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Conte
 	return c.post(URL, requestData, nil, ctx, false, c.cacheFields...)
 }
 
-func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
+func (c *Crawler) createJSONBody(requestData map[string]any) []byte {
 	if requestData == nil {
 		return nil
 	}
@@ -759,7 +759,7 @@ func (c *Crawler) createJSONBody(requestData map[string]interface{}) []byte {
 	return body
 }
 
-func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) postJSON(URL string, requestData map[string]any, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	body := c.createJSONBody(requestData)
 
 	var cachedMap map[string]string
@@ -822,7 +822,7 @@ func (c *Crawler) postJSON(URL string, requestData map[string]interface{}, heade
 }
 
 // PostJSON is used to send a POST request body in json format
-func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx pctx.Context) error {
+func (c *Crawler) PostJSON(URL string, requestData map[string]any, ctx pctx.Context) error {
 	return c.postJSON(URL, requestData, nil, ctx, false, c.cacheFields...)
 }
 

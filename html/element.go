@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: element.go
  * @Created:   2021-07-27 20:35:31
- * @Modified:  2022-03-29 13:55:14
+ * @Modified:  2022-04-18 13:39:39
  */
 
 package html
@@ -51,6 +51,22 @@ func (he HTMLElement) String() string {
 	}
 
 	s.WriteByte('>')
+
+	if c := he.Node.FirstChild; c != nil {
+		if c.Type == html.TextNode {
+			runes := []rune(c.Data)
+			if len(runes) > 10 {
+				s.WriteString(string(runes[:10]))
+				s.WriteString("...")
+			} else {
+				s.WriteString(c.Data)
+			}
+
+			s.WriteString("</")
+			s.WriteString(he.Name)
+			s.WriteByte('>')
+		}
+	}
 
 	return s.String()
 }

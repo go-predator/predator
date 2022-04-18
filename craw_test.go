@@ -1,9 +1,9 @@
 /*
- * @Author: thepoy
- * @Email: thepoy@163.com
+ * @Author:    thepoy
+ * @Email:     thepoy@163.com
  * @File Name: craw_test.go
- * @Created: 2021-07-23 09:22:36
- * @Modified:  2022-02-28 09:50:40
+ * @Created:   2021-07-23 09:22:36
+ * @Modified:  2022-04-18 13:30:08
  */
 
 package predator
@@ -496,7 +496,7 @@ func TestJSON(t *testing.T) {
 			Age  int    `json:"age"`
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"time": 156546535,
 			"cid":  "10_18772100220-1625540144276-302919",
 			"args": []int{1, 2, 3, 4, 5},
@@ -523,7 +523,7 @@ func TestJSON(t *testing.T) {
 			Age  int    `json:"age"`
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"time": 156546535,
 			"cid":  "10_18772100220-1625540144276-302919",
 			"args": []int{1, 2, 3, 4, 5},
@@ -552,7 +552,7 @@ func TestJSONWithInvalidCacheField(t *testing.T) {
 		Age  int    `json:"age"`
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"time": 156546535,
 		"cid":  "10_18772100220-1625540144276-302919",
 		"args": []int{1, 2, 3, 4, 5},

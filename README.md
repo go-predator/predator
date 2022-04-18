@@ -136,7 +136,7 @@ func main() {
 		Age  int    `json:"age"`
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"time": 156546535,
 		"cid":  "10_18772100220-1625540144276-302919",
 		"args": []int{1, 2, 3, 4, 5},

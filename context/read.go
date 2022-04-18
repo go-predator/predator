@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: read.go
  * @Created: 2021-07-24 08:56:04
- * @Modified:  2021-11-09 10:33:38
+ * @Modified:  2022-04-18 13:29:10
  */
 
 package context
@@ -19,7 +19,7 @@ type rcontext struct {
 	sync.Map
 }
 
-func (r *rcontext) GetAny(key string) interface{} {
+func (r *rcontext) GetAny(key string) any {
 	val, ok := r.Load(key)
 	if ok {
 		return val
@@ -35,11 +35,11 @@ func (r *rcontext) Get(key string) string {
 	return val.(string)
 }
 
-func (r *rcontext) Put(key string, val interface{}) {
+func (r *rcontext) Put(key string, val any) {
 	r.Store(key, val)
 }
 
-func (r *rcontext) GetAndDelete(key string) interface{} {
+func (r *rcontext) GetAndDelete(key string) any {
 	val, ok := r.LoadAndDelete(key)
 	if ok {
 		return val
@@ -51,9 +51,9 @@ func (r *rcontext) Delete(key string) {
 	r.Map.Delete(key)
 }
 
-func (r *rcontext) ForEach(f func(key string, val interface{}) interface{}) []interface{} {
-	result := make([]interface{}, 0, r.Length())
-	r.Range(func(key, value interface{}) bool {
+func (r *rcontext) ForEach(f func(key string, val any) any) []any {
+	result := make([]any, 0, r.Length())
+	r.Range(func(key, value any) bool {
 		result = append(result, f(key.(string), value))
 		return true
 	})
@@ -61,7 +61,7 @@ func (r *rcontext) ForEach(f func(key string, val interface{}) interface{}) []in
 }
 
 func (r *rcontext) Clear() {
-	r.Range(func(key, value interface{}) bool {
+	r.Range(func(key, value any) bool {
 		r.Map.Delete(key)
 		return true
 	})
@@ -69,7 +69,7 @@ func (r *rcontext) Clear() {
 
 func (r *rcontext) Length() int {
 	l := 0
-	r.Range(func(key, value interface{}) bool {
+	r.Range(func(key, value any) bool {
 		l++
 		return true
 	})
@@ -80,7 +80,7 @@ func (r *rcontext) Bytes() []byte {
 	var b bytes.Buffer
 	b.WriteByte('{')
 	i := 0
-	r.Range(func(key, value interface{}) bool {
+	r.Range(func(key, value any) bool {
 		if i > 0 {
 			b.WriteString(`, `)
 		}
@@ -100,7 +100,7 @@ func (r *rcontext) String() string {
 	var s strings.Builder
 	s.WriteByte('{')
 	i := 0
-	r.Range(func(key, value interface{}) bool {
+	r.Range(func(key, value any) bool {
 		if i > 0 {
 			s.WriteString(`, `)
 		}

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: context_test.go
  * @Created: 2021-07-24 12:18:30
- * @Modified: 2021-10-12 09:44:51
+ * @Modified:  2022-04-18 13:29:16
  */
 
 package context
@@ -61,7 +61,7 @@ func ctxTest(ctx Context) {
 			ctx.Put("six", '6')
 			ctx.Put("seven", []int{7})
 			ctx.Put("eight", [1]int{8})
-			val := ctx.ForEach(func(key string, val interface{}) interface{} {
+			val := ctx.ForEach(func(key string, val any) any {
 				return val
 			})
 			So(len(val), ShouldEqual, 6)

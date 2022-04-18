@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: log.go
  * @Created:   2021-08-01 11:09:18
- * @Modified:  2022-03-29 15:19:15
+ * @Modified:  2022-04-18 10:35:27
  */
 
 package log
@@ -52,7 +52,7 @@ type Logger struct {
 // the key is of type `string`, and the value can be of any type.
 type Arg struct {
 	Key   string
-	Value interface{}
+	Value any
 }
 
 func guessType(l *zerolog.Event, args ...Arg) *zerolog.Event {

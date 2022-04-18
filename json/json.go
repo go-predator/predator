@@ -1,9 +1,9 @@
 /*
- * @Author: thepoy
- * @Email: thepoy@163.com
+ * @Author:    thepoy
+ * @Email:     thepoy@163.com
  * @File Name: json.go
- * @Created: 2021-07-27 20:41:02
- * @Modified: 2021-10-12 09:44:21
+ * @Created:   2021-07-27 20:41:02
+ * @Modified:  2022-04-18 13:30:27
  */
 
 package json
@@ -12,7 +12,7 @@ import jsoniter "github.com/json-iterator/go"
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
-func Marshal(v interface{}) ([]byte, error) {
+func Marshal(v any) ([]byte, error) {
 	return json.Marshal(v)
 }
 
@@ -21,10 +21,10 @@ func Marshal(v interface{}) ([]byte, error) {
 // 用 gjson 解析时，再用此方法进行反序列化。
 //
 // 这里使用性能更高的第三方库完成反序列化。
-func Unmarshal(src []byte, v interface{}) error {
+func Unmarshal(src []byte, v any) error {
 	return json.Unmarshal(src, v)
 }
 
-func UnmarshalFromString(src string, v interface{}) error {
+func UnmarshalFromString(src string, v any) error {
 	return json.UnmarshalFromString(src, v)
 }

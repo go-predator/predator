@@ -1,9 +1,9 @@
 /*
- * @Author: thepoy
- * @Email: thepoy@163.com
+ * @Author:    thepoy
+ * @Email:     thepoy@163.com
  * @File Name: json_test.go
- * @Created: 2021-07-29 18:53:57
- * @Modified: 2021-07-29 19:27:29
+ * @Created:   2021-07-29 18:53:57
+ * @Modified:  2022-04-18 13:30:38
  */
 
 package json
@@ -17,12 +17,12 @@ import (
 func TestJSON(t *testing.T) {
 	Convey("测试JSON", t, func() {
 		type S struct {
-			Name string                 `json:"name"`
-			Age  int                    `json:"age"`
-			M    map[string]interface{} `json:"map"`
+			Name string         `json:"name"`
+			Age  int            `json:"age"`
+			M    map[string]any `json:"map"`
 		}
 
-		m := map[string]interface{}{
+		m := map[string]any{
 			"key1": "value1",
 			"key2": 2,
 			"key3": 3.1,
@@ -30,7 +30,7 @@ func TestJSON(t *testing.T) {
 				"one": 1,
 				"two": 2,
 			},
-			"key5": S{"tom", 10, map[string]interface{}{"a": 1.222}},
+			"key5": S{"tom", 10, map[string]any{"a": 1.222}},
 		}
 
 		b, e := Marshal(m)
