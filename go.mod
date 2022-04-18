@@ -11,8 +11,8 @@ require (
 	github.com/smartystreets/goconvey v1.6.6
 	github.com/tidwall/gjson v1.14.0
 	github.com/valyala/bytebufferpool v1.0.0
-	github.com/valyala/fasthttp v1.34.0
-	golang.org/x/net v0.0.0-20220325170049-de3da57026de
+	github.com/valyala/fasthttp v1.35.0
+	golang.org/x/net v0.0.0-20220412020605-290c469a71a5
 )
 
 require (
@@ -31,5 +31,5 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gorm.io/driver/sqlite v1.3.1 // indirect
-	gorm.io/gorm v1.23.3 // indirect
+	gorm.io/gorm v1.23.4 // indirect
 )

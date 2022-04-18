@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified: 2022-01-23 17:16:32
+ * @Modified:  2022-04-18 14:20:47
  */
 
 package predator
@@ -99,6 +99,7 @@ func (r *Response) Reset(releaseCtx bool) {
 	ReleaseRequest(r.Request)
 	r.Headers.Reset()
 	r.FromCache = false
+	r.invalid = false
 	r.localIP = nil
 	r.clientIP = nil
 }
