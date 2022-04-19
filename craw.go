@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-04-18 14:17:43
+ * @Modified:  2022-04-19 09:47:31
  */
 
 package predator
@@ -740,6 +740,12 @@ func (c *Crawler) post(URL string, requestData, headers map[string]string, ctx p
 
 		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
+
+	if len(headers) == 0 {
+		headers = make(map[string]string)
+	}
+	headers["Content-Type"] = "application/x-www-form-urlencoded"
+
 	return c.request(MethodPost, URL, createBody(requestData), cachedMap, headers, ctx, isChained)
 }
 
