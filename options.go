@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: options.go
  * @Created:   2021-07-23 08:58:31
- * @Modified:  2022-03-07 10:37:51
+ * @Modified:  2022-04-26 14:40:52
  */
 
 package predator
@@ -119,6 +119,7 @@ func WithProxyPool(proxyURLs []string) CrawlerOption {
 	}
 }
 
+// WithComplementProxyPool replenishes the proxy pool when the proxy pool is empty
 func WithComplementProxyPool(f ComplementProxyPool) CrawlerOption {
 	return func(c *Crawler) {
 		c.complementProxyPool = f
