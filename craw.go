@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-04-19 09:47:31
+ * @Modified:  2022-05-11 09:31:44
  */
 
 package predator
@@ -39,7 +39,7 @@ type HandleResponse func(r *Response)
 // HandleHTML is used to process html
 type HandleHTML func(he *html.HTMLElement, r *Response)
 
-type HandleJSON func(j json.JSONResult)
+type HandleJSON func(j json.JSONResult, r *Response)
 
 // HTMLParser is used to parse html
 type HTMLParser struct {
@@ -1096,7 +1096,7 @@ func (c *Crawler) processJSONHandler(r *Response) {
 		}
 	}
 
-	resp := json.ParseBytesToJSON(r.Body)
+	result := json.ParseBytesToJSON(r.Body)
 	for _, parser := range c.jsonHandler {
 		if parser.strict {
 			if !strings.Contains(strings.ToLower(r.ContentType()), "application/json") {
@@ -1109,7 +1109,7 @@ func (c *Crawler) processJSONHandler(r *Response) {
 				continue
 			}
 		}
-		parser.Handle(resp)
+		parser.Handle(result, r)
 	}
 }
 
