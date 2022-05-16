@@ -511,7 +511,7 @@ func TestJSON(t *testing.T) {
 
 	Convey("测试带缓存的完整 JSON 请求和响应", t, func() {
 		c := NewCrawler(
-			WithCache(nil, false, nil, CacheField{RequestBodyParam, "cid"}, CacheField{RequestBodyParam, "user.name"}, CacheField{RequestBodyParam, "user.age"}),
+			WithCache(nil, false, nil, CacheField{requestBodyParam, "cid"}, CacheField{requestBodyParam, "user.name"}, CacheField{requestBodyParam, "user.age"}),
 		)
 
 		c.AfterResponse(func(r *Response) {
@@ -539,7 +539,7 @@ func TestJSON(t *testing.T) {
 
 func TestJSONWithInvalidCacheField(t *testing.T) {
 	c := NewCrawler(
-		WithCache(nil, false, nil, CacheField{RequestBodyParam, "id"}, CacheField{RequestBodyParam, "user.name"}, CacheField{RequestBodyParam, "user.age"}),
+		WithCache(nil, false, nil, CacheField{requestBodyParam, "id"}, CacheField{requestBodyParam, "user.name"}, CacheField{requestBodyParam, "user.age"}),
 		WithLogger(nil),
 	)
 

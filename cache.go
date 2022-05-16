@@ -42,9 +42,9 @@ type cacheFieldType uint8
 
 const (
 	// A key or field from URL query parameters
-	QueryParam cacheFieldType = iota
+	queryParam cacheFieldType = iota
 	// A key or field from request body parameters
-	RequestBodyParam
+	requestBodyParam
 )
 
 type CacheField struct {
@@ -66,9 +66,9 @@ func addQueryParamCacheField(params url.Values, field CacheField) (string, strin
 }
 
 func NewQueryParamField(field string) CacheField {
-	return CacheField{QueryParam, field}
+	return CacheField{queryParam, field}
 }
 
 func NewRequestBodyParamField(field string) CacheField {
-	return CacheField{RequestBodyParam, field}
+	return CacheField{requestBodyParam, field}
 }

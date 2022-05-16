@@ -26,7 +26,6 @@ import (
 	"github.com/go-predator/predator/json"
 	"github.com/go-predator/predator/log"
 	"github.com/go-predator/predator/proxy"
-	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
 )
 
@@ -78,11 +77,9 @@ type Crawler struct {
 	proxyInvalidCondition ProxyInvalidCondition
 	proxyInUse            string
 	complementProxyPool   ComplementProxyPool
-	// TODO: 动态获取代理
-	// dynamicProxyFunc AcquireProxies
-	requestCount  uint32
-	responseCount uint32
-	// 在多协程中这个上下文管理可以用来退出或取消多个协程
+	requestCount          uint32
+	responseCount         uint32
+	// TODO: 在多协程中这个上下文管理可以用来退出或取消多个协程
 	Context context.Context
 
 	// Cache successful response
@@ -96,9 +93,9 @@ type Crawler struct {
 
 	requestHandler []HandleRequest
 
-	// 响应后处理响应
+	// Array of functions to handle the response
 	responseHandler []HandleResponse
-	// 响应后处理 html
+	// Array of functions to handle parsed html
 	htmlHandler []*HTMLParser
 	jsonHandler []*JSONParser
 
@@ -243,7 +240,6 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 	request.crawler = c
 	request.uri = uri
 
-	// TODO: 链式请求用 go pool 会阻塞？
 	if c.goPool != nil {
 		c.wg.Add(1)
 		task := &Task{
@@ -411,7 +407,6 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		c.processJSONHandler(response)
 	}
 
-	// 这里不需要调用 ReleaseRequest，因为 ReleaseResponse 中执行了 ReleaseRequest 方法
 	ReleaseResponse(response, !isChained)
 	if rawResp != nil {
 		// 原始响应应该在自定义响应之后释放，不然一些字段的值会出错
@@ -486,7 +481,6 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 		c.lock.Lock()
 		c.client.Dial = func(addr string) (net.Conn, error) {
-			// TODO: 代理池中至少保证有一个代理，不然有可能报错
 			return c.ProxyDialerWithTimeout(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))], request.timeout)(addr)
 		}
 		c.lock.Unlock()
@@ -664,7 +658,7 @@ func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, i
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
 		for _, field := range cacheFields {
-			if field.code != QueryParam {
+			if field.code != queryParam {
 				c.FatalOrPanic(ErrNotAllowedCacheFieldType)
 			}
 
@@ -705,7 +699,7 @@ func (c *Crawler) post(URL string, requestData, headers map[string]string, ctx p
 			)
 
 			switch field.code {
-			case QueryParam:
+			case queryParam:
 				if queryParams == nil {
 					u, err := url.Parse(URL)
 					if err != nil {
@@ -716,7 +710,7 @@ func (c *Crawler) post(URL string, requestData, headers map[string]string, ctx p
 				}
 
 				key, value, err = addQueryParamCacheField(queryParams, field)
-			case RequestBodyParam:
+			case requestBodyParam:
 				if val, ok := requestData[field.Field]; ok {
 					key, value = field.String(), val
 				} else {
@@ -744,7 +738,10 @@ func (c *Crawler) post(URL string, requestData, headers map[string]string, ctx p
 	if len(headers) == 0 {
 		headers = make(map[string]string)
 	}
-	headers["Content-Type"] = "application/x-www-form-urlencoded"
+	if _, ok := headers["Content-Type"]; !ok {
+		// use default `Content-Type`
+		headers["Content-Type"] = "application/x-www-form-urlencoded"
+	}
 
 	return c.request(MethodPost, URL, createBody(requestData), cachedMap, headers, ctx, isChained)
 }
@@ -771,7 +768,7 @@ func (c *Crawler) postJSON(URL string, requestData map[string]any, headers map[s
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
-		bodyJson := gjson.ParseBytes(body)
+		bodyJson := json.ParseBytesToJSON(body)
 
 		var queryParams url.Values
 
@@ -782,7 +779,7 @@ func (c *Crawler) postJSON(URL string, requestData map[string]any, headers map[s
 			)
 
 			switch field.code {
-			case QueryParam:
+			case queryParam:
 				if queryParams == nil {
 					u, err := url.Parse(URL)
 					if err != nil {
@@ -793,14 +790,13 @@ func (c *Crawler) postJSON(URL string, requestData map[string]any, headers map[s
 				}
 
 				key, value, err = addQueryParamCacheField(queryParams, field)
-			case RequestBodyParam:
+			case requestBodyParam:
 				if !bodyJson.Get(field.Field).Exists() {
 					m := bodyJson.Map()
 					var keys = make([]string, 0, len(m))
 					for k := range m {
 						keys = append(keys, k)
 					}
-					// 如果 cachedFields 中某个 field 是请求 json 中没有的，则报异常退出
 					err = fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys)
 				} else {
 					key, value = field.String(), bodyJson.Get(field.Field).String()
@@ -827,7 +823,7 @@ func (c *Crawler) postJSON(URL string, requestData map[string]any, headers map[s
 	return c.request(MethodPost, URL, body, cachedMap, headers, ctx, isChained)
 }
 
-// PostJSON is used to send a POST request body in json format
+// PostJSON is used to send POST requests whose content-type is json
 func (c *Crawler) PostJSON(URL string, requestData map[string]any, ctx pctx.Context) error {
 	return c.postJSON(URL, requestData, nil, ctx, false, c.cacheFields...)
 }
@@ -846,7 +842,7 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[str
 			)
 
 			switch field.code {
-			case QueryParam:
+			case queryParam:
 				if queryParams == nil {
 					u, err := url.Parse(URL)
 					if err != nil {
@@ -857,7 +853,7 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[str
 				}
 
 				key, value, err = addQueryParamCacheField(queryParams, field)
-			case RequestBodyParam:
+			case requestBodyParam:
 				if val, ok := form.bodyMap[field.Field]; ok {
 					key, value = field.String(), val
 				} else {
@@ -865,7 +861,6 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[str
 					for k := range form.bodyMap {
 						keys = append(keys, k)
 					}
-					// 如果 cachedFields 中某个 field 是请求表单中没有的，则报异常退出
 					err = fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys)
 				}
 			default:
@@ -890,12 +885,12 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[str
 	return c.request(MethodPost, URL, form.Bytes(), cachedMap, headers, ctx, isChained)
 }
 
-// PostMultipart
+// PostMultipart is used to send POST requests whose content-type is `multipart/form-data`
 func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Context) error {
 	return c.postMultipart(URL, form, nil, ctx, false, c.cacheFields...)
 }
 
-// PostRaw 发送非 form、multipart、json 的原始的 post 请求
+// PostRaw is used to send POST requests whose content-type is not in [json, `application/x-www-form-urlencoded`, `multipart/form-data`]
 func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error {
 	cachedMap := map[string]string{
 		"cache": string(body),
@@ -903,7 +898,7 @@ func (c *Crawler) PostRaw(URL string, body []byte, ctx pctx.Context) error {
 	return c.request(MethodPost, URL, body, cachedMap, nil, ctx, false)
 }
 
-/************************* 公共方法 ****************************/
+/************************* Public methods ****************************/
 
 // ClearCache will clear all cache
 func (c *Crawler) ClearCache() error {
