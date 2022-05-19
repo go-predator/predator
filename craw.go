@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-05-11 09:31:44
+ * @Modified:  2022-05-19 21:54:05
  */
 
 package predator
@@ -1001,6 +1001,14 @@ func (c *Crawler) AddProxy(newProxy string) {
 	c.lock.Lock()
 
 	c.proxyURLPool = append(c.proxyURLPool, newProxy)
+
+	c.lock.Unlock()
+}
+
+func (c *Crawler) AddCookie(key, val string) {
+	c.lock.Lock()
+
+	c.cookies[key] = val
 
 	c.lock.Unlock()
 }
