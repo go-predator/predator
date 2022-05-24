@@ -9,10 +9,10 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/rs/zerolog v1.26.1
 	github.com/smartystreets/goconvey v1.6.6
-	github.com/tidwall/gjson v1.14.0
+	github.com/tidwall/gjson v1.14.1
 	github.com/valyala/bytebufferpool v1.0.0
-	github.com/valyala/fasthttp v1.35.0
-	golang.org/x/net v0.0.0-20220412020605-290c469a71a5
+	github.com/valyala/fasthttp v1.37.0
+	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
 )
 
 require (
@@ -23,14 +23,14 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
-	github.com/klauspost/compress v1.15.1 // indirect
-	github.com/mattn/go-sqlite3 v1.14.12 // indirect
+	github.com/klauspost/compress v1.15.4 // indirect
+	github.com/mattn/go-sqlite3 v1.14.13 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	gorm.io/driver/sqlite v1.3.1 // indirect
-	gorm.io/gorm v1.23.4 // indirect
+	gorm.io/driver/sqlite v1.3.2 // indirect
+	gorm.io/gorm v1.23.5 // indirect
 )
