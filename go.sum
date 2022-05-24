@@ -16,6 +16,8 @@ github.com/go-predator/tools v0.0.0-20211124120023-539337f1b3e7 h1:BnTKFQ0LlWTuh
 github.com/go-predator/tools v0.0.0-20211124120023-539337f1b3e7/go.mod h1:zSoE1N+pD7TdcriAHJ/6YqIQRJvi/UbbJqGqpKtv81k=
 github.com/go-predator/tools v0.0.0-20220218034837-553161f05531 h1:RltfXg3LmLOvd//E4h1CyZW6V2o2Sp58KqS8D+et0gs=
 github.com/go-predator/tools v0.0.0-20220218034837-553161f05531/go.mod h1:A78dFsvf5Nkxvpz9VRZMQgJqHSsnKHSW6ha7RK2c6SE=
+github.com/go-predator/tools v0.0.0-20220524022058-ce749e9bf77b h1:MMUBfyosVuLCa4k0iDpq+3mOHIQAsBSZt/fJ/nN++js=
+github.com/go-predator/tools v0.0.0-20220524022058-ce749e9bf77b/go.mod h1:xG4JX2Eyw5NgKkSXVmKu6u90nPklN0M4fv7jLbzP3TY=
 github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1 h1:EGx4pi6eqNxGaHF6qqu48+N2wcFQ5qg5FXgOdqsJ5d8=

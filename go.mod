@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/go-predator/cache v0.0.0-20211124123509-895f7caf698d
-	github.com/go-predator/tools v0.0.0-20220218034837-553161f05531
+	github.com/go-predator/tools v0.0.0-20220524022058-ce749e9bf77b
 	github.com/json-iterator/go v1.1.12
 	github.com/rs/zerolog v1.26.1
 	github.com/smartystreets/goconvey v1.6.6
