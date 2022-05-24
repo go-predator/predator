@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw_test.go
  * @Created:   2021-07-23 09:22:36
- * @Modified:  2022-04-18 13:30:08
+ * @Modified:  2022-05-24 09:23:24
  */
 
 package predator
@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/go-predator/cache"
+	"github.com/go-predator/log"
 	"github.com/go-predator/predator/html"
-	"github.com/go-predator/predator/log"
 	"github.com/go-predator/predator/proxy"
 
 	. "github.com/smartystreets/goconvey/convey"

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: main.go
  * @Created: 2021-07-31 11:50:11
- * @Modified:  2022-02-25 10:53:15
+ * @Modified:  2022-05-24 09:23:31
  */
 
 package main
@@ -13,9 +13,9 @@ import (
 	"math/rand"
 	"strings"
 
+	"github.com/go-predator/log"
 	"github.com/go-predator/predator"
 	"github.com/go-predator/predator/context"
-	"github.com/go-predator/predator/log"
 	"github.com/tidwall/gjson"
 )
 

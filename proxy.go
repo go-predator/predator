@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: proxy.go
  * @Created: 2021-07-27 12:15:35
- * @Modified:  2022-02-11 09:30:53
+ * @Modified:  2022-05-24 09:22:46
  */
 
 package predator
@@ -11,7 +11,7 @@ package predator
 import (
 	"time"
 
-	"github.com/go-predator/predator/log"
+	"github.com/go-predator/log"
 	"github.com/go-predator/predator/proxy"
 	"github.com/valyala/fasthttp"
 )

@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: pool.go
  * @Created: 2021-07-29 22:30:37
- * @Modified:  2022-02-11 09:07:13
+ * @Modified:  2022-05-24 09:23:16
  */
 
 package predator
@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-predator/predator/log"
+	"github.com/go-predator/log"
 )
 
 // errors
