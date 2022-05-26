@@ -7,7 +7,6 @@ require (
 	github.com/go-predator/cache v0.0.0-20211124123509-895f7caf698d
 	github.com/go-predator/tools v0.0.0-20220524022058-ce749e9bf77b
 	github.com/json-iterator/go v1.1.12
-	github.com/rs/zerolog v1.26.1
 	github.com/smartystreets/goconvey v1.6.6
 	github.com/tidwall/gjson v1.14.1
 	github.com/valyala/bytebufferpool v1.0.0
@@ -27,6 +26,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.13 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/rs/zerolog v1.26.1 // indirect
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect

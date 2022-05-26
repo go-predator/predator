@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: element.go
  * @Created:   2021-07-27 20:35:31
- * @Modified:  2022-05-26 19:55:04
+ * @Modified:  2022-05-26 20:01:14
  */
 
 package html
@@ -126,8 +126,14 @@ func (he *HTMLElement) ChildText(selector string) string {
 // elements.
 func (he *HTMLElement) ChildrenText(selector string) []string {
 	var res []string
-	he.DOM.Find(selector).Each(func(_ int, s *goquery.Selection) {
-		res = append(res, strings.TrimSpace(s.Text()))
+	he.Each(selector, func(_ int, h *HTMLElement) bool {
+		text := h.Text()
+		if text == "" {
+			return false
+		}
+
+		res = append(res, strings.TrimSpace(text))
+		return false
 	})
 	return res
 }
@@ -145,10 +151,11 @@ func (he *HTMLElement) ChildAttr(selector, attrName string) string {
 // element's attributes.
 func (he *HTMLElement) ChildrenAttr(selector, attrName string) []string {
 	var res []string
-	he.DOM.Find(selector).Each(func(_ int, s *goquery.Selection) {
-		if attr, ok := s.Attr(attrName); ok {
+	he.Each(selector, func(_ int, h *HTMLElement) bool {
+		if attr := h.Attr(attrName); attr != "" {
 			res = append(res, strings.TrimSpace(attr))
 		}
+		return false
 	})
 	return res
 }
