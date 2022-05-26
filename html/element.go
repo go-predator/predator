@@ -3,17 +3,22 @@
  * @Email:     thepoy@163.com
  * @File Name: element.go
  * @Created:   2021-07-27 20:35:31
- * @Modified:  2022-05-26 19:51:38
+ * @Modified:  2022-05-26 19:55:04
  */
 
 package html
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-predator/tools"
 	"golang.org/x/net/html"
+)
+
+var (
+	ErrNilElement = errors.New("the current element is nil")
 )
 
 // HTMLElement is the representation of a HTML tag.
@@ -154,6 +159,10 @@ func (he *HTMLElement) ChildrenAttr(selector, attrName string) []string {
 // The for loop will break when the `callback` returns `true`.
 func (he *HTMLElement) Each(selector string, callback func(int, *HTMLElement) bool) {
 	i := 0
+	if he == nil {
+		panic(ErrNilElement)
+	}
+
 	found := he.DOM.Find(selector)
 	if found == nil {
 		return
