@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: element.go
  * @Created:   2021-07-27 20:35:31
- * @Modified:  2022-05-26 20:01:14
+ * @Modified:  2022-05-26 20:23:43
  */
 
 package html
@@ -116,6 +116,36 @@ func (he *HTMLElement) Text() string {
 	return he.DOM.Text()
 }
 
+// Texts Gets all child text elements in the current element and returns a []string
+func (he *HTMLElement) Texts() []string {
+	if he == nil {
+		return nil
+	}
+
+	var texts []string
+
+	// Slightly optimized vs calling Each: no single selection object created
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.TextNode {
+			text := tools.Strip(n.Data)
+			if text != "" {
+				texts = append(texts, tools.Strip(n.Data))
+			}
+		}
+		if n.FirstChild != nil {
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				f(c)
+			}
+		}
+	}
+	for _, n := range he.DOM.Nodes {
+		f(n)
+	}
+
+	return texts
+}
+
 // ChildText returns the concatenated and stripped text content of the matching
 // elements.
 func (he *HTMLElement) ChildText(selector string) string {
@@ -189,7 +219,7 @@ func (he *HTMLElement) Each(selector string, callback func(int, *HTMLElement) bo
 // num starts at 1, not at 0.
 func (he *HTMLElement) Child(selector string, num int) *HTMLElement {
 	if he == nil {
-		panic("`HTMLElement` instance is nil")
+		panic(ErrNilElement)
 	}
 
 	s := he.DOM.Find(selector)
