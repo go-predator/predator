@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: element.go
  * @Created:   2021-07-27 20:35:31
- * @Modified:  2022-04-18 13:39:39
+ * @Modified:  2022-05-26 19:51:38
  */
 
 package html
@@ -154,7 +154,12 @@ func (he *HTMLElement) ChildrenAttr(selector, attrName string) []string {
 // The for loop will break when the `callback` returns `true`.
 func (he *HTMLElement) Each(selector string, callback func(int, *HTMLElement) bool) {
 	i := 0
-	he.DOM.Find(selector).Each(func(_ int, s *goquery.Selection) {
+	found := he.DOM.Find(selector)
+	if found == nil {
+		return
+	}
+
+	found.Each(func(_ int, s *goquery.Selection) {
 		for _, n := range s.Nodes {
 			if callback(i, NewHTMLElementFromSelectionNode(s, n, i)) {
 				break
