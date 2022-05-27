@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-05-24 09:22:23
+ * @Modified:  2022-05-27 21:18:46
  */
 
 package predator
@@ -920,6 +920,10 @@ func (c Crawler) ProxyInUse() string {
 		return strings.Split(c.proxyInUse, "//")[1]
 	}
 	return c.proxyInUse
+}
+
+func (c *Crawler) ConcurrencyState() bool {
+	return c.goPool != nil
 }
 
 /************************* 公共注册方法 ****************************/
