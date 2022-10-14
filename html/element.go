@@ -135,7 +135,19 @@ func (he *HTMLElement) Texts() []string {
 		if n.Type == html.TextNode {
 			text := tools.Strip(n.Data)
 			if text != "" {
-				texts = append(texts, tools.Strip(n.Data))
+				// 当使用 Selection.ReplaceWithHtml 将原节点替换成了一个 TextNode 时
+				// 很可能会出现多个文本节点连接，这在现实 DOM 结构是不可能存在的，但 ReplaceWithHtml
+				// 方法的不完备却可能出现此情况，故只能在此判断前面的节点是否为文本节点，如果是则将两个文本
+				// 节点的文本合并。
+				if n.PrevSibling != nil && n.PrevSibling.Type == html.TextNode {
+					if len(texts) > 0 {
+						texts[len(texts)-1] += text
+					} else {
+						texts = append(texts, text)
+					}
+				} else {
+					texts = append(texts, text)
+				}
 			}
 		}
 		if n.FirstChild != nil {
