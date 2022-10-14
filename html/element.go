@@ -57,21 +57,26 @@ func (he HTMLElement) String() string {
 
 	s.WriteByte('>')
 
-	if c := he.Node.FirstChild; c != nil {
-		if c.Type == html.TextNode {
-			runes := []rune(c.Data)
-			if len(runes) > 10 {
+	if fc := he.Node.FirstChild; fc != nil {
+		if fc.Type == html.TextNode {
+			text := strings.TrimSpace(fc.Data)
+			runes := []rune(text)
+			if len(runes) == 0 {
+				s.WriteString("...")
+			} else if len(runes) > 10 {
 				s.WriteString(string(runes[:10]))
 				s.WriteString("...")
 			} else {
-				s.WriteString(c.Data)
+				s.WriteString(text)
 			}
-
-			s.WriteString("</")
-			s.WriteString(he.Name)
-			s.WriteByte('>')
+		} else {
+			s.WriteString("...")
 		}
 	}
+
+	s.WriteString("</")
+	s.WriteString(he.Name)
+	s.WriteByte('>')
 
 	return s.String()
 }
