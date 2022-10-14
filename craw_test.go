@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-predator/cache"
 	"github.com/go-predator/log"
 	"github.com/go-predator/predator/html"
 	"github.com/go-predator/predator/proxy"
@@ -673,59 +672,6 @@ func TestConcurrency(t *testing.T) {
 			t.Log(delta)
 		})
 	})
-}
-
-func testCache(c *Crawler, t *testing.T) {
-	c.BeforeRequest(func(r *Request) {
-		r.Ctx.Put("key", 999)
-	})
-
-	c.AfterResponse(func(r *Response) {
-		if r.Request.ID == 1 {
-			So(r.FromCache, ShouldBeFalse)
-		} else {
-			So(r.FromCache, ShouldBeTrue)
-		}
-		val := r.Ctx.GetAny("key").(int)
-		So(val, ShouldEqual, 999)
-	})
-
-	for i := 0; i < 3; i++ {
-		err := c.Get("http://www.baidu.com")
-		So(err, ShouldBeNil)
-	}
-	// 测试环境中清除缓存，生产环境慎重清除
-	c.ClearCache()
-}
-
-func TestCache(t *testing.T) {
-	Convey("测试 SQLite 缓存", t, func() {
-		uri := "/tmp/test-cache.sqlite"
-		Convey("测试不压缩", func() {
-			defer timeCost()()
-			c := NewCrawler(
-				WithCache(&cache.SQLiteCache{
-					URI: uri,
-				}, false, nil),
-				// WithCache(nil, false),
-			)
-
-			testCache(c, t)
-		})
-
-		Convey("测试压缩", func() {
-			defer timeCost()()
-			c := NewCrawler(
-				WithCache(&cache.SQLiteCache{
-					URI: uri,
-				}, false, nil),
-				// WithCache(nil, false),
-			)
-
-			testCache(c, t)
-		})
-	})
-
 }
 
 func TestLog(t *testing.T) {

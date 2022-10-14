@@ -13,7 +13,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/go-predator/cache"
 	"github.com/go-predator/log"
 )
 
@@ -152,11 +151,6 @@ func WithCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFi
 			c.cacheFields = cacheFileds
 		}
 	}
-}
-
-// WithDefaultCache 默认缓存为 sqlite3，不压缩
-func WithDefaultCache() CrawlerOption {
-	return WithCache(&cache.SQLiteCache{}, false, nil)
 }
 
 func EnableIPv6() CrawlerOption {
