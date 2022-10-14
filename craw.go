@@ -1059,6 +1059,23 @@ func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondit
 	}
 }
 
+// 有时发出的请求不能缓存，可以用此方法关闭特定的 Crawler 实例的缓存。
+//
+// 通常用来关闭`Clone()`实例的缓存。
+func (c *Crawler) UnsetCache() {
+	if c.cache != nil {
+		c.cache = nil
+
+		if c.cacheCondition != nil {
+			c.cacheCondition = nil
+		}
+
+		if c.cacheFields != nil {
+			c.cacheFields = nil
+		}
+	}
+}
+
 func (c Crawler) Lock() {
 	c.lock.Lock()
 }
