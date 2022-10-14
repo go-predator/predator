@@ -10,8 +10,8 @@ package predator
 
 import (
 	"errors"
-	"io/ioutil"
 	"net"
+	"os"
 	"sync"
 
 	ctx "github.com/go-predator/predator/context"
@@ -49,7 +49,7 @@ type Response struct {
 
 // Save writes response body to disk
 func (r *Response) Save(fileName string) error {
-	return ioutil.WriteFile(fileName, r.Body, 0644)
+	return os.WriteFile(fileName, r.Body, 0644)
 }
 
 // Invalidate marks the current response as invalid and skips the html parsing process
@@ -116,7 +116,7 @@ type cachedResponse struct {
 	Headers cachedHeaders
 }
 
-func (r Response) convertHeaders() cachedHeaders {
+func (r *Response) convertHeaders() cachedHeaders {
 	ch := cachedHeaders{}
 	ch.StatusCode = r.StatusCode
 	ch.ContentType = r.Headers.ContentType()
@@ -126,7 +126,7 @@ func (r Response) convertHeaders() cachedHeaders {
 	return ch
 }
 
-func (r Response) Marshal() ([]byte, error) {
+func (r *Response) Marshal() ([]byte, error) {
 	// The cached response does not need to save all the response headers,
 	// so the following code is not used to convert the response headers to bytes
 	// var buf bytes.Buffer
@@ -161,21 +161,21 @@ func (r *Response) Unmarshal(cachedBody []byte) error {
 	return nil
 }
 
-func (r Response) LocalIP() string {
+func (r *Response) LocalIP() string {
 	if r.localIP != nil {
 		return r.localIP.String()
 	}
 	return ""
 }
 
-func (r Response) ClientIP() string {
+func (r *Response) ClientIP() string {
 	if r.clientIP != nil {
 		return r.clientIP.String()
 	}
 	return ""
 }
 
-func (r Response) IsTimeout() bool {
+func (r *Response) IsTimeout() bool {
 	return r.timeout
 }
 

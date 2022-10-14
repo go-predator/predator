@@ -55,9 +55,9 @@ type JSONParser struct {
 // CustomRandomBoundary generates a custom boundary
 type CustomRandomBoundary func() string
 
-type CacheCondition func(r Response) bool
+type CacheCondition func(r *Response) bool
 
-type ProxyInvalidCondition func(r Response) error
+type ProxyInvalidCondition func(r *Response) error
 
 type ComplementProxyPool func() []string
 
@@ -339,7 +339,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 
 		// Cache the response from the request if the statuscode is 20X
-		if c.cache != nil && c.cacheCondition(*response) && key != "" {
+		if c.cache != nil && c.cacheCondition(response) && key != "" {
 			cacheVal, err := response.Marshal()
 			if err != nil {
 				if c.log != nil {
@@ -446,7 +446,7 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 func newFasthttpRequest(request *Request) *fasthttp.Request {
 	req := fasthttp.AcquireRequest()
 
-	req.Header = *request.Headers
+	request.Headers.CopyTo(&req.Header)
 	req.SetURI(request.uri)
 
 	if request.Method() == MethodPost {
@@ -510,7 +510,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	response.Body = append(response.Body, resp.Body()...)
 	response.Ctx = request.Ctx
 	response.Request = request
-	response.Headers = resp.Header
+	resp.Header.CopyTo(&response.Headers)
 	response.clientIP = resp.RemoteAddr()
 	response.localIP = resp.LocalAddr()
 
@@ -526,7 +526,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 
 	if err == nil || err == ErrTimeout || err == fasthttp.ErrDialTimeout {
 		if c.ProxyPoolAmount() > 0 && c.proxyInvalidCondition != nil {
-			e := c.proxyInvalidCondition(*response)
+			e := c.proxyInvalidCondition(response)
 			if e != nil {
 				err = e
 			}
@@ -601,7 +601,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	fasthttp.ReleaseRequest(req)
 
 	if c.retryCount > 0 && atomic.LoadUint32(&request.retryCounter) < c.retryCount {
-		if c.retryCondition != nil && c.retryCondition(*response) {
+		if c.retryCondition != nil && c.retryCondition(response) {
 			c.Warning("the response meets the retry condition and will be retried soon")
 			c.retryPrepare(request, req, resp)
 			return c.do(request)
@@ -1047,7 +1047,7 @@ func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondit
 	}
 	c.cache = cc
 	if cacheCondition == nil {
-		cacheCondition = func(r Response) bool {
+		cacheCondition = func(r *Response) bool {
 			return r.StatusCode/100 == 2
 		}
 	}

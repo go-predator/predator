@@ -94,7 +94,7 @@ func WithConcurrency(count uint64, blockPanic bool) CrawlerOption {
 	}
 }
 
-type RetryCondition func(r Response) bool
+type RetryCondition func(r *Response) bool
 
 // WithRetry 请求失败时重试多少次，什么条件的响应是请求失败
 func WithRetry(count uint32, cond RetryCondition) CrawlerOption {
@@ -142,7 +142,7 @@ func WithCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFi
 		}
 		c.cache = cc
 		if cacheCondition == nil {
-			cacheCondition = func(r Response) bool {
+			cacheCondition = func(r *Response) bool {
 				return r.StatusCode/100 == 2
 			}
 		}

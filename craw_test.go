@@ -48,7 +48,7 @@ func TestNewCrawler(t *testing.T) {
 	})
 	Convey("测试设置重试数量", t, func() {
 		count := 5
-		c := NewCrawler(WithRetry(uint32(count), func(r Response) bool { return true }))
+		c := NewCrawler(WithRetry(uint32(count), func(r *Response) bool { return true }))
 		So(c.retryCount, ShouldEqual, count)
 	})
 
@@ -370,7 +370,7 @@ func TestRetry(t *testing.T) {
 		cookie := map[string]string{"test": "ha"}
 		c := NewCrawler(
 			WithCookies(cookie),
-			WithRetry(5, func(r Response) bool {
+			WithRetry(5, func(r *Response) bool {
 				return r.StatusCode != 200
 			}),
 		)
