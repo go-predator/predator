@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: cache.go
  * @Created:   2021-11-24 20:39:11
- * @Modified:  2022-03-03 11:03:03
+ * @Modified:  2022-10-30 20:01:00
  */
 
 package predator
@@ -35,7 +35,7 @@ type CacheModel struct {
 }
 
 func (CacheModel) TableName() string {
-	return "cache"
+	return "predator-cache"
 }
 
 type cacheFieldType uint8
