@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: craw.go
  * @Created:   2021-07-23 08:52:17
- * @Modified:  2022-05-27 21:18:46
+ * @Modified:  2022-11-05 22:01:41
  */
 
 package predator
@@ -184,7 +184,7 @@ func (c *Crawler) Clone() *Crawler {
 
 /************************* http 请求方法 ****************************/
 
-func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers map[string]string, ctx pctx.Context, isChained bool) error {
+func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, reqHeader *fasthttp.RequestHeader, ctx pctx.Context, isChained bool) error {
 	defer func() {
 		if c.goPool != nil {
 			if err := recover(); err != nil {
@@ -195,11 +195,9 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap, headers ma
 
 	var err error
 
-	reqHeader := AcquireRequestHeader()
 	reqHeader.SetMethod(method)
-	reqHeader.SetUserAgent(c.UserAgent)
-	for k, v := range headers {
-		reqHeader.Set(k, v)
+	if reqHeader.UserAgent() == nil {
+		reqHeader.SetUserAgent(c.UserAgent)
 	}
 
 	if c.cookies != nil {
@@ -645,6 +643,15 @@ func NewRequestHeaders(headers map[string]string) *fasthttp.RequestHeader {
 	return reqHeaders
 }
 
+func setRequestHeaders(headers map[string]string) *fasthttp.RequestHeader {
+	header := AcquireRequestHeader()
+	for k, v := range headers {
+		header.Set(k, v)
+	}
+
+	return header
+}
+
 func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	// Parse the query parameters and create a `cachedMap` based on `cacheFields`
 	u, err := url.Parse(URL)
@@ -673,7 +680,9 @@ func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, i
 		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
-	return c.request(MethodGet, URL, nil, cachedMap, headers, ctx, isChained)
+	reqHeader := setRequestHeaders(headers)
+
+	return c.request(MethodGet, URL, nil, cachedMap, reqHeader, ctx, isChained)
 }
 
 // Get is used to send GET requests
@@ -743,7 +752,9 @@ func (c *Crawler) post(URL string, requestData, headers map[string]string, ctx p
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 	}
 
-	return c.request(MethodPost, URL, createBody(requestData), cachedMap, headers, ctx, isChained)
+	reqHeader := setRequestHeaders(headers)
+
+	return c.request(MethodPost, URL, createBody(requestData), cachedMap, reqHeader, ctx, isChained)
 }
 
 // Post is used to send POST requests
@@ -820,7 +831,9 @@ func (c *Crawler) postJSON(URL string, requestData map[string]any, headers map[s
 	}
 	headers["Content-Type"] = "application/json"
 
-	return c.request(MethodPost, URL, body, cachedMap, headers, ctx, isChained)
+	reqHeader := setRequestHeaders(headers)
+
+	return c.request(MethodPost, URL, body, cachedMap, reqHeader, ctx, isChained)
 }
 
 // PostJSON is used to send POST requests whose content-type is json
@@ -882,7 +895,9 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[str
 	}
 	headers["Content-Type"] = form.FormDataContentType()
 
-	return c.request(MethodPost, URL, form.Bytes(), cachedMap, headers, ctx, isChained)
+	reqHeader := setRequestHeaders(headers)
+
+	return c.request(MethodPost, URL, form.Bytes(), cachedMap, reqHeader, ctx, isChained)
 }
 
 // PostMultipart is used to send POST requests whose content-type is `multipart/form-data`

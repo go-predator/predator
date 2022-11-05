@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: request.go
  * @Created:   2021-07-24 13:29:11
- * @Modified:  2022-04-18 10:35:02
+ * @Modified:  2022-11-05 22:05:51
  */
 
 package predator
@@ -93,6 +93,18 @@ func (r *Request) SetHeaders(headers map[string]string) {
 	}
 }
 
+func (r *Request) SetNewHeaders(headers map[string]string, disableNormalizing bool) {
+	r.Headers.Reset()
+
+	if disableNormalizing {
+		r.Headers.DisableNormalizing()
+	}
+
+	for k, v := range headers {
+		r.Headers.Set(k, v)
+	}
+}
+
 func (r Request) headers() map[string]string {
 	h := make(map[string]string)
 	r.Headers.VisitAll(func(key, value []byte) {
@@ -144,7 +156,7 @@ func (r Request) PostMultipartWithCache(URL string, form *MultipartForm, cacheFi
 }
 
 func (r Request) Request(method, URL string, cachedMap map[string]string, body []byte) error {
-	return r.crawler.request(method, URL, body, cachedMap, r.headers(), r.Ctx, true)
+	return r.crawler.request(method, URL, body, cachedMap, r.Headers, r.Ctx, true)
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
