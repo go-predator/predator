@@ -3,7 +3,7 @@
  * @Email: thepoy@163.com
  * @File Name: response.go
  * @Created: 2021-07-24 13:34:44
- * @Modified:  2022-04-18 14:20:47
+ * @Modified:  2022-11-29 16:14:21
  */
 
 package predator
@@ -109,21 +109,29 @@ type cachedHeaders struct {
 	ContentType   []byte // this is the most important field
 	ContentLength int
 	Server        []byte
+	Location      []byte
 }
 
 type cachedResponse struct {
 	Body    []byte
-	Headers cachedHeaders
+	Headers *cachedHeaders
 }
 
-func (r *Response) convertHeaders() cachedHeaders {
-	ch := cachedHeaders{}
+func (r *Response) convertHeaders() (*cachedHeaders, error) {
+	ch := &cachedHeaders{}
 	ch.StatusCode = r.StatusCode
 	ch.ContentType = r.Headers.ContentType()
 	ch.ContentLength = r.Headers.ContentLength()
 	ch.Server = r.Headers.Server()
 
-	return ch
+	if ch.StatusCode == StatusFound {
+		if ch.Location == nil {
+			return nil, ErrInvalidResponseStatus
+		}
+		ch.Location = r.Headers.Peek("Location")
+	}
+
+	return ch, nil
 }
 
 func (r *Response) Marshal() ([]byte, error) {
@@ -134,9 +142,15 @@ func (r *Response) Marshal() ([]byte, error) {
 	// r.Headers.Write(b)
 	// b.Flush()
 
-	var cr cachedResponse
+	var (
+		cr  cachedResponse
+		err error
+	)
 	cr.Body = r.Body
-	cr.Headers = r.convertHeaders()
+	cr.Headers, err = r.convertHeaders()
+	if err != nil {
+		return nil, err
+	}
 
 	return json.Marshal(cr)
 }
