@@ -3,7 +3,7 @@
  * @Email:     thepoy@163.com
  * @File Name: errors.go
  * @Created:   2021-11-05 12:11:41
- * @Modified:  2022-03-04 10:46:54
+ * @Modified:  2022-11-29 16:14:26
  */
 
 package proxy
@@ -73,7 +73,7 @@ func (pe ProxyErr) Error() string {
 	return s.String()
 }
 
-func IsProxyInvalid(err error) (string, bool) {
+func IsProxyError(err error) (string, bool) {
 	if e, ok := err.(ProxyErr); ok {
 		switch e.Code {
 		case ErrProxyExpiredCode, ErrUnableToConnectCode, ErrInvalidProxyCode:
