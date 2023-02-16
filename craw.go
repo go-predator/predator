@@ -581,6 +581,11 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				if err == fasthttp.ErrConnectionClosed {
 					// Feature error of fasthttp, there is no solution yet, only try again if c.retryCount > 0 or panic
 					c.Error(err)
+
+					if c.retryCount == 0 {
+						c.retryCount = 1
+					}
+
 					if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
 						c.retryPrepare(request, req, resp)
 						return c.do(request)
