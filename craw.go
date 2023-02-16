@@ -472,8 +472,6 @@ func newFasthttpRequest(request *Request) *fasthttp.Request {
 func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	req := newFasthttpRequest(request)
 
-	c.Debug("request header", log.Arg{Key: "header", Value: req.Header.String()})
-
 	if len(c.proxyURLPool) > 0 {
 		rand.Seed(time.Now().UnixMicro())
 
@@ -482,6 +480,9 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 			return c.ProxyDialerWithTimeout(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))], request.timeout)(addr)
 		}
 		c.lock.Unlock()
+		c.Debug("request infomation", log.Arg{Key: "header", Value: req.Header.String()}, log.Arg{Key: "proxy", Value: c.ProxyInUse()})
+	} else {
+		c.Debug("request infomation", log.Arg{Key: "header", Value: req.Header.String()})
 	}
 
 	var err error
