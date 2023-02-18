@@ -1,9 +1,10 @@
-/*
- * @Author: thepoy
- * @Email: thepoy@163.com
- * @File Name: response.go
- * @Created: 2021-07-24 13:34:44
- * @Modified:  2022-11-29 16:14:21
+/**
+ * @Author:      thepoy
+ * @Email:       thepoy@163.com
+ * @File Name:   response.go
+ * @Created At:  2021-07-24 13:34:44
+ * @Modified At: 2023-02-18 22:35:18
+ * @Modified By: thepoy
  */
 
 package predator

@@ -1,9 +1,10 @@
-/*
- * @Author: thepoy
- * @Email: thepoy@163.com
- * @File Name: write.go
- * @Created: 2021-07-24 08:56:16
- * @Modified:  2022-04-18 13:28:52
+/**
+ * @Author:      thepoy
+ * @Email:       thepoy@163.com
+ * @File Name:   write.go
+ * @Created At:  2021-07-24 08:56:16
+ * @Modified At: 2023-02-18 22:28:59
+ * @Modified By: thepoy
  */
 
 package context

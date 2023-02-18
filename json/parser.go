@@ -1,9 +1,10 @@
-/*
- * @Author:    thepoy
- * @Email:     thepoy@163.com
- * @File Name: parser.go
- * @Created:   2021-07-27 20:41:02
- * @Modified:  2022-05-11 09:34:28
+/**
+ * @Author:      thepoy
+ * @Email:       thepoy@163.com
+ * @File Name:   parser.go
+ * @Created At:  2021-07-27 20:41:02
+ * @Modified At: 2023-02-18 22:30:43
+ * @Modified By: thepoy
  */
 
 package json

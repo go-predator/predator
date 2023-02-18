@@ -1,9 +1,10 @@
-/*
- * @Author: thepoy
- * @Email: thepoy@163.com
- * @File Name: async_test.go
- * @Created: 2021-07-31 13:14:09
- * @Modified:  2021-11-17 11:38:16
+/**
+ * @Author:      thepoy
+ * @Email:       thepoy@163.com
+ * @File Name:   async_test.go
+ * @Created At:  2021-07-31 13:14:09
+ * @Modified At: 2023-02-18 22:35:14
+ * @Modified By: thepoy
  */
 
 package predator

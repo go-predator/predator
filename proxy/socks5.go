@@ -1,9 +1,10 @@
-/*
- * @Author:    thepoy
- * @Email:     thepoy@163.com
- * @File Name: socks5.go
- * @Created:   2021-07-23 09:22:36
- * @Modified:  2022-03-04 10:45:38
+/**
+ * @Author:      thepoy
+ * @Email:       thepoy@163.com
+ * @File Name:   socks5.go
+ * @Created At:  2021-07-23 09:22:36
+ * @Modified At: 2023-02-18 22:32:01
+ * @Modified By: thepoy
  */
 
 package proxy

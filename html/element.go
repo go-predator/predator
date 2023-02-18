@@ -1,9 +1,10 @@
-/*
- * @Author:    thepoy
- * @Email:     thepoy@163.com
- * @File Name: element.go
- * @Created:   2021-07-27 20:35:31
- * @Modified:  2022-05-26 20:23:43
+/**
+ * @Author:      thepoy
+ * @Email:       thepoy@163.com
+ * @File Name:   element.go
+ * @Created At:  2021-07-27 20:35:31
+ * @Modified At: 2023-02-18 22:29:23
+ * @Modified By: thepoy
  */
 
 package html
