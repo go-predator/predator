@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-02-18 22:34:56
+ * @Modified At: 2023-02-19 14:42:50
  * @Modified By: thepoy
  */
 
@@ -29,13 +29,9 @@ import (
 )
 
 type Request struct {
-	uri *fasthttp.URI
-	// 请求头
-	Headers *fasthttp.RequestHeader
+	req *http.Request
 	// 请求和响应之间共享的上下文
 	Ctx pctx.Context
-	// 请求体
-	Body []byte
 	// 待缓存的键值对
 	cachedMap map[string]string
 	// 唯一标识
@@ -46,11 +42,9 @@ type Request struct {
 	crawler *Crawler
 	// 重试计数器
 	retryCounter uint32
-	// 允许重定向的次数，默认等于 0，不允许重定向。
-	// 大于 0 时，允许最多重定向对应的次数。
-	// 重定向次数会影响爬虫效率。
-	maxRedirectsCount uint
-	timeout           time.Duration
+	// 允许重定向
+	checkRedirect func(req *http.Request, via []*http.Request) error
+	timeout       time.Duration
 }
 
 func (r Request) IsCached() (bool, error) {
@@ -72,12 +66,17 @@ func (r *Request) Abort() {
 }
 
 func (r *Request) SetContentType(contentType string) {
-	r.Headers.Set("Content-Type", contentType)
+	r.req.Header.Set("Content-Type", contentType)
 }
 
-// AllowRedirect allows up to `maxRedirectsCount` times to be redirected.
-func (r *Request) AllowRedirect(maxRedirectsCount uint) {
-	r.maxRedirectsCount = maxRedirectsCount
+func (r *Request) FollowRedirect(yes bool) {
+	if yes {
+		r.checkRedirect = nil
+	} else {
+		r.checkRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
 }
 
 // SetTimeout sets the waiting time for each request before
@@ -90,36 +89,30 @@ func (r *Request) SetTimeout(t time.Duration) {
 
 func (r *Request) SetHeaders(headers map[string]string) {
 	for k, v := range headers {
-		r.Headers.Set(k, v)
+		r.req.Header.Set(k, v)
 	}
 }
 
-func (r *Request) SetNewHeaders(headers map[string]string, disableNormalizing bool) {
-	r.Headers.Reset()
-
-	if disableNormalizing {
-		r.Headers.DisableNormalizing()
-	}
-
-	for k, v := range headers {
-		r.Headers.Set(k, v)
-	}
+func (r *Request) SetNewHeaders(headers http.Header) {
+	r.req.Header = headers
 }
 
 func (r Request) headers() map[string]string {
 	h := make(map[string]string)
-	r.Headers.VisitAll(func(key, value []byte) {
-		h[string(key)] = string(value)
-	})
+
+	for k, v := range r.req.Header {
+		h[k] = strings.Join(v, ", ")
+	}
+
 	return h
 }
 
 func (r Request) URL() string {
-	return r.uri.String()
+	return r.req.URL.String()
 }
 
 func (r Request) Method() string {
-	return string(r.Headers.Method())
+	return r.req.Method
 }
 
 func (r Request) NumberOfRetries() uint32 {
@@ -168,18 +161,13 @@ func (r Request) AbsoluteURL(src string) string {
 		return ""
 	}
 
-	u, err := url.Parse(r.URL())
-	if err != nil {
-		return ""
-	}
-
-	absoluteURL, err := u.Parse(src)
+	absoluteURL, err := r.req.URL.Parse(src)
 	if err != nil {
 		return ""
 	}
 	absoluteURL.Fragment = ""
 	if absoluteURL.Scheme == "//" {
-		absoluteURL.Scheme = u.Scheme
+		absoluteURL.Scheme = r.req.URL.Scheme
 	}
 	return absoluteURL.String()
 }
@@ -228,7 +216,7 @@ func (r Request) marshal() ([]byte, error) {
 	if r.cachedMap != nil {
 		cr.CacheKey = marshalCachedMap(r.cachedMap)
 	} else {
-		cr.CacheKey = r.Body
+		cr.CacheKey = r.req.Body
 	}
 
 	if r.Method() == MethodGet {
