@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-02-18 22:35:11
+ * @Modified At: 2023-02-25 23:30:49
  * @Modified By: thepoy
  */
 
@@ -13,8 +13,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -70,9 +72,13 @@ type Crawler struct {
 	retryCount uint32
 	// Retry condition, the crawler will retry only
 	// if it returns true
-	retryCondition        RetryCondition
-	client                *fasthttp.Client
-	cookies               map[string]string
+	retryCondition RetryCondition
+	client         *http.Client
+
+	//  Priority: rawCookies > cookies
+	rawCookies string
+	cookies    map[string]string
+
 	goPool                *Pool
 	proxyURLPool          []string
 	proxyInvalidCondition ProxyInvalidCondition
@@ -111,7 +117,9 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	c.UserAgent = "Predator"
 
-	c.client = new(fasthttp.Client)
+	c.client = &http.Client{
+		Transport: http.DefaultTransport,
+	}
 
 	for _, op := range opts {
 		op(c)
@@ -167,7 +175,7 @@ func (c *Crawler) Clone() *Crawler {
 		retryCount:      c.retryCount,
 		retryCondition:  c.retryCondition,
 		client:          c.client,
-		cookies:         c.cookies,
+		rawCookies:      c.rawCookies,
 		goPool:          pool,
 		proxyURLPool:    c.proxyURLPool,
 		Context:         c.Context,
@@ -185,7 +193,7 @@ func (c *Crawler) Clone() *Crawler {
 
 /************************* http 请求方法 ****************************/
 
-func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, reqHeader *fasthttp.RequestHeader, ctx pctx.Context, isChained bool) error {
+func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, reqHeader http.Header, ctx pctx.Context, isChained bool) error {
 	defer func() {
 		if c.goPool != nil {
 			if err := recover(); err != nil {
@@ -196,17 +204,37 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 
 	var err error
 
-	reqHeader.SetMethod(method)
-	if reqHeader.UserAgent() == nil {
-		reqHeader.SetUserAgent(c.UserAgent)
+	u := AcquireURL()
+	err = u.UnmarshalBinary([]byte(URL))
+	if err != nil {
+		return err
 	}
 
-	if c.cookies != nil {
-		for k, v := range c.cookies {
-			reqHeader.SetCookie(k, v)
-		}
+	request := AcquireRequest()
+
+	if reqHeader == nil {
+		reqHeader = acquireHeader()
+	}
+
+	if reqHeader.Get("User-Agent") == "" {
+		reqHeader.Set("User-Agent", c.UserAgent)
+	}
+
+	request.req.Header = reqHeader
+	request.req.URL = u
+	request.req.Method = method
+
+	request.Ctx = ctx
+	request.body = body
+	request.cachedMap = cachedMap
+	request.ID = atomic.AddUint32(&c.requestCount, 1)
+	request.crawler = c
+
+	if c.rawCookies != "" {
+		request.ParseRawCookie(c.rawCookies)
+		request.req.Header.Set("Cookie", c.rawCookies)
 		if c.log != nil {
-			c.Debug("cookies is set", log.Arg{Key: "cookies", Value: reqHeader.Peek("Cookie")})
+			c.Debug("cookies is set", log.Arg{Key: "cookies", Value: c.rawCookies})
 		}
 	}
 
@@ -219,25 +247,6 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 			return err
 		}
 	}
-
-	u, err := url.Parse(URL)
-	if err != nil {
-		return err
-	}
-	// Convert non-ascii characters in query parameters to ascii characters
-	u.RawQuery = u.Query().Encode()
-
-	uri := fasthttp.AcquireURI()
-	uri.Parse([]byte(u.Host), []byte(u.String()))
-
-	request := AcquireRequest()
-	request.Headers = reqHeader
-	request.Ctx = ctx
-	request.Body = body
-	request.cachedMap = cachedMap
-	request.ID = atomic.AddUint32(&c.requestCount, 1)
-	request.crawler = c
-	request.uri = uri
 
 	if c.goPool != nil {
 		c.wg.Add(1)
@@ -328,7 +337,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 	}
 
-	var rawResp *fasthttp.Response
+	var rawResp *http.Response
 	// A new request is issued when there
 	// is no response from the cache
 	if response == nil {
@@ -365,13 +374,13 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 	}
 
 	if response.StatusCode == fasthttp.StatusFound {
-		location := response.Headers.Peek("location")
+		location := response.resp.Header.Get("Location")
 
 		if c.log != nil {
 			c.log.Info("response",
 				log.Arg{Key: "method", Value: request.Method()},
 				log.Arg{Key: "status_code", Value: response.StatusCode},
-				log.Arg{Key: "location", Value: string(location)},
+				log.Arg{Key: "location", Value: location},
 				log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
 			)
 		}
@@ -379,7 +388,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		if c.log != nil {
 			l := c.log.L.Info().
 				Str("method", request.Method()).
-				Int("status_code", response.StatusCode)
+				Int("status_code", int(response.StatusCode))
 
 			if !response.FromCache {
 				if c.ProxyPoolAmount() > 0 {
@@ -409,7 +418,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 	ReleaseResponse(response, !isChained)
 	if rawResp != nil {
 		// 原始响应应该在自定义响应之后释放，不然一些字段的值会出错
-		fasthttp.ReleaseResponse(rawResp)
+		releaseResponse(rawResp)
 	}
 
 	return
@@ -442,77 +451,58 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 	return resp, nil
 }
 
-func newFasthttpRequest(request *Request) *fasthttp.Request {
-	req := fasthttp.AcquireRequest()
-
-	request.Headers.CopyTo(&req.Header)
-	req.SetURI(request.uri)
-
-	if request.Method() == MethodPost {
-		req.SetBody(request.Body)
-	}
-
-	if request.Method() == MethodPost && req.Header.ContentType() == nil {
-		req.Header.SetContentType("application/x-www-form-urlencoded")
-	}
-
-	if req.Header.Peek("Accept") == nil {
-		req.Header.Set("Accept", "*/*")
-	}
-
-	uri := req.URI()
-	if len(req.Header.Host()) == 0 {
-		host := uri.Host()
-		req.Header.SetHostBytes(host)
-	}
-	req.Header.SetRequestURIBytes(uri.RequestURI())
-
-	return req
-}
-
-func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
-	req := newFasthttpRequest(request)
+func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
+	c.client.Timeout = request.timeout
+	c.client.CheckRedirect = request.checkRedirect
 
 	if len(c.proxyURLPool) > 0 {
 		rand.Seed(time.Now().UnixMicro())
 
 		c.lock.Lock()
-		c.client.Dial = func(addr string) (net.Conn, error) {
-			return c.ProxyDialerWithTimeout(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))], request.timeout)(addr)
+		c.client.Transport = &http.Transport{
+			Proxy: proxy.Proxy(request.req, c.proxyURLPool[rand.Intn(len(c.proxyURLPool))]),
 		}
 		c.lock.Unlock()
-		c.Debug("request infomation", log.Arg{Key: "header", Value: req.Header.String()}, log.Arg{Key: "proxy", Value: c.ProxyInUse()})
+		c.Debug("request infomation", log.Arg{Key: "header", Value: request.Header()}, log.Arg{Key: "proxy", Value: c.ProxyInUse()})
 	} else {
-		c.Debug("request infomation", log.Arg{Key: "header", Value: req.Header.String()})
+		c.Debug("request infomation", log.Arg{Key: "header", Value: request.Header()})
 	}
 
 	var err error
 
-	resp := fasthttp.AcquireResponse()
-
-	if request.maxRedirectsCount == 0 {
-		if c.ProxyPoolAmount() > 0 {
-			req.SetConnectionClose()
+	c.client.Transport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		d := &net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
 		}
+		conn, err := d.DialContext(ctx, network, addr)
 
-		if request.timeout > 0 {
-			err = c.client.DoTimeout(req, resp, request.timeout)
-		} else {
-			err = c.client.Do(req, resp)
-		}
-	} else {
-		err = c.client.DoRedirects(req, resp, int(request.maxRedirectsCount))
+		request.req.RemoteAddr = conn.RemoteAddr().String()
+
+		return conn, err
 	}
-	req.Header.CopyTo(request.Headers)
+
+	resp := acquireResponse()
+	resp, err = c.client.Do(request.req)
+	if err != nil {
+		c.Error(err)
+		return nil, nil, err
+	}
+
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.Error(err)
+		return nil, nil, err
+	}
 
 	response := AcquireResponse()
-	response.StatusCode = resp.StatusCode()
-	response.Body = append(response.Body, resp.Body()...)
+	response.StatusCode = StatusCode(resp.StatusCode)
+	response.Body = append(response.Body, body...)
 	response.Ctx = request.Ctx
 	response.Request = request
-	resp.Header.CopyTo(&response.Headers)
-	response.clientIP = resp.RemoteAddr()
-	response.localIP = resp.LocalAddr()
+	response.clientIP = request.req.RemoteAddr
 
 	if response.StatusCode == fasthttp.StatusOK && len(response.Body) == 0 {
 		// fasthttp.Response 会将空响应的状态码设置为 200，这不合理
@@ -534,6 +524,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	}
 
 	if err != nil {
+		errors.Unwrap(err)
 		if p, ok := proxy.IsProxyError(err); ok {
 			c.Warning("proxy is invalid",
 				log.Arg{Key: "proxy", Value: p},
@@ -551,8 +542,8 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				log.Arg{Key: "new_proxy_pool", Value: c.proxyURLPool},
 			)
 
-			fasthttp.ReleaseRequest(req)
-			fasthttp.ReleaseResponse(resp)
+			ReleaseRequest(request)
+			releaseResponse(resp)
 
 			return c.do(request)
 		} else {
@@ -570,11 +561,11 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 				c.Error(err, log.Arg{Key: "timeout", Value: request.timeout.String()}, log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)})
 
 				if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
-					c.retryPrepare(request, req, resp)
+					c.retryPrepare(request, response)
 					return c.do(request)
 				}
-				fasthttp.ReleaseRequest(req)
-				fasthttp.ReleaseResponse(resp)
+				ReleaseRequest(request)
+				releaseResponse(resp)
 				ReleaseResponse(response, true)
 
 				return nil, nil, ErrTimeout
@@ -588,7 +579,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 					}
 
 					if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
-						c.retryPrepare(request, req, resp)
+						c.retryPrepare(request, response)
 						return c.do(request)
 					}
 				}
@@ -598,17 +589,17 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 		}
 	}
 
-	c.Debug("response header", log.Arg{Key: "header", Value: resp.Header.String()})
+	c.Debug("response header", log.Arg{Key: "header", Value: resp.Header})
 
 	// Only count successful responses
 	atomic.AddUint32(&c.responseCount, 1)
 	// release req
-	fasthttp.ReleaseRequest(req)
+	ReleaseRequest(request)
 
 	if c.retryCount > 0 && atomic.LoadUint32(&request.retryCounter) < c.retryCount {
 		if c.retryCondition != nil && c.retryCondition(response) {
 			c.Warning("the response meets the retry condition and will be retried soon")
-			c.retryPrepare(request, req, resp)
+			c.retryPrepare(request, response)
 			return c.do(request)
 		}
 	}
@@ -616,7 +607,7 @@ func (c *Crawler) do(request *Request) (*Response, *fasthttp.Response, error) {
 	return response, resp, nil
 }
 
-func (c *Crawler) retryPrepare(request *Request, req *fasthttp.Request, resp *fasthttp.Response) {
+func (c *Crawler) retryPrepare(request *Request, resp *Response) {
 	atomic.AddUint32(&request.retryCounter, 1)
 	c.Info(
 		"retrying",
@@ -625,8 +616,8 @@ func (c *Crawler) retryPrepare(request *Request, req *fasthttp.Request, resp *fa
 		log.Arg{Key: "url", Value: request.URL()},
 		log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
 	)
-	fasthttp.ReleaseRequest(req)
-	fasthttp.ReleaseResponse(resp)
+	ReleaseRequest(request)
+	ReleaseResponse(resp, false)
 }
 
 func createBody(requestData map[string]string) []byte {
@@ -650,16 +641,7 @@ func NewRequestHeaders(headers map[string]string) *fasthttp.RequestHeader {
 	return reqHeaders
 }
 
-func setRequestHeaders(headers map[string]string) *fasthttp.RequestHeader {
-	header := AcquireRequestHeader()
-	for k, v := range headers {
-		header.Set(k, v)
-	}
-
-	return header
-}
-
-func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) get(URL string, header http.Header, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	// Parse the query parameters and create a `cachedMap` based on `cacheFields`
 	u, err := url.Parse(URL)
 	if err != nil {
@@ -687,9 +669,7 @@ func (c *Crawler) get(URL string, headers map[string]string, ctx pctx.Context, i
 		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
-	reqHeader := setRequestHeaders(headers)
-
-	return c.request(MethodGet, URL, nil, cachedMap, reqHeader, ctx, isChained)
+	return c.request(MethodGet, URL, nil, cachedMap, header, ctx, isChained)
 }
 
 // Get is used to send GET requests
@@ -702,7 +682,7 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 	return c.get(URL, nil, ctx, false, c.cacheFields...)
 }
 
-func (c *Crawler) post(URL string, requestData, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) post(URL string, requestData map[string]string, header http.Header, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
@@ -751,17 +731,15 @@ func (c *Crawler) post(URL string, requestData, headers map[string]string, ctx p
 		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
-	if len(headers) == 0 {
-		headers = make(map[string]string)
+	if len(header) == 0 {
+		header = acquireHeader()
 	}
-	if _, ok := headers["Content-Type"]; !ok {
+	if _, ok := header["Content-Type"]; !ok {
 		// use default `Content-Type`
-		headers["Content-Type"] = "application/x-www-form-urlencoded"
+		header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	reqHeader := setRequestHeaders(headers)
-
-	return c.request(MethodPost, URL, createBody(requestData), cachedMap, reqHeader, ctx, isChained)
+	return c.request(MethodPost, URL, createBody(requestData), cachedMap, header, ctx, isChained)
 }
 
 // Post is used to send POST requests
@@ -780,7 +758,7 @@ func (c *Crawler) createJSONBody(requestData map[string]any) []byte {
 	return body
 }
 
-func (c *Crawler) postJSON(URL string, requestData map[string]any, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) postJSON(URL string, requestData map[string]any, header http.Header, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	body := c.createJSONBody(requestData)
 
 	var cachedMap map[string]string
@@ -833,14 +811,12 @@ func (c *Crawler) postJSON(URL string, requestData map[string]any, headers map[s
 		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
-	if len(headers) == 0 {
-		headers = make(map[string]string)
+	if len(header) == 0 {
+		header = acquireHeader()
 	}
-	headers["Content-Type"] = "application/json"
+	header.Set("Content-Type", "application/json")
 
-	reqHeader := setRequestHeaders(headers)
-
-	return c.request(MethodPost, URL, body, cachedMap, reqHeader, ctx, isChained)
+	return c.request(MethodPost, URL, body, cachedMap, header, ctx, isChained)
 }
 
 // PostJSON is used to send POST requests whose content-type is json
@@ -848,7 +824,7 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]any, ctx pctx.Cont
 	return c.postJSON(URL, requestData, nil, ctx, false, c.cacheFields...)
 }
 
-func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[string]string, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) postMultipart(URL string, mfw *MultipartFormWriter, header http.Header, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
@@ -874,11 +850,11 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[str
 
 				key, value, err = addQueryParamCacheField(queryParams, field)
 			case requestBodyParam:
-				if val, ok := form.bodyMap[field.Field]; ok {
+				if val, ok := mfw.cachedMap[field.Field]; ok {
 					key, value = field.String(), val
 				} else {
-					var keys = make([]string, 0, len(form.bodyMap))
-					for k := range form.bodyMap {
+					var keys = make([]string, 0, len(mfw.cachedMap))
+					for k := range mfw.cachedMap {
 						keys = append(keys, k)
 					}
 					err = fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys)
@@ -897,19 +873,20 @@ func (c *Crawler) postMultipart(URL string, form *MultipartForm, headers map[str
 		c.Debug("use some specified cache fields", log.Arg{Key: "cached_map", Value: cachedMap})
 	}
 
-	if len(headers) == 0 {
-		headers = make(map[string]string)
+	if len(header) == 0 {
+		header = make(http.Header)
 	}
-	headers["Content-Type"] = form.FormDataContentType()
 
-	reqHeader := setRequestHeaders(headers)
+	contentType, buf := NewMultipartForm(mfw)
 
-	return c.request(MethodPost, URL, form.Bytes(), cachedMap, reqHeader, ctx, isChained)
+	header.Set("Content-Type", contentType)
+
+	return c.request(MethodPost, URL, buf.Bytes(), cachedMap, header, ctx, isChained)
 }
 
 // PostMultipart is used to send POST requests whose content-type is `multipart/form-data`
-func (c *Crawler) PostMultipart(URL string, form *MultipartForm, ctx pctx.Context) error {
-	return c.postMultipart(URL, form, nil, ctx, false, c.cacheFields...)
+func (c *Crawler) PostMultipart(URL string, mfw *MultipartFormWriter, ctx pctx.Context) error {
+	return c.postMultipart(URL, mfw, nil, ctx, false, c.cacheFields...)
 }
 
 // PostRaw is used to send POST requests whose content-type is not in [json, `application/x-www-form-urlencoded`, `multipart/form-data`]
@@ -1034,7 +1011,7 @@ func (c *Crawler) AddProxy(newProxy string) {
 func (c *Crawler) AddCookie(key, val string) {
 	c.lock.Lock()
 
-	c.cookies[key] = val
+	c.rawCookies += fmt.Sprintf("; %s=%s", key, val)
 
 	c.lock.Unlock()
 }
@@ -1204,10 +1181,7 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 	defer c.lock.Unlock()
 
 	if c.ProxyPoolAmount() == 0 {
-		return proxy.ProxyErr{
-			Code: proxy.ErrEmptyProxyPoolCode,
-			Msg:  "the current proxy pool is empty",
-		}
+		return ErrEmptyProxyPool
 	}
 
 	if c.ProxyPoolAmount() == 1 && c.complementProxyPool != nil {
@@ -1242,10 +1216,7 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 		}
 
 		if len(c.proxyURLPool) == 0 {
-			return proxy.ProxyErr{
-				Code: proxy.ErrEmptyProxyPoolCode,
-				Msg:  "the current proxy pool is empty after removing a invalid proxy",
-			}
+			return ErrEmptyProxyPool
 		}
 	} else {
 		// 并发时可能也会存在找不到失效的代理的情况，这时不能返回 error
@@ -1254,13 +1225,7 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 		}
 
 		// 没有在代理池中找到失效代理，这个代理来路不明，一样报错
-		return &proxy.ProxyErr{
-			Code: proxy.ErrUnkownProxyIPCode,
-			Msg:  "proxy address is unkown",
-			Args: map[string]string{
-				"unkown_proxy_addr": proxyAddr,
-			},
-		}
+		return fmt.Errorf("%w: %s", proxy.ErrUnkownProxyIP, proxyAddr)
 	}
 
 	return nil
@@ -1284,13 +1249,13 @@ func (c *Crawler) Warning(msg string, args ...log.Arg) {
 	}
 }
 
-func (c *Crawler) Error(err error, args ...log.Arg) {
+func (c *Crawler) Error(err any, args ...log.Arg) {
 	if c.log != nil {
 		c.log.Error(err, args...)
 	}
 }
 
-func (c *Crawler) Fatal(err error, args ...log.Arg) {
+func (c *Crawler) Fatal(err any, args ...log.Arg) {
 	if c.log != nil {
 		c.log.Fatal(err, args...)
 	}

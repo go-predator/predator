@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   pool.go
  * @Created At:  2021-07-29 22:30:37
- * @Modified At: 2023-02-18 22:35:02
+ * @Modified At: 2023-02-25 21:16:48
  * @Modified By: thepoy
  */
 
@@ -147,7 +147,6 @@ func (p *Pool) run() {
 			task.crawler.prepare(task.req, task.isChained)
 		}
 	}()
-
 }
 
 func (p *Pool) setStatus(status int64) bool {

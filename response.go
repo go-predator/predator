@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   response.go
  * @Created At:  2021-07-24 13:34:44
- * @Modified At: 2023-02-18 22:35:18
+ * @Modified At: 2023-02-21 21:14:42
  * @Modified By: thepoy
  */
 
@@ -11,8 +11,9 @@ package predator
 
 import (
 	"errors"
-	"net"
+	"net/http"
 	"os"
+	"strconv"
 	"sync"
 
 	ctx "github.com/go-predator/predator/context"
@@ -26,23 +27,20 @@ var (
 )
 
 type Response struct {
+	resp *http.Response
 	// 响应状态码
-	StatusCode int
+	StatusCode StatusCode
 	// 二进制请求体
 	Body []byte
 	// 请求和响应之间共享的上下文
 	Ctx ctx.Context `json:"-"`
 	// 响应对应的请求
 	Request *Request `json:"-"`
-	// 响应头
-	Headers fasthttp.ResponseHeader
 	// 是否从缓存中取得的响应
 	FromCache bool
-	// 客户端公网 ip
-	clientIP net.Addr
-	// 本地局域网 ip
-	localIP net.Addr
-	timeout bool
+	// 服务器公网 ip
+	clientIP string
+	timeout  bool
 	// Whether the response is valid,
 	// html for invalid responses will not be parsed
 	invalid bool
@@ -59,11 +57,11 @@ func (r *Response) Invalidate() {
 }
 
 func (r *Response) GetSetCookie() string {
-	return string(r.Headers.Peek("Set-Cookie"))
+	return r.resp.Header.Get("Set-Cookie")
 }
 
 func (r *Response) ContentType() string {
-	return string(r.Headers.Peek("Content-Type"))
+	return r.resp.Header.Get("Content-Type")
 }
 
 // BodyGunzip returns un-gzipped body data.
@@ -98,17 +96,17 @@ func (r *Response) Reset(releaseCtx bool) {
 	}
 
 	ReleaseRequest(r.Request)
-	r.Headers.Reset()
+	releaseHeader(r.resp.Header)
+
 	r.FromCache = false
 	r.invalid = false
-	r.localIP = nil
-	r.clientIP = nil
+	r.clientIP = ""
 }
 
 type cachedHeaders struct {
-	StatusCode    int
-	ContentType   []byte // this is the most important field
-	ContentLength int
+	StatusCode    StatusCode
+	ContentType   string // this is the most important field
+	ContentLength int64
 	Server        []byte
 	Location      []byte
 }
@@ -121,15 +119,15 @@ type cachedResponse struct {
 func (r *Response) convertHeaders() (*cachedHeaders, error) {
 	ch := &cachedHeaders{}
 	ch.StatusCode = r.StatusCode
-	ch.ContentType = r.Headers.ContentType()
-	ch.ContentLength = r.Headers.ContentLength()
-	ch.Server = r.Headers.Server()
+	ch.ContentType = r.ContentType()
+	ch.ContentLength = r.resp.ContentLength
+	ch.Server = []byte(r.ClientIP())
 
 	if ch.StatusCode == StatusFound {
 		if ch.Location == nil {
 			return nil, ErrInvalidResponseStatus
 		}
-		ch.Location = r.Headers.Peek("Location")
+		ch.Location = []byte(r.resp.Header.Get("Location"))
 	}
 
 	return ch, nil
@@ -168,26 +166,15 @@ func (r *Response) Unmarshal(cachedBody []byte) error {
 
 	r.Body = cr.Body
 	r.StatusCode = cr.Headers.StatusCode
-	r.Headers.SetStatusCode(r.StatusCode)
-	r.Headers.SetContentTypeBytes(cr.Headers.ContentType)
-	r.Headers.SetContentLength(cr.Headers.ContentLength)
-	r.Headers.SetServerBytes(cr.Headers.Server)
+	r.clientIP = string(cr.Headers.Server)
+	r.resp.Header.Set("Content-Type", cr.Headers.ContentType)
+	r.resp.Header.Set("Content-Length", strconv.FormatInt(cr.Headers.ContentLength, 10))
 
 	return nil
 }
 
-func (r *Response) LocalIP() string {
-	if r.localIP != nil {
-		return r.localIP.String()
-	}
-	return ""
-}
-
 func (r *Response) ClientIP() string {
-	if r.clientIP != nil {
-		return r.clientIP.String()
-	}
-	return ""
+	return r.clientIP
 }
 
 func (r *Response) IsTimeout() bool {
@@ -195,7 +182,19 @@ func (r *Response) IsTimeout() bool {
 }
 
 var (
-	responsePool sync.Pool
+	rawResponsePool = &sync.Pool{
+		New: func() any {
+			return new(http.Response)
+		},
+	}
+	responsePool = &sync.Pool{
+		New: func() any {
+			resp := new(Response)
+			resp.resp = acquireResponse()
+
+			return resp
+		},
+	}
 )
 
 // AcquireResponse returns an empty Response instance from response pool.
@@ -204,11 +203,7 @@ var (
 // no longer needed. This allows Response recycling, reduces GC pressure
 // and usually improves performance.
 func AcquireResponse() *Response {
-	v := responsePool.Get()
-	if v == nil {
-		return &Response{}
-	}
-	return v.(*Response)
+	return responsePool.Get().(*Response)
 }
 
 // ReleaseResponse returns resp acquired via AcquireResponse to response pool.
@@ -218,4 +213,39 @@ func AcquireResponse() *Response {
 func ReleaseResponse(resp *Response, releaseCtx bool) {
 	resp.Reset(releaseCtx)
 	responsePool.Put(resp)
+}
+
+func acquireResponse() *http.Response {
+	return rawResponsePool.Get().(*http.Response)
+}
+
+func resetResponse(resp *http.Response) {
+	resp.Status = ""
+	resp.StatusCode = 0
+	resp.Proto = ""
+	resp.ProtoMajor = 0
+	resp.ProtoMinor = 0
+
+	ResetMap(resp.Header)
+
+	resp.Body = nil
+	resp.ContentLength = 0
+
+	if resp.TransferEncoding != nil {
+		resp.TransferEncoding = resp.TransferEncoding[:0]
+	}
+
+	resp.Close = false
+	resp.Uncompressed = false
+
+	ResetMap(resp.Trailer)
+
+	releaseRequest(resp.Request)
+
+	resp.TLS = nil
+}
+
+func releaseResponse(resp *http.Response) {
+	resetResponse(resp)
+	rawResponsePool.Put(resp)
 }

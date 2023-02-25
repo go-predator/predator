@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-02-18 22:35:10
+ * @Modified At: 2023-02-25 20:49:32
  * @Modified By: thepoy
  */
 
@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,6 @@ import (
 
 	"github.com/go-predator/log"
 	"github.com/go-predator/predator/html"
-	"github.com/go-predator/predator/proxy"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tidwall/gjson"
@@ -40,7 +40,7 @@ func TestNewCrawler(t *testing.T) {
 	Convey("测试设置 cookies", t, func() {
 		cookie := map[string]string{"foo": "bar"}
 		c := NewCrawler(WithCookies(cookie))
-		So(c.cookies, ShouldEqual, cookie)
+		So(c.rawCookies, ShouldEqual, cookie)
 	})
 	Convey("测试设置指定并发数量", t, func() {
 		count := 10
@@ -203,7 +203,7 @@ func TestRequest(t *testing.T) {
 			v := r.Ctx.GetAny("k").(int)
 			So(v, ShouldEqual, 2)
 			So(string(r.Body), ShouldEqual, requestData["name"])
-			So(string(r.Headers.Peek("Content-Type")), ShouldEqual, "text/html")
+			So(r.resp.Header.Get("Content-Type"), ShouldEqual, "text/html")
 
 		})
 
@@ -216,27 +216,24 @@ func TestRequest(t *testing.T) {
 			WithCookies(map[string]string{
 				"PHPSESSID": "7ijqglcno1cljiqs76t2vo5oh2",
 			}))
-		form := NewMultipartForm(
-			"-------------------",
-			randomBoundary,
-		)
+
+		mfw := NewMultipartFormWriter()
 
 		var err error
 
-		form.AppendString("type", "file")
-		form.AppendString("action", "upload")
-		form.AppendString("timestamp", "1627871450610")
-		form.AppendString("auth_token", "f43cdc8a537eff5169dfddb946c2365d1f897b0c")
-		form.AppendString("nsfw", "0")
-		err = form.AppendFile("source", "/Users/thepoy/Pictures/Nginx.png")
-		So(err, ShouldBeNil)
+		mfw.AppendString("type", "file")
+		mfw.AppendString("action", "upload")
+		mfw.AppendString("timestamp", "1627871450610")
+		mfw.AppendString("auth_token", "f43cdc8a537eff5169dfddb946c2365d1f897b0c")
+		mfw.AppendString("nsfw", "0")
+		mfw.AppendFile("source", "/Users/thepoy/Pictures/Nginx.png")
 
 		c.AfterResponse(func(r *Response) {
 			status := gjson.ParseBytes(r.Body).Get("status_code").Int()
 			So(status, ShouldEqual, fasthttp.StatusOK)
 		})
 
-		err = c.PostMultipart("https://imgtu.com/json", form, nil)
+		err = c.PostMultipart("https://imgtu.com/json", mfw, nil)
 		So(err, ShouldBeNil)
 	})
 
@@ -267,7 +264,7 @@ func TestHTTPProxy(t *testing.T) {
 	Convey("测试代理池为空时 panic", t, func() {
 		defer func() {
 			if err := recover(); err != nil {
-				So(err.(proxy.ProxyErr).Code, ShouldEqual, proxy.ErrEmptyProxyPoolCode)
+				ShouldBeTrue(errors.Is(err.(error), ErrEmptyProxyPool))
 			}
 		}()
 		ips := []string{
@@ -394,7 +391,7 @@ func TestCookies(t *testing.T) {
 
 		c.AfterResponse(func(r *Response) {
 			So(r.StatusCode, ShouldEqual, 200)
-			So(string(r.Headers.Peek("Set-Cookie")), ShouldEqual, "test=testv")
+			So(r.resp.Header.Get("Set-Cookie"), ShouldEqual, "test=testv")
 		})
 
 		c.Get(ts.URL + "/set_cookie")
@@ -724,7 +721,7 @@ func TestRedirect(t *testing.T) {
 	ts := server()
 	defer ts.Close()
 
-	Convey("测试默认情况", t, func() {
+	Convey("测试允许重定向（默认）", t, func() {
 		c := NewCrawler()
 
 		c.AfterResponse(func(r *Response) {
@@ -734,11 +731,11 @@ func TestRedirect(t *testing.T) {
 		c.Get(ts.URL + "/redirect")
 	})
 
-	Convey("测试设置重定向次数的情况", t, func() {
+	Convey("测试禁止重定向", t, func() {
 		c := NewCrawler()
 
 		c.BeforeRequest(func(r *Request) {
-			r.AllowRedirect(1)
+			r.FollowRedirect(false)
 		})
 
 		c.AfterResponse(func(r *Response) {
@@ -754,7 +751,7 @@ func getRawCookie(c *Crawler, ts *httptest.Server) string {
 
 	c.AfterResponse(func(r *Response) {
 		if r.StatusCode == 301 {
-			rawCookie = string(r.Headers.Peek("Set-Cookie"))
+			rawCookie = r.resp.Header.Get("Set-Cookie")
 		}
 	})
 

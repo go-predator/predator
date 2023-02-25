@@ -3,13 +3,15 @@
  * @Email:       thepoy@163.com
  * @File Name:   errors.go
  * @Created At:  2022-02-17 15:30:54
- * @Modified At: 2023-02-18 22:35:08
+ * @Modified At: 2023-02-25 20:19:28
  * @Modified By: thepoy
  */
 
 package predator
 
-import "errors"
+import (
+	"errors"
+)
 
 var (
 	ErrRequestFailed            = errors.New("request failed")
@@ -18,4 +20,5 @@ var (
 	ErrNotAllowedCacheFieldType = errors.New("only query parameters are allowed as cached fields in `GET` requests")
 	ErrNoCache                  = errors.New("no cache configured")
 	ErrInvalidResponseStatus    = errors.New("if the http status code is `302`, there must be a valid `Location` field in the response header")
+	ErrEmptyProxyPool           = errors.New("the proxy pool is empty")
 )

@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-02-19 14:42:50
+ * @Modified At: 2023-02-25 23:37:11
  * @Modified By: thepoy
  */
 
@@ -12,24 +12,23 @@ package predator
 import (
 	"bytes"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"time"
 
 	"net/http"
-	"net/url"
-	"os"
-	"path/filepath"
+	"net/textproto"
 	"sort"
 	"strings"
 	"sync"
 
 	pctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/json"
-	"github.com/valyala/fasthttp"
 )
 
 type Request struct {
-	req *http.Request
+	req  *http.Request
+	body []byte
 	// 请求和响应之间共享的上下文
 	Ctx pctx.Context
 	// 待缓存的键值对
@@ -61,21 +60,42 @@ func (r Request) IsCached() (bool, error) {
 	return ok, nil
 }
 
+func (r *Request) Header() http.Header {
+	return r.req.Header
+}
+
 func (r *Request) Abort() {
 	r.abort = true
 }
 
+func (r *Request) SetHeader(header http.Header) {
+	r.req.Header = header
+}
+
 func (r *Request) SetContentType(contentType string) {
+	if r.req.Header == nil {
+		r.req.Header = make(http.Header)
+	}
+
 	r.req.Header.Set("Content-Type", contentType)
+}
+
+func defaultCheckRedirect(req *Request, via []*Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	return nil
+}
+
+func doNotFollowRedirect(req *http.Request, via []*http.Request) error {
+	return http.ErrUseLastResponse
 }
 
 func (r *Request) FollowRedirect(yes bool) {
 	if yes {
 		r.checkRedirect = nil
 	} else {
-		r.checkRedirect = func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}
+		r.checkRedirect = doNotFollowRedirect
 	}
 }
 
@@ -97,14 +117,44 @@ func (r *Request) SetNewHeaders(headers http.Header) {
 	r.req.Header = headers
 }
 
-func (r Request) headers() map[string]string {
-	h := make(map[string]string)
+func (r *Request) AddRookies(cookies map[string]string) {
+	for k, v := range cookies {
+		v, ok := parseCookieValue(v, true)
+		if !ok {
+			continue
+		}
 
-	for k, v := range r.req.Header {
-		h[k] = strings.Join(v, ", ")
+		s := fmt.Sprintf("%s=%s", k, v)
+		if c := r.req.Header.Get("Cookie"); c != "" {
+			r.req.Header.Set("Cookie", c+"; "+s)
+		} else {
+			r.req.Header.Set("Cookie", s)
+		}
 	}
+}
 
-	return h
+func (r *Request) ParseRawCookie(rawCookie string) {
+	line := textproto.TrimString(rawCookie)
+
+	var part string
+	for len(line) > 0 { // continue since we have rest
+		part, line, _ = strings.Cut(line, ";")
+		part = textproto.TrimString(part)
+		if part == "" {
+			continue
+		}
+		name, val, _ := strings.Cut(part, "=")
+		name = textproto.TrimString(name)
+		if !isCookieNameValid(name) {
+			continue
+		}
+		val, ok := parseCookieValue(val, true)
+		if !ok {
+			continue
+		}
+
+		r.req.AddCookie(&http.Cookie{Name: name, Value: val})
+	}
 }
 
 func (r Request) URL() string {
@@ -124,33 +174,33 @@ func (r Request) Get(u string) error {
 }
 
 func (r Request) GetWithCache(URL string, cacheFields ...CacheField) error {
-	return r.crawler.get(URL, r.headers(), r.Ctx, true, cacheFields...)
+	return r.crawler.get(URL, r.Header(), r.Ctx, true, cacheFields...)
 }
 
 func (r Request) Post(URL string, requestData map[string]string) error {
-	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true)
+	return r.crawler.post(URL, requestData, r.Header(), r.Ctx, true)
 }
 
 func (r Request) PostWithCache(URL string, requestData map[string]string, cacheFields ...CacheField) error {
-	return r.crawler.post(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
+	return r.crawler.post(URL, requestData, r.Header(), r.Ctx, true, cacheFields...)
 }
 func (r Request) PostJSON(URL string, requestData map[string]any) error {
-	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true)
+	return r.crawler.postJSON(URL, requestData, r.Header(), r.Ctx, true)
 }
 
 func (r Request) PostJSONWithCache(URL string, requestData map[string]any, cacheFields ...CacheField) error {
-	return r.crawler.postJSON(URL, requestData, r.headers(), r.Ctx, true, cacheFields...)
+	return r.crawler.postJSON(URL, requestData, r.Header(), r.Ctx, true, cacheFields...)
 }
-func (r Request) PostMultipart(URL string, form *MultipartForm) error {
-	return r.crawler.postMultipart(URL, form, r.headers(), r.Ctx, true)
+func (r Request) PostMultipart(URL string, mfw *MultipartFormWriter) error {
+	return r.crawler.postMultipart(URL, mfw, r.Header(), r.Ctx, true)
 }
 
-func (r Request) PostMultipartWithCache(URL string, form *MultipartForm, cacheFields ...CacheField) error {
-	return r.crawler.postMultipart(URL, form, r.headers(), r.Ctx, true, cacheFields...)
+func (r Request) PostMultipartWithCache(URL string, mfw *MultipartFormWriter, cacheFields ...CacheField) error {
+	return r.crawler.postMultipart(URL, mfw, r.Header(), r.Ctx, true, cacheFields...)
 }
 
 func (r Request) Request(method, URL string, cachedMap map[string]string, body []byte) error {
-	return r.crawler.request(method, URL, body, cachedMap, r.Headers, r.Ctx, true)
+	return r.crawler.request(method, URL, body, cachedMap, r.Header(), r.Ctx, true)
 }
 
 // AbsoluteURL returns with the resolved absolute URL of an URL chunk.
@@ -216,7 +266,7 @@ func (r Request) marshal() ([]byte, error) {
 	if r.cachedMap != nil {
 		cr.CacheKey = marshalCachedMap(r.cachedMap)
 	} else {
-		cr.CacheKey = r.req.Body
+		cr.CacheKey = r.body
 	}
 
 	if r.Method() == MethodGet {
@@ -240,29 +290,83 @@ func (r Request) Hash() (string, error) {
 	return fmt.Sprintf("%x", sha1.Sum(cacheBody)), nil
 }
 
-func (r *Request) Reset() {
-	ReleaseRequestHeader(r.Headers)
-	fasthttp.ReleaseURI(r.uri)
+func resetRequest(req *http.Request) {
+	ReleaseURL(req.URL)
 
-	if r.Body != nil {
-		// 将 body 长度截为 0，这样不会删除引用关系，GC 不会回收，
-		// 可以实现 body 的复用
-		r.Body = r.Body[:0]
+	req.Method = ""
+	req.Proto = "HTTP/1.0"
+	req.ProtoMajor = 1
+	req.ProtoMinor = 0
+
+	if req.Header != nil {
+		for k := range req.Header {
+			delete(req.Header, k)
+		}
 	}
-	for k := range r.cachedMap {
-		delete(r.cachedMap, k)
+
+	req.Body = nil
+	req.GetBody = nil
+	req.ContentLength = 0
+	req.TransferEncoding = req.TransferEncoding[:0]
+	req.Close = false
+	req.Host = ""
+
+	ResetMap(req.Form)
+	ResetMap(req.PostForm)
+
+	releaseMultipartForm(req.MultipartForm)
+
+	ResetMap(req.Trailer)
+
+	req.RemoteAddr = ""
+	req.RequestURI = ""
+	req.TLS = nil
+
+	// TODO: 释放 Response
+	req.Response = nil
+}
+
+func (r *Request) Reset() {
+	if r.body != nil {
+		r.body = r.body[:0]
 	}
+	ResetMap(r.cachedMap)
 	r.ID = 0
 	r.abort = false
 	r.crawler = nil
 	r.retryCounter = 0
-	r.maxRedirectsCount = 0
+	r.checkRedirect = nil
+	r.timeout = 0
 }
 
 var (
-	requestPool       sync.Pool
+	rawRequestPool = sync.Pool{
+		New: func() any {
+			r := new(http.Request)
+			r.Header = make(http.Header)
+
+			return r
+		},
+	}
+	requestPool = sync.Pool{
+		New: func() any {
+			r := &Request{}
+			r.req = acquireRequest()
+
+			return r
+		},
+	}
 	requestHeaderPool sync.Pool
 )
+
+func acquireRequest() *http.Request {
+	return rawRequestPool.Get().(*http.Request)
+}
+
+func releaseRequest(req *http.Request) {
+	resetRequest(req)
+	rawRequestPool.Put(req)
+}
 
 // AcquireRequest returns an empty Request instance from request pool.
 //
@@ -270,24 +374,7 @@ var (
 // no longer needed. This allows Request recycling, reduces GC pressure
 // and usually improves performance.
 func AcquireRequest() *Request {
-	v := requestPool.Get()
-	if v == nil {
-		return &Request{}
-	}
-	return v.(*Request)
-}
-
-// AcquireRequestHeader returns an empty Request Header instance from request-header pool.
-//
-// The returned Request Header instance may be passed to ReleaseRequestHeader when it is
-// no longer needed. This allows Request Header recycling, reduces GC pressure
-// and usually improves performance.
-func AcquireRequestHeader() *fasthttp.RequestHeader {
-	v := requestHeaderPool.Get()
-	if v == nil {
-		return &fasthttp.RequestHeader{}
-	}
-	return v.(*fasthttp.RequestHeader)
+	return requestPool.Get().(*Request)
 }
 
 // ReleaseRequest returns req acquired via AcquireRequest to request pool.
@@ -296,110 +383,6 @@ func AcquireRequestHeader() *fasthttp.RequestHeader {
 // it to request pool.
 func ReleaseRequest(req *Request) {
 	req.Reset()
+	releaseRequest(req.req)
 	requestPool.Put(req)
-}
-
-// ReleaseRequestHeader returns request header acquired via AcquireRequestHeader to
-// request-header pool.
-//
-// It is forbidden accessing request-header and/or its' members after returning
-// it to request-header pool.
-func ReleaseRequestHeader(rh *fasthttp.RequestHeader) {
-	rh.Reset()
-	requestHeaderPool.Put(rh)
-}
-
-// MultipartForm 请求体的构造
-type MultipartForm struct {
-	buf *bytes.Buffer
-	// 每个网站 boundary 前的横线数量是固定的，直接赋给这个字段
-	boundary string
-	bodyMap  map[string]string
-}
-
-func NewMultipartForm(dash string, f CustomRandomBoundary) *MultipartForm {
-	return &MultipartForm{
-		buf:      &bytes.Buffer{},
-		boundary: dash + f(),
-		bodyMap:  make(map[string]string),
-	}
-}
-
-// Boundary returns the Writer's boundary.
-func (mf *MultipartForm) Boundary() string {
-	return mf.boundary
-}
-
-// FormDataContentType returns the Content-Type for an HTTP
-// multipart/form-data with this Writer's Boundary.
-func (mf *MultipartForm) FormDataContentType() string {
-	b := mf.boundary
-	// We must quote the boundary if it contains any of the
-	// tspecials characters defined by RFC 2045, or space.
-	if strings.ContainsAny(b, `()<>@,;:\"/[]?= `) {
-		b = `"` + b + `"`
-	}
-	return "multipart/form-data; boundary=" + b
-}
-
-func (mf *MultipartForm) appendHead() {
-	bodyBoundary := "--" + mf.boundary
-	mf.buf.WriteString(bodyBoundary + "\r\n")
-}
-
-func (mf *MultipartForm) appendTail() {
-	mf.buf.WriteString("\r\n")
-}
-
-func (mf *MultipartForm) AppendString(name, value string) {
-	mf.appendHead()
-	mf.buf.WriteString(`Content-Disposition: form-data; name="`)
-	mf.buf.WriteString(name)
-	mf.buf.WriteByte('"')
-	mf.buf.WriteString("\r\n\r\n")
-	mf.buf.WriteString(value)
-	mf.appendTail()
-
-	mf.bodyMap[name] = value
-}
-
-func getMimeType(buf []byte) string {
-	return http.DetectContentType(buf)
-}
-
-func (mf *MultipartForm) AppendFile(name, filePath string) error {
-	_, filename := filepath.Split(filePath)
-
-	mf.appendHead()
-	mf.buf.WriteString(`Content-Disposition: form-data; name="`)
-	mf.buf.WriteString(name)
-	mf.buf.WriteString(`"; filename="`)
-	mf.buf.WriteString(filename)
-	mf.buf.WriteByte('"')
-	mf.buf.WriteString("\r\nContent-Type: ")
-
-	fileBytes, err := os.ReadFile(filePath)
-	if err != nil {
-		return err
-	}
-
-	// 只需要使用前 512 个字节即可检测出一个文件的类型
-	contentType := getMimeType(fileBytes[:512])
-
-	mf.buf.WriteString(contentType)
-	mf.buf.WriteString("\r\n\r\n")
-
-	mf.buf.Write(fileBytes)
-
-	mf.appendTail()
-
-	mf.bodyMap[filename] = filePath
-
-	return nil
-}
-
-func (mf *MultipartForm) Bytes() []byte {
-	bodyBoundary := "--" + mf.boundary + "--"
-	mf.buf.WriteString(bodyBoundary)
-	return mf.buf.Bytes()
 }

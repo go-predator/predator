@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   options.go
  * @Created At:  2021-07-23 08:58:31
- * @Modified At: 2023-02-18 22:35:04
+ * @Modified At: 2023-02-25 20:36:27
  * @Modified By: thepoy
  */
 
@@ -11,8 +11,10 @@ package predator
 
 import (
 	"crypto/tls"
-	"strings"
+	"net"
+	"net/http"
 	"sync"
+	"time"
 
 	"github.com/go-predator/log"
 )
@@ -23,7 +25,7 @@ type CrawlerOption func(*Crawler)
 // you access the `https` protocol
 func SkipVerification() CrawlerOption {
 	return func(c *Crawler) {
-		c.client.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+		c.client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 }
 
@@ -65,18 +67,23 @@ func WithUserAgent(ua string) CrawlerOption {
 	}
 }
 
-func WithRawCookie(cookie string) CrawlerOption {
-	cookies := make(map[string]string)
-	cookieSlice := strings.Split(cookie, "; ")
-	for _, c := range cookieSlice {
-		temp := strings.SplitN(c, "=", 2)
-		cookies[temp[0]] = temp[1]
+func WithRawCookie(cookies string) CrawlerOption {
+	return func(c *Crawler) {
+		c.rawCookies = cookies
 	}
-	return WithCookies(cookies)
 }
 
 func WithCookies(cookies map[string]string) CrawlerOption {
 	return func(c *Crawler) {
+		for k, v := range cookies {
+			v, ok := parseCookieValue(v, true)
+			if !ok {
+				continue
+			}
+
+			cookies[k] = v
+		}
+
 		c.cookies = cookies
 	}
 }
@@ -154,8 +161,12 @@ func WithCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFi
 	}
 }
 
-func EnableIPv6() CrawlerOption {
+func DisableIPv6() CrawlerOption {
 	return func(c *Crawler) {
-		c.client.DialDualStack = true
+		c.client.Transport.(*http.Transport).DialContext = (&net.Dialer{
+			Timeout:       30 * time.Second,
+			KeepAlive:     30 * time.Second,
+			FallbackDelay: -1,
+		}).DialContext
 	}
 }
