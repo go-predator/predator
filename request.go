@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-02-25 23:37:11
+ * @Modified At: 2023-02-26 12:54:48
  * @Modified By: thepoy
  */
 
@@ -80,10 +80,11 @@ func (r *Request) SetContentType(contentType string) {
 	r.req.Header.Set("Content-Type", contentType)
 }
 
-func defaultCheckRedirect(req *Request, via []*Request) error {
+func defaultCheckRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return errors.New("stopped after 10 redirects")
 	}
+
 	return nil
 }
 
@@ -93,7 +94,7 @@ func doNotFollowRedirect(req *http.Request, via []*http.Request) error {
 
 func (r *Request) FollowRedirect(yes bool) {
 	if yes {
-		r.checkRedirect = nil
+		r.checkRedirect = defaultCheckRedirect
 	} else {
 		r.checkRedirect = doNotFollowRedirect
 	}
@@ -322,6 +323,8 @@ func resetRequest(req *http.Request) {
 	req.RequestURI = ""
 	req.TLS = nil
 
+	releaseHeader(req.Header)
+
 	// TODO: 释放 Response
 	req.Response = nil
 }
@@ -340,23 +343,24 @@ func (r *Request) Reset() {
 }
 
 var (
-	rawRequestPool = sync.Pool{
+	rawRequestPool = &sync.Pool{
 		New: func() any {
 			r := new(http.Request)
-			r.Header = make(http.Header)
+			r.Header = acquireHeader()
 
 			return r
 		},
 	}
-	requestPool = sync.Pool{
+	requestPool = &sync.Pool{
 		New: func() any {
-			r := &Request{}
+			r := new(Request)
 			r.req = acquireRequest()
 
 			return r
 		},
 	}
-	requestHeaderPool sync.Pool
+
+	// requestPool sync.Pool
 )
 
 func acquireRequest() *http.Request {
@@ -374,7 +378,9 @@ func releaseRequest(req *http.Request) {
 // no longer needed. This allows Request recycling, reduces GC pressure
 // and usually improves performance.
 func AcquireRequest() *Request {
-	return requestPool.Get().(*Request)
+	r := requestPool.Get().(*Request)
+
+	return r
 }
 
 // ReleaseRequest returns req acquired via AcquireRequest to request pool.
@@ -384,5 +390,6 @@ func AcquireRequest() *Request {
 func ReleaseRequest(req *Request) {
 	req.Reset()
 	releaseRequest(req.req)
+
 	requestPool.Put(req)
 }

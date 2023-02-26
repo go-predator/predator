@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   async_test.go
  * @Created At:  2021-07-31 13:14:09
- * @Modified At: 2023-02-25 23:39:10
+ * @Modified At: 2023-02-26 13:06:56
  * @Modified By: thepoy
  */
 
@@ -46,19 +46,19 @@ func parsePerPage(c *Crawler, u, queryID string, page int) error {
 }
 
 func testAsync(crawler *Crawler, t *testing.T) {
+	headers := map[string]string{
+		"Accept":          "*/*",
+		"Accept-Language": "zh-CN",
+		"Accept-Encoding": "gzip, deflate",
+	}
+
 	crawler.BeforeRequest(func(r *Request) {
-		headers := map[string]string{
-			"Accept":          "*/*",
-			"Accept-Language": "zh-CN",
-			"Accept-Encoding": "gzip, deflate",
-		}
-
-		r.SetHeaders(headers)
-
+		// header := http.Header.Add()
+		// r.SetHeaders(headers)
+		r.SetHeader(NewHeader(headers))
 	})
 
 	crawler.AfterResponse(func(r *Response) {
-		t.Log(r.Ctx)
 		qid := r.Ctx.Get("qid")
 		page := r.Ctx.GetAny("page").(int)
 		t.Logf("qid=%s page=%d", qid, page)
@@ -75,25 +75,24 @@ func testAsync(crawler *Crawler, t *testing.T) {
 
 func TestAsync(t *testing.T) {
 	Convey("同步耗时", t, func() {
-		defer timeCost()()
+		defer timeCost("同步")()
 		crawler := NewCrawler(
 			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0"),
 		)
 
 		testAsync(crawler, t)
-		crawler.ClearCache()
 	})
 
 	Convey("异步耗时", t, func() {
-		defer timeCost()()
+		defer timeCost("并发")()
 		crawler := NewCrawler(
 			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0"),
 			WithConcurrency(30, false),
+			// RecordRemoteAddr(),
 		)
 
 		testAsync(crawler, t)
 
 		crawler.Wait()
-		crawler.ClearCache()
 	})
 }

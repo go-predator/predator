@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-02-25 23:30:49
+ * @Modified At: 2023-02-26 12:56:54
  * @Modified By: thepoy
  */
 
@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strings"
 	"sync"
@@ -106,6 +106,9 @@ type Crawler struct {
 	htmlHandler []*HTMLParser
 	jsonHandler []*JSONParser
 
+	// 记录远程/服务器地址
+	recordRemoteAddr bool
+
 	wg *sync.WaitGroup
 
 	log *log.Logger
@@ -131,6 +134,7 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 		c.log = log.NewLogger(
 			log.DEBUG,
 			log.ToConsole(),
+			2,
 		)
 	}
 
@@ -170,24 +174,25 @@ func (c *Crawler) Clone() *Crawler {
 		}
 	}
 	return &Crawler{
-		lock:            c.lock,
-		UserAgent:       c.UserAgent,
-		retryCount:      c.retryCount,
-		retryCondition:  c.retryCondition,
-		client:          c.client,
-		rawCookies:      c.rawCookies,
-		goPool:          pool,
-		proxyURLPool:    c.proxyURLPool,
-		Context:         c.Context,
-		cache:           c.cache,
-		cacheCondition:  c.cacheCondition,
-		cacheFields:     c.cacheFields,
-		requestHandler:  make([]HandleRequest, 0, 5),
-		responseHandler: make([]HandleResponse, 0, 5),
-		htmlHandler:     make([]*HTMLParser, 0, 5),
-		jsonHandler:     make([]*JSONParser, 0, 1),
-		wg:              &sync.WaitGroup{},
-		log:             c.log,
+		lock:             c.lock,
+		UserAgent:        c.UserAgent,
+		retryCount:       c.retryCount,
+		retryCondition:   c.retryCondition,
+		client:           c.client,
+		rawCookies:       c.rawCookies,
+		goPool:           pool,
+		proxyURLPool:     c.proxyURLPool,
+		Context:          c.Context,
+		cache:            c.cache,
+		cacheCondition:   c.cacheCondition,
+		cacheFields:      c.cacheFields,
+		requestHandler:   make([]HandleRequest, 0, 5),
+		responseHandler:  make([]HandleResponse, 0, 5),
+		htmlHandler:      make([]*HTMLParser, 0, 5),
+		jsonHandler:      make([]*JSONParser, 0, 1),
+		recordRemoteAddr: c.recordRemoteAddr,
+		wg:               &sync.WaitGroup{},
+		log:              c.log,
 	}
 }
 
@@ -210,7 +215,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 		return err
 	}
 
-	request := AcquireRequest()
+	request := AcquireRequest() // ????
 
 	if reqHeader == nil {
 		reqHeader = acquireHeader()
@@ -224,20 +229,6 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 	request.req.URL = u
 	request.req.Method = method
 
-	request.Ctx = ctx
-	request.body = body
-	request.cachedMap = cachedMap
-	request.ID = atomic.AddUint32(&c.requestCount, 1)
-	request.crawler = c
-
-	if c.rawCookies != "" {
-		request.ParseRawCookie(c.rawCookies)
-		request.req.Header.Set("Cookie", c.rawCookies)
-		if c.log != nil {
-			c.Debug("cookies is set", log.Arg{Key: "cookies", Value: c.rawCookies})
-		}
-	}
-
 	if ctx == nil {
 		ctx, err = pctx.AcquireCtx()
 		if err != nil {
@@ -245,6 +236,22 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 				c.log.Error(err)
 			}
 			return err
+		}
+	}
+
+	request.Ctx = ctx
+	request.body = body
+	request.cachedMap = cachedMap
+	request.ID = atomic.AddUint32(&c.requestCount, 1)
+	request.crawler = c
+
+	fmt.Printf("request_id=%d\n", request.ID)
+
+	if c.rawCookies != "" {
+		request.ParseRawCookie(c.rawCookies)
+		request.req.Header.Set("Cookie", c.rawCookies)
+		if c.log != nil {
+			c.Debug("cookies is set", log.Arg{Key: "cookies", Value: c.rawCookies})
 		}
 	}
 
@@ -394,7 +401,9 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 				if c.ProxyPoolAmount() > 0 {
 					l = l.Str("proxy", response.ClientIP())
 				} else {
-					l = l.Str("server_addr", response.ClientIP())
+					if c.recordRemoteAddr {
+						l = l.Str("server_addr", response.ClientIP())
+					}
 				}
 			}
 
@@ -420,6 +429,9 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		// 原始响应应该在自定义响应之后释放，不然一些字段的值会出错
 		releaseResponse(rawResp)
 	}
+
+	// release req
+	// ReleaseRequest(request)
 
 	return
 }
@@ -468,22 +480,19 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 		c.Debug("request infomation", log.Arg{Key: "header", Value: request.Header()})
 	}
 
-	var err error
-
-	c.client.Transport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		d := &net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
+	if c.recordRemoteAddr {
+		trace := &httptrace.ClientTrace{
+			GotConn: func(connInfo httptrace.GotConnInfo) {
+				request.req.RemoteAddr = connInfo.Conn.RemoteAddr().String()
+			},
 		}
-		conn, err := d.DialContext(ctx, network, addr)
 
-		request.req.RemoteAddr = conn.RemoteAddr().String()
-
-		return conn, err
+		request.req = request.req.WithContext(httptrace.WithClientTrace(request.req.Context(), trace))
 	}
 
-	resp := acquireResponse()
-	resp, err = c.client.Do(request.req)
+	var err error
+
+	resp, err := c.client.Do(request.req)
 	if err != nil {
 		c.Error(err)
 		return nil, nil, err
@@ -524,7 +533,6 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 	}
 
 	if err != nil {
-		errors.Unwrap(err)
 		if p, ok := proxy.IsProxyError(err); ok {
 			c.Warning("proxy is invalid",
 				log.Arg{Key: "proxy", Value: p},
@@ -593,8 +601,6 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 
 	// Only count successful responses
 	atomic.AddUint32(&c.responseCount, 1)
-	// release req
-	ReleaseRequest(request)
 
 	if c.retryCount > 0 && atomic.LoadUint32(&request.retryCounter) < c.retryCount {
 		if c.retryCondition != nil && c.retryCondition(response) {

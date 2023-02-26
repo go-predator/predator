@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   write.go
  * @Created At:  2021-07-24 08:56:16
- * @Modified At: 2023-02-18 22:28:59
+ * @Modified At: 2023-02-26 11:16:18
  * @Modified By: thepoy
  */
 
@@ -113,6 +113,25 @@ func (w *wcontext) Bytes() []byte {
 	return b.Bytes()
 }
 
+func writeValue(s *strings.Builder, val any) {
+	switch v := val.(type) {
+	case string:
+		s.WriteByte('"')
+		s.WriteString(v)
+		s.WriteByte('"')
+	case fmt.Stringer:
+		s.WriteByte('"')
+		s.WriteString(v.String())
+		s.WriteByte('"')
+	case uint, uint8, uint16, uint32, uint64, int, int8, int16, int32, int64:
+		fmt.Fprintf(s, "%d", v)
+	default:
+		s.WriteByte('"')
+		s.WriteString(fmt.Sprint(v))
+		s.WriteByte('"')
+	}
+}
+
 func (w *wcontext) String() string {
 	w.l.RLock()
 	defer w.l.RUnlock()
@@ -126,9 +145,8 @@ func (w *wcontext) String() string {
 		}
 		s.WriteByte('"')
 		s.WriteString(k)
-		s.WriteString(`": "`)
-		s.WriteString(fmt.Sprint(v))
-		s.WriteByte('"')
+		s.WriteString(`": `)
+		writeValue(&s, v)
 		i++
 	}
 	s.WriteByte('}')

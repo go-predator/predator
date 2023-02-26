@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-02-25 20:49:32
+ * @Modified At: 2023-02-26 13:06:43
  * @Modified By: thepoy
  */
 
@@ -625,11 +625,11 @@ func TestParseHTML(t *testing.T) {
 	})
 }
 
-func timeCost() func() {
+func timeCost(label string) func() {
 	start := time.Now()
 	return func() {
 		tc := time.Since(start)
-		fmt.Printf("time cost = %v\n", tc)
+		fmt.Printf("%s > time cost = %v\n", label, tc)
 	}
 }
 

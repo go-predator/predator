@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   options.go
  * @Created At:  2021-07-23 08:58:31
- * @Modified At: 2023-02-25 20:36:27
+ * @Modified At: 2023-02-26 12:56:26
  * @Modified By: thepoy
  */
 
@@ -64,6 +64,12 @@ func WithDefaultLogger() CrawlerOption {
 func WithUserAgent(ua string) CrawlerOption {
 	return func(c *Crawler) {
 		c.UserAgent = ua
+	}
+}
+
+func RecordRemoteAddr() CrawlerOption {
+	return func(c *Crawler) {
+		c.recordRemoteAddr = true
 	}
 }
 

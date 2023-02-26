@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   map_test.go
  * @Created At:  2023-02-20 20:48:06
- * @Modified At: 2023-02-20 20:55:37
+ * @Modified At: 2023-02-26 09:46:56
  * @Modified By: thepoy
  */
 
@@ -25,6 +25,15 @@ func TestMap(t *testing.T) {
 		ResetMap(m)
 
 		So(m, ShouldNotBeNil)
+		So(len(m), ShouldEqual, 0)
+	})
+
+	Convey("测试重置空 map", t, func() {
+		var m map[string]int
+
+		ResetMap(m)
+
+		So(m, ShouldBeNil)
 		So(len(m), ShouldEqual, 0)
 	})
 }
