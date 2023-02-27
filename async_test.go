@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   async_test.go
  * @Created At:  2021-07-31 13:14:09
- * @Modified At: 2023-02-27 10:31:31
+ * @Modified At: 2023-02-27 12:05:35
  * @Modified By: thepoy
  */
 
@@ -40,14 +40,16 @@ func parsePerPage(c *Crawler, u, queryID string, page int) error {
 }
 
 func testAsync(crawler *Crawler, t *testing.T, u string) {
-	headers := map[string]string{
+	header := NewHeader(map[string]string{
 		"Accept":          "*/*",
 		"Accept-Language": "zh-CN",
 		"Accept-Encoding": "gzip, deflate",
-	}
+	})
 
-	crawler.BeforeRequest(func(r *Request) {
-		r.SetHeaders(headers)
+	crawler.BeforeRequest(func(r *Request) error {
+		r.SetHeader(header.Clone())
+
+		return nil
 	})
 
 	// 请求多个分类的第一页内容
