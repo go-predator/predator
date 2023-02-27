@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   response.go
  * @Created At:  2021-07-24 13:34:44
- * @Modified At: 2023-02-27 11:49:03
+ * @Modified At: 2023-02-27 13:58:06
  * @Modified By: thepoy
  */
 
@@ -18,8 +18,6 @@ import (
 
 	ctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/json"
-	"github.com/valyala/bytebufferpool"
-	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -30,6 +28,9 @@ type Response struct {
 	resp *http.Response
 	// 响应状态码
 	StatusCode StatusCode
+
+	header http.Header
+
 	// 二进制请求体
 	Body []byte
 	// 请求和响应之间共享的上下文
@@ -56,26 +57,26 @@ func (r *Response) Invalidate() {
 	r.invalid = true
 }
 
-func (r *Response) GetSetCookie() string {
-	return r.resp.Header.Get("Set-Cookie")
+func (r *Response) Method() string {
+	return r.Request.Method()
 }
 
 func (r *Response) ContentType() string {
-	return r.resp.Header.Get("Content-Type")
+	return r.header.Get("Content-Type")
 }
 
-// BodyGunzip returns un-gzipped body data.
-//
-// This method may be used if the response header contains
-// 'Content-Encoding: gzip' for reading un-gzipped body.
-// Use Body for reading gzipped response body.
-func (r *Response) BodyGunzip() ([]byte, error) {
-	var bb bytebufferpool.ByteBuffer
-	_, err := fasthttp.WriteGunzip(&bb, r.Body)
+func (r *Response) ContentLength() uint64 {
+	cl := r.header.Get("Content-Length")
+	length, err := strconv.ParseUint(cl, 10, 64)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return bb.B, nil
+
+	return length
+}
+
+func (r *Response) GetSetCookie() string {
+	return r.resp.Header.Get("Set-Cookie")
 }
 
 func (r *Response) String() string {

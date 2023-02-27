@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-02-27 11:58:44
+ * @Modified At: 2023-02-27 13:41:39
  * @Modified By: thepoy
  */
 
@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
+	"io"
 	"time"
 
 	"net/http"
@@ -126,6 +127,12 @@ func (r *Request) AddRookies(cookies map[string]string) {
 		} else {
 			r.req.Header.Set("Cookie", s)
 		}
+	}
+}
+
+func (r *Request) WithBody() {
+	if r.body != nil {
+		r.req.Body = io.NopCloser(bytes.NewBuffer(r.body))
 	}
 }
 

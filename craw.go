@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-02-27 11:49:28
+ * @Modified At: 2023-02-27 13:57:31
  * @Modified By: thepoy
  */
 
@@ -505,6 +505,8 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 		request.req = request.req.WithContext(httptrace.WithClientTrace(request.req.Context(), trace))
 	}
 
+	request.WithBody()
+
 	var err error
 
 	resp, err := c.client.Do(request.req)
@@ -526,6 +528,7 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 	response.Body = append(response.Body, body...)
 	response.Ctx = request.Ctx
 	response.Request = request
+	response.header = resp.Header.Clone()
 	response.clientIP = request.req.RemoteAddr
 
 	if response.StatusCode == StatusOK && len(response.Body) == 0 {

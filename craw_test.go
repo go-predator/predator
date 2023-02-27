@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-02-27 11:10:01
+ * @Modified At: 2023-02-27 13:59:45
  * @Modified By: thepoy
  */
 
@@ -41,7 +41,7 @@ func TestNewCrawler(t *testing.T) {
 	Convey("测试设置 cookies", t, func() {
 		cookie := map[string]string{"foo": "bar"}
 		c := NewCrawler(WithCookies(cookie))
-		So(c.rawCookies, ShouldEqual, cookie)
+		So(c.cookies, ShouldEqual, cookie)
 	})
 	Convey("测试设置指定并发数量", t, func() {
 		count := 10
@@ -53,7 +53,6 @@ func TestNewCrawler(t *testing.T) {
 		c := NewCrawler(WithRetry(uint32(count), func(r *Response) bool { return true }))
 		So(c.retryCount, ShouldEqual, count)
 	})
-
 	Convey("测试设置代理池", t, func() {
 		pp := make([]string, 0, 5)
 		for i := 1; i <= 5; i++ {
@@ -79,6 +78,11 @@ func server() *httptest.Server {
 
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
+			err := r.ParseForm()
+			if err != nil {
+				panic(err)
+			}
+
 			w.Header().Set("Content-Type", "text/html")
 			w.Write([]byte(r.FormValue("name")))
 		}
@@ -159,7 +163,22 @@ func server() *httptest.Server {
 	mux.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(r.FormValue("id")))
+
+			fmt.Println(r.Form)
+
+			if r.MultipartForm != nil {
+				body, err := json.Marshal(r.MultipartForm)
+				if err != nil {
+					panic(err)
+				}
+				w.Write(body)
+			} else {
+				body, err := json.Marshal(r.PostForm)
+				if err != nil {
+					panic(err)
+				}
+				w.Write(body)
+			}
 
 			// 随机休眠几秒用于测试并发
 			time.Sleep(time.Duration(rand.Intn(50)+100) * time.Millisecond)
@@ -211,8 +230,11 @@ func TestRequest(t *testing.T) {
 		c.AfterResponse(func(r *Response) error {
 			v := r.Ctx.GetAny("k").(int)
 			So(v, ShouldEqual, 2)
+
 			So(string(r.Body), ShouldEqual, requestData["name"])
-			So(r.resp.Header.Get("Content-Type"), ShouldEqual, "text/html")
+			So(r.ContentType(), ShouldEqual, "text/html")
+			So(r.ContentLength(), ShouldEqual, 3)
+			So(r.Method(), ShouldEqual, "POST")
 
 			return nil
 		})
@@ -222,10 +244,7 @@ func TestRequest(t *testing.T) {
 
 	// 想运行此示例，需要自行更新 cookie 和 auth_token
 	Convey("测试 PostMultipart", t, func() {
-		c := NewCrawler(
-			WithCookies(map[string]string{
-				"PHPSESSID": "7ijqglcno1cljiqs76t2vo5oh2",
-			}))
+		c := NewCrawler()
 
 		mfw := NewMultipartFormWriter()
 
@@ -234,18 +253,17 @@ func TestRequest(t *testing.T) {
 		mfw.AppendString("type", "file")
 		mfw.AppendString("action", "upload")
 		mfw.AppendString("timestamp", "1627871450610")
-		mfw.AppendString("auth_token", "f43cdc8a537eff5169dfddb946c2365d1f897b0c")
-		mfw.AppendString("nsfw", "0")
-		mfw.AppendFile("source", "/Users/thepoy/Pictures/Nginx.png")
+		mfw.AppendFile("source", "/home/thepoy/Pictures/Nginx.png")
 
 		c.AfterResponse(func(r *Response) error {
-			status := gjson.ParseBytes(r.Body).Get("status_code").Int()
-			So(status, ShouldEqual, fasthttp.StatusOK)
+			// status := gjson.ParseBytes(r.Body).Get("status_code").Int()
+			// So(status, ShouldEqual, fasthttp.StatusOK)
+			fmt.Println(r)
 
 			return nil
 		})
 
-		err = c.PostMultipart("https://imgtu.com/json", mfw, nil)
+		err = c.PostMultipart(ts.URL+"/post", mfw, nil)
 		So(err, ShouldBeNil)
 	})
 
