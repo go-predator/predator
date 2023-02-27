@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-02-26 12:56:54
+ * @Modified At: 2023-02-27 11:49:28
  * @Modified By: thepoy
  */
 
@@ -33,15 +33,15 @@ import (
 )
 
 // HandleRequest is used to patch the request
-type HandleRequest func(r *Request)
+type HandleRequest func(r *Request) error
 
 // HandleResponse is used to handle the response
-type HandleResponse func(r *Response)
+type HandleResponse func(r *Response) error
 
 // HandleHTML is used to process html
-type HandleHTML func(he *html.HTMLElement, r *Response)
+type HandleHTML func(he *html.HTMLElement, r *Response) error
 
-type HandleJSON func(j json.JSONResult, r *Response)
+type HandleJSON func(j json.JSONResult, r *Response) error
 
 // HTMLParser is used to parse html
 type HTMLParser struct {
@@ -130,12 +130,20 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	// If there is `DEBUG` in the environment variable and `c.log` is nil,
 	// create a logger with a level of `DEBUG`
-	if c.log == nil && log.IsDebug() {
-		c.log = log.NewLogger(
-			log.DEBUG,
-			log.ToConsole(),
-			2,
-		)
+	if c.log == nil {
+		if log.IsDebug() {
+			c.log = log.NewLogger(
+				log.DEBUG,
+				log.ToConsole(),
+				2,
+			)
+		} else {
+			c.log = log.NewLogger(
+				log.WARNING,
+				log.MustToFile("predator.log", -1),
+				2,
+			)
+		}
 	}
 
 	c.lock = &sync.RWMutex{}
@@ -218,7 +226,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 	request := AcquireRequest() // ????
 
 	if reqHeader == nil {
-		reqHeader = acquireHeader()
+		reqHeader = make(http.Header)
 	}
 
 	if reqHeader.Get("User-Agent") == "" {
@@ -233,7 +241,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 		ctx, err = pctx.AcquireCtx()
 		if err != nil {
 			if c.log != nil {
-				c.log.Error(err)
+				c.Error(err)
 			}
 			return err
 		}
@@ -263,7 +271,7 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 		err = c.goPool.Put(task)
 		if err != nil {
 			if c.log != nil {
-				c.log.Error(err)
+				c.Error(err)
 			}
 			return err
 		}
@@ -283,7 +291,10 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		defer c.wg.Done()
 	}
 
-	c.processRequestHandler(request)
+	err = c.processRequestHandler(request)
+	if err != nil {
+		return
+	}
 
 	if request.abort {
 		if c.log != nil {
@@ -316,7 +327,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		key, err = request.Hash()
 		if err != nil {
 			if c.log != nil {
-				c.log.Error(err)
+				c.Error(err)
 			}
 			return
 		}
@@ -335,7 +346,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 
 		if response != nil && c.log != nil {
-			c.log.Debug("response is in the cache",
+			c.Debug("response is in the cache",
 				log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
 				log.Arg{Key: "cache_key", Value: key},
 			)
@@ -356,7 +367,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			cacheVal, err := response.Marshal()
 			if err != nil {
 				if c.log != nil {
-					c.log.Error(err)
+					c.Error(err)
 				}
 				return err
 			}
@@ -366,7 +377,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 				err = c.cache.Cache(key, cacheVal)
 				if err != nil {
 					if c.log != nil {
-						c.log.Error(err)
+						c.Error(err)
 					}
 					return err
 				}
@@ -378,11 +389,11 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		response.Ctx = request.Ctx
 	}
 
-	if response.StatusCode == fasthttp.StatusFound {
+	if response.StatusCode == StatusFound {
 		location := response.resp.Header.Get("Location")
 
 		if c.log != nil {
-			c.log.Info("response",
+			c.Info("response",
 				log.Arg{Key: "method", Value: request.Method()},
 				log.Arg{Key: "status_code", Value: response.StatusCode},
 				log.Arg{Key: "location", Value: location},
@@ -411,7 +422,10 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 	}
 
-	c.processResponseHandler(response)
+	err = c.processResponseHandler(response)
+	if err != nil {
+		return
+	}
 
 	if !response.invalid {
 		err = c.processHTMLHandler(response)
@@ -419,7 +433,10 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			return
 		}
 
-		c.processJSONHandler(response)
+		err = c.processJSONHandler(response)
+		if err != nil {
+			return
+		}
 	}
 
 	ReleaseResponse(response, !isChained)
@@ -453,7 +470,7 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 	err = resp.Unmarshal(cachedBody)
 	if err != nil {
 		if c.log != nil {
-			c.log.Error(err)
+			c.Error(err)
 		}
 		return nil, err
 	}
@@ -511,8 +528,7 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 	response.Request = request
 	response.clientIP = request.req.RemoteAddr
 
-	if response.StatusCode == fasthttp.StatusOK && len(response.Body) == 0 {
-		// fasthttp.Response 会将空响应的状态码设置为 200，这不合理
+	if response.StatusCode == StatusOK && len(response.Body) == 0 {
 		response.StatusCode = 0
 	}
 
@@ -521,7 +537,7 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 		err = ErrTimeout
 	}
 
-	if err == nil || err == ErrTimeout || err == fasthttp.ErrDialTimeout {
+	if err == nil || err == ErrTimeout || err == http.ErrHandlerTimeout {
 		if c.ProxyPoolAmount() > 0 && c.proxyInvalidCondition != nil {
 			e := c.proxyInvalidCondition(response)
 			if e != nil {
@@ -553,7 +569,7 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 
 			return c.do(request)
 		} else {
-			if err == ErrTimeout || err == fasthttp.ErrDialTimeout {
+			if err == ErrTimeout || err == http.ErrHandlerTimeout {
 				// re-request if the request timed out.
 				// re-request 3 times by default when the request times out.
 
@@ -633,16 +649,6 @@ func createBody(requestData map[string]string) []byte {
 		form.Add(k, v)
 	}
 	return []byte(form.Encode())
-}
-
-func NewRequestHeaders(headers map[string]string) *fasthttp.RequestHeader {
-	reqHeaders := new(fasthttp.RequestHeader)
-
-	for k, v := range headers {
-		reqHeaders.Set(k, v)
-	}
-
-	return reqHeaders
 }
 
 func (c *Crawler) get(URL string, header http.Header, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
@@ -736,7 +742,7 @@ func (c *Crawler) post(URL string, requestData map[string]string, header http.He
 	}
 
 	if len(header) == 0 {
-		header = acquireHeader()
+		header = make(http.Header)
 	}
 	if _, ok := header["Content-Type"]; !ok {
 		// use default `Content-Type`
@@ -816,7 +822,7 @@ func (c *Crawler) postJSON(URL string, requestData map[string]any, header http.H
 	}
 
 	if len(header) == 0 {
-		header = acquireHeader()
+		header = make(http.Header)
 	}
 	header.Set("Content-Type", "application/json")
 
@@ -1097,24 +1103,40 @@ func (c Crawler) RUnlock() {
 
 /************************* 私有注册方法 ****************************/
 
-func (c *Crawler) processRequestHandler(r *Request) {
+func (c *Crawler) processRequestHandler(r *Request) error {
+	var err error
+
 	for _, f := range c.requestHandler {
-		f(r)
+		err = f(r)
+		if err != nil {
+			c.Error(err)
+			return err
+		}
 	}
+
+	return nil
 }
 
-func (c *Crawler) processResponseHandler(r *Response) {
+func (c *Crawler) processResponseHandler(r *Response) error {
+	var err error
+
 	for _, f := range c.responseHandler {
 		if r.invalid {
 			break
 		}
-		f(r)
+		err = f(r)
+		if err != nil {
+			c.Error(err)
+			return err
+		}
 	}
+
+	return err
 }
 
-func (c *Crawler) processJSONHandler(r *Response) {
+func (c *Crawler) processJSONHandler(r *Response) error {
 	if c.jsonHandler == nil {
-		return
+		return nil
 	}
 
 	if len(c.jsonHandler) > 1 {
@@ -1122,6 +1144,8 @@ func (c *Crawler) processJSONHandler(r *Response) {
 			c.Warning("it is recommended to do full processing of the json response in one call to `ParseJSON` instead of multiple calls to `ParseJSON`")
 		}
 	}
+
+	var err error
 
 	result := json.ParseBytesToJSON(r.Body)
 	for _, parser := range c.jsonHandler {
@@ -1136,8 +1160,14 @@ func (c *Crawler) processJSONHandler(r *Response) {
 				continue
 			}
 		}
-		parser.Handle(result, r)
+		err = parser.Handle(result, r)
+		if err != nil {
+			c.Error(err)
+			return err
+		}
 	}
+
+	return nil
 }
 
 func (c *Crawler) processHTMLHandler(r *Response) error {
@@ -1158,7 +1188,7 @@ func (c *Crawler) processHTMLHandler(r *Response) error {
 	doc, err := html.ParseHTML(r.Body)
 	if err != nil {
 		if c.log != nil {
-			c.log.Error(err)
+			c.Error(err)
 		}
 		return err
 	}
@@ -1176,6 +1206,7 @@ func (c *Crawler) processHTMLHandler(r *Response) error {
 			}
 		})
 	}
+
 	return nil
 }
 
@@ -1191,7 +1222,7 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 	if c.ProxyPoolAmount() == 1 && c.complementProxyPool != nil {
 		newProxyPool := c.complementProxyPool()
 		c.proxyURLPool = append(c.proxyURLPool, newProxyPool...)
-		c.log.Info(
+		c.Info(
 			"a new proxy pool has replaced to the old proxy pool",
 			log.Arg{Key: "new_proxy_pool", Value: newProxyPool},
 		)

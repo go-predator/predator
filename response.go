@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   response.go
  * @Created At:  2021-07-24 13:34:44
- * @Modified At: 2023-02-21 21:14:42
+ * @Modified At: 2023-02-27 11:49:03
  * @Modified By: thepoy
  */
 
@@ -96,7 +96,7 @@ func (r *Response) Reset(releaseCtx bool) {
 	}
 
 	ReleaseRequest(r.Request)
-	releaseHeader(r.resp.Header)
+	ResetMap(r.resp.Header)
 
 	r.FromCache = false
 	r.invalid = false

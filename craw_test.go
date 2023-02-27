@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-02-26 13:06:43
+ * @Modified At: 2023-02-27 11:10:01
  * @Modified By: thepoy
  */
 
@@ -177,14 +177,18 @@ func TestRequest(t *testing.T) {
 	Convey("测试请求、响应之间的上下文传递和响应结果", t, func() {
 		c := NewCrawler()
 
-		c.BeforeRequest(func(r *Request) {
+		c.BeforeRequest(func(r *Request) error {
 			r.Ctx.Put("k", "v")
+
+			return nil
 		})
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			v := r.Ctx.Get("k")
 			So(v, ShouldEqual, "v")
 			So(bytes.Equal(serverIndexResponse, r.Body), ShouldBeTrue)
+
+			return nil
 		})
 
 		c.Get(ts.URL)
@@ -198,16 +202,19 @@ func TestRequest(t *testing.T) {
 
 		c := NewCrawler()
 
-		c.BeforeRequest(func(r *Request) {
+		c.BeforeRequest(func(r *Request) error {
 			r.Ctx.Put("k", 2)
+
+			return nil
 		})
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			v := r.Ctx.GetAny("k").(int)
 			So(v, ShouldEqual, 2)
 			So(string(r.Body), ShouldEqual, requestData["name"])
 			So(r.resp.Header.Get("Content-Type"), ShouldEqual, "text/html")
 
+			return nil
 		})
 
 		c.Post(ts.URL+"/login", requestData, nil)
@@ -231,9 +238,11 @@ func TestRequest(t *testing.T) {
 		mfw.AppendString("nsfw", "0")
 		mfw.AppendFile("source", "/Users/thepoy/Pictures/Nginx.png")
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			status := gjson.ParseBytes(r.Body).Get("status_code").Int()
 			So(status, ShouldEqual, fasthttp.StatusOK)
+
+			return nil
 		})
 
 		err = c.PostMultipart("https://imgtu.com/json", mfw, nil)
@@ -255,10 +264,12 @@ func TestHTTPProxy(t *testing.T) {
 			WithLogger(nil),
 		)
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
 
 			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
+
+			return nil
 		})
 
 		c.Get(u)
@@ -294,10 +305,12 @@ func TestHTTPProxy(t *testing.T) {
 		}
 		c := NewCrawler(WithProxyPool(ips), WithLogger(nil))
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
 			So(c.ProxyPoolAmount(), ShouldBeLessThanOrEqualTo, len(ips))
 			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
+
+			return nil
 		})
 
 		err := c.Get(u)
@@ -321,16 +334,20 @@ func TestHTTPProxy(t *testing.T) {
 
 		c := NewCrawler(WithProxyPool(ips), WithDefaultLogger())
 
-		c.BeforeRequest(func(r *Request) {
+		c.BeforeRequest(func(r *Request) error {
 			r.SetHeaders(map[string]string{
 				// 避免因 keep-alive 的响应无法改变代理
 				"Connection": "close",
 			})
+
+			return nil
 		})
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
 			t.Log(ip)
+
+			return nil
 		})
 
 		ipu := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
@@ -350,12 +367,14 @@ func TestSocks5Proxy(t *testing.T) {
 			WithProxy(proxyIP),
 		)
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			t.Log(r)
 
 			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
 
 			So(ip, ShouldEqual, strings.Split(strings.Split(proxyIP, "//")[1], ":")[0])
+
+			return nil
 		})
 
 		err := c.Get(u)
@@ -376,9 +395,11 @@ func TestRetry(t *testing.T) {
 			}),
 		)
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			So(r.Request.NumberOfRetries(), ShouldEqual, 5)
 			So(r.StatusCode, ShouldNotEqual, 200)
+
+			return nil
 		})
 
 		c.Get(ts.URL + "/check_cookie")
@@ -392,9 +413,11 @@ func TestCookies(t *testing.T) {
 	Convey("测试响应 set-cookie", t, func() {
 		c := NewCrawler()
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			So(r.StatusCode, ShouldEqual, 200)
 			So(r.resp.Header.Get("Set-Cookie"), ShouldEqual, "test=testv")
+
+			return nil
 		})
 
 		c.Get(ts.URL + "/set_cookie")
@@ -405,9 +428,11 @@ func TestCookies(t *testing.T) {
 			cookie := map[string]string{"test": "testv"}
 			c := NewCrawler(WithCookies(cookie))
 
-			c.AfterResponse(func(r *Response) {
+			c.AfterResponse(func(r *Response) error {
 				So(r.StatusCode, ShouldEqual, 200)
 				So(r.String(), ShouldEqual, "ok")
+
+				return nil
 			})
 
 			c.Get(ts.URL + "/check_cookie")
@@ -416,9 +441,11 @@ func TestCookies(t *testing.T) {
 			cookie := map[string]string{"test": "ha"}
 			c := NewCrawler(WithCookies(cookie))
 
-			c.AfterResponse(func(r *Response) {
+			c.AfterResponse(func(r *Response) error {
 				So(r.StatusCode, ShouldEqual, 500)
 				So(r.String(), ShouldEqual, "nok")
+
+				return nil
 			})
 
 			c.Get(ts.URL + "/check_cookie")
@@ -438,13 +465,15 @@ func TestJSON(t *testing.T) {
 		Convey("错误", func() {
 			c := NewCrawler()
 
-			c.AfterResponse(func(r *Response) {
+			c.AfterResponse(func(r *Response) error {
 				So(r.StatusCode, ShouldEqual, 403)
 				So(r.ContentType(), ShouldEqual, "application/json; charset=UTF-8")
 
 				var j TestResponse
 				json.Unmarshal(r.Body, &j)
 				So(j.Msg, ShouldEqual, "only allow access with post method")
+
+				return nil
 			})
 
 			c.Get(ts.URL + "/json")
@@ -452,13 +481,15 @@ func TestJSON(t *testing.T) {
 		Convey("正确", func() {
 			c := NewCrawler()
 
-			c.AfterResponse(func(r *Response) {
+			c.AfterResponse(func(r *Response) error {
 				So(r.StatusCode, ShouldEqual, 400)
 				So(r.ContentType(), ShouldEqual, "application/json; charset=UTF-8")
 
 				var j TestResponse
 				json.Unmarshal(r.Body, &j)
 				So(j.Msg, ShouldEqual, "unkown content type")
+
+				return nil
 			})
 
 			c.Post(ts.URL+"/json", nil, nil)
@@ -468,17 +499,21 @@ func TestJSON(t *testing.T) {
 	Convey("测试请求头 Content-Type", t, func() {
 		c := NewCrawler()
 
-		c.BeforeRequest(func(r *Request) {
+		c.BeforeRequest(func(r *Request) error {
 			r.SetContentType("application/json")
+
+			return nil
 		})
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			So(r.StatusCode, ShouldEqual, 200)
 			So(r.ContentType(), ShouldEqual, "application/json; charset=UTF-8")
 
 			var j TestResponse
 			json.Unmarshal(r.Body, &j)
 			So(j.Msg, ShouldEqual, "ok")
+
+			return nil
 		})
 
 		c.Post(ts.URL+"/json", nil, nil)
@@ -487,8 +522,10 @@ func TestJSON(t *testing.T) {
 	Convey("测试完整 JSON 请求和响应", t, func() {
 		c := NewCrawler()
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			t.Log(r)
+
+			return nil
 		})
 
 		type User struct {
@@ -514,8 +551,10 @@ func TestJSON(t *testing.T) {
 			WithCache(nil, false, nil, CacheField{requestBodyParam, "cid"}, CacheField{requestBodyParam, "user.name"}, CacheField{requestBodyParam, "user.age"}),
 		)
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			t.Log(r.FromCache)
+
+			return nil
 		})
 
 		type User struct {
@@ -543,8 +582,10 @@ func TestJSONWithInvalidCacheField(t *testing.T) {
 		WithLogger(nil),
 	)
 
-	c.AfterResponse(func(r *Response) {
+	c.AfterResponse(func(r *Response) error {
 		t.Log(r.FromCache)
+
+		return nil
 	})
 
 	type User struct {
@@ -573,7 +614,7 @@ func TestParseHTML(t *testing.T) {
 		crawl := NewCrawler()
 
 		Convey("测试解析整体 HTML", func() {
-			crawl.ParseHTML("body", func(he *html.HTMLElement, r *Response) {
+			crawl.ParseHTML("body", func(he *html.HTMLElement, r *Response) error {
 				h, err := he.OuterHTML()
 				So(err, ShouldBeNil)
 				So(h, ShouldEqual, `<body>
@@ -584,11 +625,13 @@ func TestParseHTML(t *testing.T) {
 
 
 		</body>`)
+
+				return nil
 			})
 		})
 
 		Convey("测试解析内部 HTML", func() {
-			crawl.ParseHTML("body", func(he *html.HTMLElement, r *Response) {
+			crawl.ParseHTML("body", func(he *html.HTMLElement, r *Response) error {
 				h, err := he.InnerHTML()
 				So(err, ShouldBeNil)
 				So(h, ShouldEqual, `
@@ -599,28 +642,35 @@ func TestParseHTML(t *testing.T) {
 
 
 		`)
+				return nil
 			})
 		})
 
 		Convey("测试解析内部文本", func() {
-			crawl.ParseHTML("title", func(he *html.HTMLElement, r *Response) {
+			crawl.ParseHTML("title", func(he *html.HTMLElement, r *Response) error {
 				So(he.Text(), ShouldEqual, "Test Page")
+
+				return nil
 			})
 		})
 
 		Convey("测试获取属性", func() {
-			crawl.ParseHTML("p", func(he *html.HTMLElement, r *Response) {
+			crawl.ParseHTML("p", func(he *html.HTMLElement, r *Response) error {
 				attr := he.Attr("class")
 				So(attr, ShouldEqual, "description")
+
+				return nil
 			})
 		})
 
 		Convey("测试查找子元素", func() {
-			crawl.ParseHTML("body", func(he *html.HTMLElement, r *Response) {
+			crawl.ParseHTML("body", func(he *html.HTMLElement, r *Response) error {
 				So(he.FirstChild("p").Attr("class"), ShouldEqual, "description")
 				So(he.Child("p", 2).Text(), ShouldEqual, "This is a 2")
 				So(he.ChildAttr("p", "class"), ShouldEqual, "description")
 				So(len(he.ChildrenAttr("p", "class")), ShouldEqual, 3)
+
+				return nil
 			})
 		})
 
@@ -697,8 +747,10 @@ func TestLog(t *testing.T) {
 			WithLogger(log.NewLogger(log.DEBUG, log.ToConsole())),
 		)
 
-		c.BeforeRequest(func(r *Request) {
+		c.BeforeRequest(func(r *Request) error {
 			r.Ctx.Put("key", "value")
+
+			return nil
 		})
 
 		c.Get(ts.URL)
@@ -717,8 +769,10 @@ func TestLog(t *testing.T) {
 			WithLogger(log.NewLogger(log.DEBUG, log.MustToConsoleAndFile("test2.log", -1))),
 		)
 
-		c.BeforeRequest(func(r *Request) {
+		c.BeforeRequest(func(r *Request) error {
 			r.Ctx.Put("key", "value")
+
+			return nil
 		})
 
 		c.Get(ts.URL)
@@ -732,8 +786,10 @@ func TestRedirect(t *testing.T) {
 	Convey("测试允许重定向（默认）", t, func() {
 		c := NewCrawler()
 
-		c.AfterResponse(func(r *Response) {
-			So(r.StatusCode, ShouldEqual, 301)
+		c.AfterResponse(func(r *Response) error {
+			So(r.StatusCode, ShouldEqual, StatusMovedPermanently)
+
+			return nil
 		})
 
 		c.Get(ts.URL + "/redirect")
@@ -742,12 +798,16 @@ func TestRedirect(t *testing.T) {
 	Convey("测试禁止重定向", t, func() {
 		c := NewCrawler()
 
-		c.BeforeRequest(func(r *Request) {
-			r.FollowRedirect(false)
+		c.BeforeRequest(func(r *Request) error {
+			r.DoNotFollowRedirects()
+
+			return nil
 		})
 
-		c.AfterResponse(func(r *Response) {
-			So(r.StatusCode, ShouldEqual, 200)
+		c.AfterResponse(func(r *Response) error {
+			So(r.StatusCode, ShouldEqual, StatusOK)
+
+			return nil
 		})
 
 		c.Get(ts.URL + "/redirect")
@@ -757,10 +817,12 @@ func TestRedirect(t *testing.T) {
 func getRawCookie(c *Crawler, ts *httptest.Server) string {
 	var rawCookie string
 
-	c.AfterResponse(func(r *Response) {
-		if r.StatusCode == 301 {
+	c.AfterResponse(func(r *Response) error {
+		if r.StatusCode == StatusMovedPermanently {
 			rawCookie = r.resp.Header.Get("Set-Cookie")
 		}
+
+		return nil
 	})
 
 	c.Post(ts.URL+"/redirect", map[string]string{"username": "test", "password": "test"}, nil)
@@ -779,11 +841,13 @@ func TestClone(t *testing.T) {
 		WithRawCookie(rawCookie)(c)
 		WithConcurrency(10, false)(c)
 
-		c.AfterResponse(func(r *Response) {
+		c.AfterResponse(func(r *Response) error {
 			fmt.Println(r.StatusCode)
 			fmt.Println(r)
 			So(r.StatusCode, ShouldEqual, 200)
 			So(r.String(), ShouldEqual, "ok")
+
+			return nil
 		})
 
 		c.Get(ts.URL + "/check_cookie")

@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   form.go
  * @Created At:  2023-02-20 20:34:40
- * @Modified At: 2023-02-25 21:20:00
+ * @Modified At: 2023-02-27 11:31:04
  * @Modified By: thepoy
  */
 
@@ -19,36 +19,21 @@ import (
 )
 
 var (
-	multipartForm = sync.Pool{
+	multipartFormWriterPool = &sync.Pool{
 		New: func() any {
-			form := new(multipart.Form)
-			form.File = make(map[string][]*multipart.FileHeader)
-			form.Value = make(map[string][]string)
-
-			return form
+			return NewMultipartFormWriter()
 		},
 	}
 )
 
-func resetMultipartForm(form *multipart.Form) {
-	err := form.RemoveAll()
-	if err != nil {
-		panic(err)
-	}
-
-	ResetMap(form.File)
-	ResetMap(form.Value)
+func AcquireMultipartFormWriter() *MultipartFormWriter {
+	return multipartFormWriterPool.Get().(*MultipartFormWriter)
 }
 
-func acquireMultipartForm() *multipart.Form {
-	return multipartForm.Get().(*multipart.Form)
-}
+func ReleaseMultipartFormWriter(mfw *MultipartFormWriter) {
+	mfw.Reset()
 
-func releaseMultipartForm(form *multipart.Form) {
-	if form != nil {
-		resetMultipartForm(form)
-	}
-	multipartForm.Put(form)
+	multipartFormWriterPool.Put(mfw)
 }
 
 type MultipartFormWriter struct {
@@ -71,11 +56,17 @@ func NewMultipartFormWriter() *MultipartFormWriter {
 }
 
 func (mfw *MultipartFormWriter) AddValue(fieldname, value string) {
-	mfw.w.WriteField(fieldname, value)
-
 	mfw.Lock()
+	defer mfw.Unlock()
+
+	mfw.w.WriteField(fieldname, value)
 	mfw.cachedMap[fieldname] = value
-	mfw.Unlock()
+}
+
+func (mfw *MultipartFormWriter) Reset() {
+	mfw.buf.Reset()
+	ResetMap(mfw.cachedMap)
+	mfw.w = nil
 }
 
 func (mfw *MultipartFormWriter) AppendString(fieldname, value string) {
@@ -89,19 +80,19 @@ func (mfw *MultipartFormWriter) AddFile(fieldname, filename, path string) {
 	}
 	defer f.Close()
 
+	mfw.Lock()
+	mfw.cachedMap[fieldname] = filename
 	w, err := mfw.w.CreateFormFile(fieldname, filename)
 	if err != nil {
 		panic(err)
 	}
+	mfw.Unlock()
 
 	_, err = io.Copy(w, f)
 	if err != nil {
 		panic(err)
 	}
 
-	mfw.Lock()
-	mfw.cachedMap[fieldname] = filename
-	mfw.Unlock()
 }
 
 func NewMultipartForm(mfw *MultipartFormWriter) (string, *bytes.Buffer) {

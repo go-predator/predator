@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-02-26 12:54:48
+ * @Modified At: 2023-02-27 11:58:44
  * @Modified By: thepoy
  */
 
@@ -12,7 +12,6 @@ package predator
 import (
 	"bytes"
 	"crypto/sha1"
-	"errors"
 	"fmt"
 	"time"
 
@@ -80,24 +79,20 @@ func (r *Request) SetContentType(contentType string) {
 	r.req.Header.Set("Content-Type", contentType)
 }
 
-func defaultCheckRedirect(req *http.Request, via []*http.Request) error {
-	if len(via) >= 10 {
-		return errors.New("stopped after 10 redirects")
-	}
+// func defaultCheckRedirect(req *http.Request, via []*http.Request) error {
+// 	if len(via) >= 10 {
+// 		return errors.New("stopped after 10 redirects")
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func doNotFollowRedirect(req *http.Request, via []*http.Request) error {
 	return http.ErrUseLastResponse
 }
 
-func (r *Request) FollowRedirect(yes bool) {
-	if yes {
-		r.checkRedirect = defaultCheckRedirect
-	} else {
-		r.checkRedirect = doNotFollowRedirect
-	}
+func (r *Request) DoNotFollowRedirects() {
+	r.checkRedirect = doNotFollowRedirect
 }
 
 // SetTimeout sets the waiting time for each request before
@@ -299,12 +294,6 @@ func resetRequest(req *http.Request) {
 	req.ProtoMajor = 1
 	req.ProtoMinor = 0
 
-	if req.Header != nil {
-		for k := range req.Header {
-			delete(req.Header, k)
-		}
-	}
-
 	req.Body = nil
 	req.GetBody = nil
 	req.ContentLength = 0
@@ -315,7 +304,7 @@ func resetRequest(req *http.Request) {
 	ResetMap(req.Form)
 	ResetMap(req.PostForm)
 
-	releaseMultipartForm(req.MultipartForm)
+	req.MultipartForm = nil
 
 	ResetMap(req.Trailer)
 
@@ -323,7 +312,7 @@ func resetRequest(req *http.Request) {
 	req.RequestURI = ""
 	req.TLS = nil
 
-	releaseHeader(req.Header)
+	req.Header = nil
 
 	// TODO: 释放 Response
 	req.Response = nil
@@ -346,7 +335,7 @@ var (
 	rawRequestPool = &sync.Pool{
 		New: func() any {
 			r := new(http.Request)
-			r.Header = acquireHeader()
+			r.Header = make(http.Header)
 
 			return r
 		},
@@ -359,8 +348,6 @@ var (
 			return r
 		},
 	}
-
-	// requestPool sync.Pool
 )
 
 func acquireRequest() *http.Request {
