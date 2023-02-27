@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-02-27 13:59:45
+ * @Modified At: 2023-02-27 14:26:41
  * @Modified By: thepoy
  */
 
@@ -15,9 +15,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -164,14 +167,16 @@ func server() *httptest.Server {
 		if r.Method == "POST" {
 			w.Header().Set("Content-Type", "text/html")
 
-			fmt.Println(r.Form)
+			if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+				r.ParseMultipartForm(1024)
 
-			if r.MultipartForm != nil {
-				body, err := json.Marshal(r.MultipartForm)
-				if err != nil {
-					panic(err)
-				}
-				w.Write(body)
+				source := r.MultipartForm.File["source"][0]
+				w.Write([]byte(source.Filename))
+
+				// body, err := json.Marshal(r.MultipartForm)
+				// if err != nil {
+				// 	panic(err)
+				// }
 			} else {
 				body, err := json.Marshal(r.PostForm)
 				if err != nil {
@@ -187,6 +192,26 @@ func server() *httptest.Server {
 	})
 
 	return httptest.NewServer(mux)
+}
+
+func download(u, filename string) error {
+	resp, err := http.Get(u)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(filename, body, fs.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func TestRequest(t *testing.T) {
@@ -244,26 +269,32 @@ func TestRequest(t *testing.T) {
 
 	// 想运行此示例，需要自行更新 cookie 和 auth_token
 	Convey("测试 PostMultipart", t, func() {
+		var err error
+
+		filename := "test.png"
+		err = download("https://s2.loli.net/2023/02/22/CSn8gvNikMe7UpZ.png", filename)
+		So(err, ShouldBeNil)
+
 		c := NewCrawler()
 
 		mfw := NewMultipartFormWriter()
 
-		var err error
-
 		mfw.AppendString("type", "file")
 		mfw.AppendString("action", "upload")
 		mfw.AppendString("timestamp", "1627871450610")
-		mfw.AppendFile("source", "/home/thepoy/Pictures/Nginx.png")
+		mfw.AppendFile("source", filename)
 
 		c.AfterResponse(func(r *Response) error {
-			// status := gjson.ParseBytes(r.Body).Get("status_code").Int()
-			// So(status, ShouldEqual, fasthttp.StatusOK)
-			fmt.Println(r)
+			So(r.StatusCode, ShouldEqual, StatusOK)
+			So(string(r.Body), ShouldEqual, filename)
 
 			return nil
 		})
 
 		err = c.PostMultipart(ts.URL+"/post", mfw, nil)
+		So(err, ShouldBeNil)
+
+		err = os.Remove(filename)
 		So(err, ShouldBeNil)
 	})
 
