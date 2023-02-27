@@ -245,8 +245,6 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 	request.ID = atomic.AddUint32(&c.requestCount, 1)
 	request.crawler = c
 
-	fmt.Printf("request_id=%d\n", request.ID)
-
 	if c.rawCookies != "" {
 		request.ParseRawCookie(c.rawCookies)
 		request.req.Header.Set("Cookie", c.rawCookies)

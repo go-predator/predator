@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   async_test.go
  * @Created At:  2021-07-31 13:14:09
- * @Modified At: 2023-02-26 13:06:56
+ * @Modified At: 2023-02-27 10:31:31
  * @Modified By: thepoy
  */
 
@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/go-predator/predator/context"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -37,15 +36,10 @@ func parsePerPage(c *Crawler, u, queryID string, page int) error {
 		mfw.AddValue(k, v)
 	}
 
-	// 将请求体中的关键参数传入上下文
-	ctx, _ := context.NewContext()
-	ctx.Put("qid", queryID)
-	ctx.Put("page", page)
-
-	return c.PostMultipart(u, mfw, ctx)
+	return c.PostMultipart(u, mfw, nil)
 }
 
-func testAsync(crawler *Crawler, t *testing.T) {
+func testAsync(crawler *Crawler, t *testing.T, u string) {
 	headers := map[string]string{
 		"Accept":          "*/*",
 		"Accept-Language": "zh-CN",
@@ -53,20 +47,12 @@ func testAsync(crawler *Crawler, t *testing.T) {
 	}
 
 	crawler.BeforeRequest(func(r *Request) {
-		// header := http.Header.Add()
-		// r.SetHeaders(headers)
-		r.SetHeader(NewHeader(headers))
-	})
-
-	crawler.AfterResponse(func(r *Response) {
-		qid := r.Ctx.Get("qid")
-		page := r.Ctx.GetAny("page").(int)
-		t.Logf("qid=%s page=%d", qid, page)
+		r.SetHeaders(headers)
 	})
 
 	// 请求多个分类的第一页内容
 	for i := 0; i < 100; i++ {
-		err := parsePerPage(crawler, "http://localhost:8080/post", fmt.Sprint(i+100), i+1)
+		err := parsePerPage(crawler, u, fmt.Sprint(i+100), i+1)
 		if err != nil {
 			t.Error("爬取失败：", err)
 		}
@@ -74,24 +60,28 @@ func testAsync(crawler *Crawler, t *testing.T) {
 }
 
 func TestAsync(t *testing.T) {
+	ts := server()
+	defer ts.Close()
+
 	Convey("同步耗时", t, func() {
-		defer timeCost("同步")()
+		defer timeCost("")()
 		crawler := NewCrawler(
 			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0"),
+			RecordRemoteAddr(),
 		)
 
-		testAsync(crawler, t)
+		testAsync(crawler, t, ts.URL+"/post")
 	})
 
-	Convey("异步耗时", t, func() {
-		defer timeCost("并发")()
+	Convey("并发耗时", t, func() {
+		defer timeCost("")()
 		crawler := NewCrawler(
 			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0"),
 			WithConcurrency(30, false),
-			// RecordRemoteAddr(),
+			RecordRemoteAddr(),
 		)
 
-		testAsync(crawler, t)
+		testAsync(crawler, t, ts.URL+"/post")
 
 		crawler.Wait()
 	})

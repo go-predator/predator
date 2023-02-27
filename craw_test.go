@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -66,7 +67,10 @@ func TestNewCrawler(t *testing.T) {
 var serverIndexResponse = []byte("hello world\n")
 
 func server() *httptest.Server {
-	mux := http.NewServeMux()
+	var (
+		mux  = http.NewServeMux()
+		rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -158,8 +162,7 @@ func server() *httptest.Server {
 			w.Write([]byte(r.FormValue("id")))
 
 			// 随机休眠几秒用于测试并发
-			// rand.Seed(time.Now().UnixNano())
-			// time.Sleep(time.Duration(rand.Intn(5)) * time.Second)
+			time.Sleep(time.Duration(rand.Intn(50)+100) * time.Millisecond)
 			return
 		}
 	})
@@ -629,7 +632,12 @@ func timeCost(label string) func() {
 	start := time.Now()
 	return func() {
 		tc := time.Since(start)
-		fmt.Printf("%s > time cost = %v\n", label, tc)
+
+		if label != "" {
+			fmt.Printf("%s > time cost = %v\n", label, tc)
+		} else {
+			fmt.Printf("> time cost = %v\n", tc)
+		}
 	}
 }
 
