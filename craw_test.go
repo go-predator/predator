@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-03-01 14:21:39
+ * @Modified At: 2023-03-01 15:47:29
  * @Modified By: thepoy
  */
 
@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"net"
 	"strconv"
 
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -362,12 +364,91 @@ func TestRequestTimeout(t *testing.T) {
 	})
 }
 
+func isPublicIP(IP net.IP) bool {
+	if IP.IsLoopback() || IP.IsLinkLocalMulticast() || IP.IsLinkLocalUnicast() {
+		return false
+	}
+	if ip4 := IP.To4(); ip4 != nil {
+		switch {
+		case ip4[0] == 10:
+			return false
+		case ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31:
+			return false
+		case ip4[0] == 192 && ip4[1] == 168:
+			return false
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+func getPulicIP() net.IP {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get("http://4.ipw.cn/")
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil
+	}
+
+	return net.ParseIP(strings.TrimSpace(string(b)))
+}
+
+func TestSocks5Proxy(t *testing.T) {
+	Convey("测试 socks5 代理", t, func() {
+		var proxyIP string
+
+		if ip := os.Getenv("socks5_proxy"); ip != "" {
+			proxyIP = ip
+		} else {
+			t.Fatal("socks5 proxy cannot be empy, you must set the `socks5_proxy` environment variable")
+		}
+
+		proxyURL, err := url.Parse(proxyIP)
+		So(err, ShouldBeNil)
+
+		ip := net.ParseIP(proxyURL.Hostname())
+		So(ip, ShouldNotBeNil)
+
+		isLocalIP := !isPublicIP(ip)
+
+		u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
+
+		c := NewCrawler(
+			WithProxy(proxyURL.String()),
+		)
+
+		c.AfterResponse(func(r *Response) error {
+			gotIP := gjson.ParseBytes(r.Body).Get("data.addr").String()
+
+			if isLocalIP {
+				So(gotIP, ShouldNotEqual, getPulicIP())
+			} else {
+				So(gotIP, ShouldEqual, ip.String())
+			}
+
+			return nil
+		})
+
+		err = c.Get(u)
+		So(err, ShouldBeNil)
+	})
+}
+
 func TestHTTPProxy(t *testing.T) {
 	ts := server()
 	defer ts.Close()
 
 	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
-	validIP := "https://113.218.237.148:45138"
+	// validIP := "https://113.218.237.148:45138"
+	validIP := "https://127.0.0.1:1086"
 	Convey("测试有效代理", t, func() {
 		c := NewCrawler(
 			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.55"),
@@ -467,30 +548,6 @@ func TestHTTPProxy(t *testing.T) {
 	// 		So(err, ShouldBeNil)
 	// 	}
 	// })
-}
-
-func TestSocks5Proxy(t *testing.T) {
-	proxyIP := "socks5://222.37.211.49:46601"
-	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
-
-	Convey("测试有效代理", t, func() {
-		c := NewCrawler(
-			WithProxy(proxyIP),
-		)
-
-		c.AfterResponse(func(r *Response) error {
-			t.Log(r)
-
-			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
-
-			So(ip, ShouldEqual, strings.Split(strings.Split(proxyIP, "//")[1], ":")[0])
-
-			return nil
-		})
-
-		err := c.Get(u)
-		So(err, ShouldBeNil)
-	})
 }
 
 func TestRetry(t *testing.T) {
