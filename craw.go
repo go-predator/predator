@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-01 12:24:42
+ * @Modified At: 2023-03-01 17:12:27
  * @Modified By: thepoy
  */
 
@@ -508,6 +508,8 @@ func (c *Crawler) proxy() proxy.ProxyFunc {
 }
 
 func (c *Crawler) processResponseError(err error) error {
+	c.Debug("raw error", log.Arg{Key: "error", Value: err})
+
 	e := &url.Error{}
 
 	if !errors.As(err, &e) {
