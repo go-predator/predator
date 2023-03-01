@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-03-01 15:47:29
+ * @Modified At: 2023-03-01 15:58:51
  * @Modified By: thepoy
  */
 
@@ -446,27 +446,51 @@ func TestHTTPProxy(t *testing.T) {
 	ts := server()
 	defer ts.Close()
 
-	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
-	// validIP := "https://113.218.237.148:45138"
-	validIP := "https://127.0.0.1:1086"
-	Convey("测试有效代理", t, func() {
-		c := NewCrawler(
-			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.55"),
-			WithProxy(validIP),
-			WithLogger(nil),
-		)
+	Convey("测试 http/https 代理", t, func() {
+		var proxyIP string
+
+		if ip := os.Getenv("https_proxy"); ip != "" {
+			proxyIP = ip
+		}
+		if proxyIP == "" {
+			if ip := os.Getenv("http_proxy"); ip != "" {
+				proxyIP = ip
+			}
+		}
+
+		if proxyIP == "" {
+			t.Fatal("http/https proxy cannot be empy, you must set the `https_proxy` or `http_proxy` environment variables")
+		}
+
+		proxyURL, err := url.Parse(proxyIP)
+		So(err, ShouldBeNil)
+
+		ip := net.ParseIP(proxyURL.Hostname())
+		So(ip, ShouldNotBeNil)
+
+		isLocalIP := !isPublicIP(ip)
+
+		u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
+		c := NewCrawler(WithProxy(proxyURL.String()))
 
 		c.ParseJSON(true, func(j json.JSONResult, r *Response) error {
-			ip := j.Get("data.addr").String()
+			gotIP := j.Get("data.addr").String()
 
-			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
+			if isLocalIP {
+				So(gotIP, ShouldNotEqual, getPulicIP())
+			} else {
+				So(gotIP, ShouldEqual, ip.String())
+			}
 
 			return nil
 		})
 
-		c.Get(u)
+		err = c.Get(u)
+		So(err, ShouldBeNil)
 	})
+}
 
+func TestProxyPool(t *testing.T) {
 	// Convey("测试代理池为空时 panic", t, func() {
 	// 	defer func() {
 	// 		if err := recover(); err != nil {
