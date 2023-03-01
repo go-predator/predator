@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   proxy.go
  * @Created At:  2023-02-25 19:55:29
- * @Modified At: 2023-02-25 20:16:45
+ * @Modified At: 2023-02-28 18:01:15
  * @Modified By: thepoy
  */
 
@@ -16,7 +16,7 @@ import (
 
 type ProxyFunc func(*http.Request) (*url.URL, error)
 
-func Proxy(r *http.Request, proxyAddr string) ProxyFunc {
+func Proxy(proxyAddr string) (ProxyFunc, string) {
 	var (
 		u   *url.URL
 		err error
@@ -32,5 +32,5 @@ func Proxy(r *http.Request, proxyAddr string) ProxyFunc {
 		}
 
 		return u, nil
-	}
+	}, proxyAddr
 }

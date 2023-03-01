@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-02-27 14:15:48
+ * @Modified At: 2023-03-01 12:24:42
  * @Modified By: thepoy
  */
 
@@ -11,10 +11,12 @@ package predator
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
@@ -106,6 +108,9 @@ type Crawler struct {
 	htmlHandler []*HTMLParser
 	jsonHandler []*JSONParser
 
+	// 对所有 Request 有效的超时控制
+	timeout time.Duration
+
 	// 记录远程/服务器地址
 	recordRemoteAddr bool
 
@@ -154,9 +159,16 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	if c.log != nil {
 		if capacityState {
-			c.Info("concurrent", log.Arg{Key: "state", Value: capacityState}, log.Arg{Key: "capacity", Value: c.goPool.capacity})
+			c.Info("concurrent",
+				log.Arg{Key: "state", Value: capacityState},
+				log.Arg{Key: "capacity", Value: c.goPool.capacity},
+				log.Arg{Key: "timeout", Value: c.timeout.String()},
+			)
 		} else {
-			c.Info("concurrent", log.Arg{Key: "state", Value: capacityState})
+			c.Info("concurrent",
+				log.Arg{Key: "state", Value: capacityState},
+				log.Arg{Key: "timeout", Value: c.timeout.String()},
+			)
 		}
 	}
 
@@ -187,6 +199,7 @@ func (c *Crawler) Clone() *Crawler {
 		retryCount:       c.retryCount,
 		retryCondition:   c.retryCondition,
 		client:           c.client,
+		cookies:          c.cookies,
 		rawCookies:       c.rawCookies,
 		goPool:           pool,
 		proxyURLPool:     c.proxyURLPool,
@@ -201,6 +214,7 @@ func (c *Crawler) Clone() *Crawler {
 		recordRemoteAddr: c.recordRemoteAddr,
 		wg:               &sync.WaitGroup{},
 		log:              c.log,
+		timeout:          c.timeout,
 	}
 }
 
@@ -223,7 +237,12 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 		return err
 	}
 
-	request := AcquireRequest() // ????
+	var request *Request
+	if c.timeout <= 0 {
+		request = AcquireRequest()
+	} else {
+		request = AcquireRequestWithTimeout(c.timeout)
+	}
 
 	if reqHeader == nil {
 		reqHeader = make(http.Header)
@@ -294,6 +313,9 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 	err = c.processRequestHandler(request)
 	if err != nil {
 		return
+	}
+	if request.cancel != nil {
+		defer request.cancel()
 	}
 
 	if request.abort {
@@ -478,6 +500,46 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 	return resp, nil
 }
 
+func (c *Crawler) proxy() proxy.ProxyFunc {
+	f, addr := proxy.Proxy(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))])
+	c.proxyInUse = addr
+
+	return f
+}
+
+func (c *Crawler) processResponseError(err error) error {
+	e := &url.Error{}
+
+	if !errors.As(err, &e) {
+		return err
+	}
+
+	opErr := &net.OpError{}
+
+	if !errors.As(e.Err, &opErr) {
+		if errors.Is(e.Err, context.DeadlineExceeded) {
+			return fmt.Errorf("%w -> %w", ErrTimeout, e.Err)
+		}
+
+		return err
+	}
+
+	if strings.HasPrefix(opErr.Op, "socks") {
+		return proxy.UnexpectedProtocol(c.proxyInUse, proxy.SOCKS5)
+	}
+
+	if strings.HasPrefix(opErr.Op, "proxyconnect") {
+		re := tls.RecordHeaderError{}
+		if errors.As(opErr.Err, &re) {
+			if re.Msg == "first record does not look like a TLS handshake" {
+				return proxy.UnexpectedProtocol(c.proxyInUse, proxy.HTTPS)
+			}
+		}
+	}
+
+	return err
+}
+
 func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 	c.client.Timeout = request.timeout
 	c.client.CheckRedirect = request.checkRedirect
@@ -487,7 +549,7 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 
 		c.lock.Lock()
 		c.client.Transport = &http.Transport{
-			Proxy: proxy.Proxy(request.req, c.proxyURLPool[rand.Intn(len(c.proxyURLPool))]),
+			Proxy: c.proxy(),
 		}
 		c.lock.Unlock()
 		c.Debug("request infomation", log.Arg{Key: "header", Value: request.Header()}, log.Arg{Key: "proxy", Value: c.ProxyInUse()})
@@ -511,8 +573,10 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 
 	resp, err := c.client.Do(request.req)
 	if err != nil {
-		c.Error(err)
-		return nil, nil, err
+		e := c.processResponseError(err)
+
+		c.Error(e)
+		return nil, nil, e
 	}
 
 	defer resp.Body.Close()

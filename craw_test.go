@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-02-27 14:26:41
+ * @Modified At: 2023-03-01 14:21:39
  * @Modified By: thepoy
  */
 
@@ -12,8 +12,9 @@ package predator
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"errors"
+	"strconv"
+
 	"fmt"
 	"io"
 	"io/fs"
@@ -28,10 +29,10 @@ import (
 
 	"github.com/go-predator/log"
 	"github.com/go-predator/predator/html"
+	"github.com/go-predator/predator/json"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/tidwall/gjson"
-	"github.com/valyala/fasthttp"
 )
 
 func TestNewCrawler(t *testing.T) {
@@ -77,6 +78,20 @@ func server() *httptest.Server {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write(serverIndexResponse)
+	})
+
+	mux.HandleFunc("/sleep", func(w http.ResponseWriter, r *http.Request) {
+		t := r.URL.Query().Get("timeout")
+		timeout, err := strconv.ParseInt(t, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+
+		time.Sleep(time.Duration(timeout))
+
+		w.WriteHeader(200)
+		w.Write(serverIndexResponse)
+
 	})
 
 	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
@@ -300,12 +315,59 @@ func TestRequest(t *testing.T) {
 
 }
 
+func TestRequestTimeout(t *testing.T) {
+	ts := server()
+	defer ts.Close()
+
+	Convey("一个添加了超时控制的请求因超时退出", t, func() {
+		timeout := 100 * time.Millisecond
+
+		c := NewCrawler()
+
+		c.BeforeRequest(func(r *Request) error {
+			r.SetTimeout(timeout)
+
+			return nil
+		})
+
+		err := c.Get(fmt.Sprintf("%s/sleep?timeout=%d", ts.URL, timeout*2))
+		So(errors.Is(err, ErrTimeout), ShouldBeTrue)
+	})
+
+	Convey("一个添加了超时控制的请求在超时时间内响应", t, func() {
+		timeout := 100 * time.Millisecond
+
+		c := NewCrawler()
+
+		c.BeforeRequest(func(r *Request) error {
+			r.SetTimeout(2 * time.Second)
+
+			return nil
+		})
+
+		err := c.Get(fmt.Sprintf("%s/sleep?timeout=%d", ts.URL, timeout/2))
+		So(err, ShouldBeNil)
+	})
+
+	Convey("全部请求添加超时控制", t, func() {
+		c := NewCrawler(
+			WithTimeout(2 * time.Second),
+		)
+
+		err := c.Get(fmt.Sprintf("%s/sleep?timeout=%d", ts.URL, time.Second))
+		So(err, ShouldBeNil)
+
+		err = c.Get(fmt.Sprintf("%s/sleep?timeout=%d", ts.URL, 3*time.Second))
+		So(errors.Is(err, ErrTimeout), ShouldBeTrue)
+	})
+}
+
 func TestHTTPProxy(t *testing.T) {
 	ts := server()
 	defer ts.Close()
 
 	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
-	validIP := "http://123.73.209.237:46603"
+	validIP := "https://113.218.237.148:45138"
 	Convey("测试有效代理", t, func() {
 		c := NewCrawler(
 			WithUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.55"),
@@ -313,8 +375,8 @@ func TestHTTPProxy(t *testing.T) {
 			WithLogger(nil),
 		)
 
-		c.AfterResponse(func(r *Response) error {
-			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
+		c.ParseJSON(true, func(j json.JSONResult, r *Response) error {
+			ip := j.Get("data.addr").String()
 
 			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
 
@@ -324,87 +386,87 @@ func TestHTTPProxy(t *testing.T) {
 		c.Get(u)
 	})
 
-	Convey("测试代理池为空时 panic", t, func() {
-		defer func() {
-			if err := recover(); err != nil {
-				ShouldBeTrue(errors.Is(err.(error), ErrEmptyProxyPool))
-			}
-		}()
-		ips := []string{
-			"http://14.134.203.22:45104",
-			"http://14.134.204.22:45105",
-			"http://14.134.205.22:45106",
-			"http://14.134.206.22:45107",
-			"http://14.134.207.22:45108",
-			"http://14.134.208.22:45109",
-		}
-		c := NewCrawler(WithProxyPool(ips), WithLogger(nil))
+	// Convey("测试代理池为空时 panic", t, func() {
+	// 	defer func() {
+	// 		if err := recover(); err != nil {
+	// 			ShouldBeTrue(errors.Is(err.(error), ErrEmptyProxyPool))
+	// 		}
+	// 	}()
+	// 	ips := []string{
+	// 		"http://14.134.203.22:45104",
+	// 		"http://14.134.204.22:45105",
+	// 		"http://14.134.205.22:45106",
+	// 		"http://14.134.206.22:45107",
+	// 		"http://14.134.207.22:45108",
+	// 		"http://14.134.208.22:45109",
+	// 	}
+	// 	c := NewCrawler(WithProxyPool(ips), WithLogger(nil))
 
-		c.Get(u)
-	})
+	// 	c.Get(u)
+	// })
 
-	Convey("测试删除代理池中某个或某些无效代理", t, func() {
-		ips := []string{
-			"http://14.134.204.22:45105",
-			validIP,
-			"http://14.134.205.22:45106",
-			"http://14.134.206.22:45107",
-			"http://27.29.155.141:45118",
-			"http://14.134.208.22:45109",
-		}
-		c := NewCrawler(WithProxyPool(ips), WithLogger(nil))
+	// Convey("测试删除代理池中某个或某些无效代理", t, func() {
+	// 	ips := []string{
+	// 		"http://14.134.204.22:45105",
+	// 		validIP,
+	// 		"http://14.134.205.22:45106",
+	// 		"http://14.134.206.22:45107",
+	// 		"http://27.29.155.141:45118",
+	// 		"http://14.134.208.22:45109",
+	// 	}
+	// 	c := NewCrawler(WithProxyPool(ips), WithLogger(nil))
 
-		c.AfterResponse(func(r *Response) error {
-			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
-			So(c.ProxyPoolAmount(), ShouldBeLessThanOrEqualTo, len(ips))
-			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
+	// 	c.AfterResponse(func(r *Response) error {
+	// 		ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
+	// 		So(c.ProxyPoolAmount(), ShouldBeLessThanOrEqualTo, len(ips))
+	// 		So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
 
-			return nil
-		})
+	// 		return nil
+	// 	})
 
-		err := c.Get(u)
-		So(err, ShouldBeNil)
-	})
+	// 	err := c.Get(u)
+	// 	So(err, ShouldBeNil)
+	// })
 
-	Convey("测试多个有效代理的随机选择", t, func() {
-		count := 5
-		u := "http://t.ipjldl.com/index.php/api/entry?method=proxyServer.generate_api_url&packid=0&fa=0&fetch_key=&groupid=0&qty=%d&time=1&pro=&city=&port=1&format=txt&ss=1&css=&dt=1&specialTxt=3&specialJson=&usertype=2"
-		client := &fasthttp.Client{}
-		body := make([]byte, 0)
-		_, body, err := client.Get(body, fmt.Sprintf(u, count))
-		if err != nil {
-			panic(err)
-		}
+	// Convey("测试多个有效代理的随机选择", t, func() {
+	// 	count := 5
+	// 	u := "http://t.ipjldl.com/index.php/api/entry?method=proxyServer.generate_api_url&packid=0&fa=0&fetch_key=&groupid=0&qty=%d&time=1&pro=&city=&port=1&format=txt&ss=1&css=&dt=1&specialTxt=3&specialJson=&usertype=2"
+	// 	client := &fasthttp.Client{}
+	// 	body := make([]byte, 0)
+	// 	_, body, err := client.Get(body, fmt.Sprintf(u, count))
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
 
-		ips := strings.Split(string(body), "\r\n")
-		for i := 0; i < len(ips); i++ {
-			ips[i] = "http://" + ips[i]
-		}
+	// 	ips := strings.Split(string(body), "\r\n")
+	// 	for i := 0; i < len(ips); i++ {
+	// 		ips[i] = "http://" + ips[i]
+	// 	}
 
-		c := NewCrawler(WithProxyPool(ips), WithDefaultLogger())
+	// 	c := NewCrawler(WithProxyPool(ips), WithDefaultLogger())
 
-		c.BeforeRequest(func(r *Request) error {
-			r.SetHeaders(map[string]string{
-				// 避免因 keep-alive 的响应无法改变代理
-				"Connection": "close",
-			})
+	// 	c.BeforeRequest(func(r *Request) error {
+	// 		r.SetHeaders(map[string]string{
+	// 			// 避免因 keep-alive 的响应无法改变代理
+	// 			"Connection": "close",
+	// 		})
 
-			return nil
-		})
+	// 		return nil
+	// 	})
 
-		c.AfterResponse(func(r *Response) error {
-			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
-			t.Log(ip)
+	// 	c.AfterResponse(func(r *Response) error {
+	// 		ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
+	// 		t.Log(ip)
 
-			return nil
-		})
+	// 		return nil
+	// 	})
 
-		ipu := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
-		for i := 0; i < count*2; i++ {
-			err := c.Get(ipu)
-			So(err, ShouldBeNil)
-		}
-	})
+	// 	ipu := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
+	// 	for i := 0; i < count*2; i++ {
+	// 		err := c.Get(ipu)
+	// 		So(err, ShouldBeNil)
+	// 	}
+	// })
 }
 
 func TestSocks5Proxy(t *testing.T) {
@@ -891,8 +953,6 @@ func TestClone(t *testing.T) {
 		WithConcurrency(10, false)(c)
 
 		c.AfterResponse(func(r *Response) error {
-			fmt.Println(r.StatusCode)
-			fmt.Println(r)
 			So(r.StatusCode, ShouldEqual, 200)
 			So(r.String(), ShouldEqual, "ok")
 

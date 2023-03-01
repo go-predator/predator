@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   options.go
  * @Created At:  2021-07-23 08:58:31
- * @Modified At: 2023-02-26 12:56:26
+ * @Modified At: 2023-03-01 11:41:06
  * @Modified By: thepoy
  */
 
@@ -129,6 +129,13 @@ func WithProxy(proxyURL string) CrawlerOption {
 func WithProxyPool(proxyURLs []string) CrawlerOption {
 	return func(c *Crawler) {
 		c.proxyURLPool = proxyURLs
+	}
+}
+
+// WithTimeout 使用超时控制
+func WithTimeout(timeout time.Duration) CrawlerOption {
+	return func(c *Crawler) {
+		c.timeout = timeout
 	}
 }
 

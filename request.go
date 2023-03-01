@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-02-27 13:41:39
+ * @Modified At: 2023-03-01 12:23:58
  * @Modified By: thepoy
  */
 
@@ -11,6 +11,7 @@ package predator
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"fmt"
 	"io"
@@ -43,7 +44,10 @@ type Request struct {
 	retryCounter uint32
 	// 允许重定向
 	checkRedirect func(req *http.Request, via []*http.Request) error
-	timeout       time.Duration
+
+	// 仅对一个　Request 实例有效的超时控制
+	timeout time.Duration
+	cancel  context.CancelFunc
 }
 
 func (r Request) IsCached() (bool, error) {
@@ -100,8 +104,12 @@ func (r *Request) DoNotFollowRedirects() {
 // the remote end returns a response.
 //
 // The function doesn't follow redirects.
-func (r *Request) SetTimeout(t time.Duration) {
-	r.timeout = t
+func (r *Request) SetTimeout(timeout time.Duration) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	r.req = r.req.WithContext(ctx)
+	r.cancel = cancel
+
+	r.timeout = timeout
 }
 
 func (r *Request) SetHeaders(headers map[string]string) {
@@ -347,18 +355,27 @@ var (
 			return r
 		},
 	}
-	requestPool = &sync.Pool{
-		New: func() any {
-			r := new(Request)
-			r.req = acquireRequest()
-
-			return r
-		},
-	}
+	requestPool sync.Pool
 )
 
-func acquireRequest() *http.Request {
-	return rawRequestPool.Get().(*http.Request)
+func acquireRequest(timeout time.Duration) (*http.Request, context.CancelFunc) {
+	var req *http.Request
+
+	if r := rawRequestPool.Get(); r != nil {
+		req = r.(*http.Request)
+	} else {
+		req := new(http.Request)
+		req.Header = make(http.Header)
+	}
+
+	if timeout <= 0 {
+		return req, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	newReq := req.WithContext(ctx)
+
+	return newReq, cancel
 }
 
 func releaseRequest(req *http.Request) {
@@ -372,9 +389,28 @@ func releaseRequest(req *http.Request) {
 // no longer needed. This allows Request recycling, reduces GC pressure
 // and usually improves performance.
 func AcquireRequest() *Request {
-	r := requestPool.Get().(*Request)
+	return AcquireRequestWithTimeout(0)
+}
 
-	return r
+// AcquireRequest returns an empty Request instance from request pool.
+//
+// The returned Request instance may be passed to ReleaseRequest when it is
+// no longer needed. This allows Request recycling, reduces GC pressure
+// and usually improves performance.
+func AcquireRequestWithTimeout(timeout time.Duration) *Request {
+	var req *Request
+
+	if r := requestPool.Get(); r != nil {
+		req = r.(*Request)
+	} else {
+		req = new(Request)
+	}
+
+	req.req, req.cancel = acquireRequest(timeout)
+
+	req.timeout = timeout
+
+	return req
 }
 
 // ReleaseRequest returns req acquired via AcquireRequest to request pool.
