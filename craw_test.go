@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-03-01 15:58:51
+ * @Modified At: 2023-03-02 10:48:50
  * @Modified By: thepoy
  */
 
@@ -491,24 +491,30 @@ func TestHTTPProxy(t *testing.T) {
 }
 
 func TestProxyPool(t *testing.T) {
-	// Convey("测试代理池为空时 panic", t, func() {
-	// 	defer func() {
-	// 		if err := recover(); err != nil {
-	// 			ShouldBeTrue(errors.Is(err.(error), ErrEmptyProxyPool))
-	// 		}
-	// 	}()
-	// 	ips := []string{
-	// 		"http://14.134.203.22:45104",
-	// 		"http://14.134.204.22:45105",
-	// 		"http://14.134.205.22:45106",
-	// 		"http://14.134.206.22:45107",
-	// 		"http://14.134.207.22:45108",
-	// 		"http://14.134.208.22:45109",
-	// 	}
-	// 	c := NewCrawler(WithProxyPool(ips), WithLogger(nil))
+	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
 
-	// 	c.Get(u)
-	// })
+	Convey("测试代理池为空时 panic", t, func() {
+		// defer func() {
+		// 	if err := recover(); err != nil {
+		// 		ShouldBeTrue(errors.Is(err.(error), ErrEmptyProxyPool))
+		// 	}
+		// }()
+
+		ips := []string{
+			// "https://14.134.203.22:45104",
+			// "http://14.134.204.22:45105",
+			// "http://14.134.205.22:45106",
+			// "http://14.134.206.22:45107",
+			// "http://14.134.207.22:45108",
+			// "http://14.134.208.22:45109",
+			"https://119.41.192.236:55113",
+			"https://111.127.99.83:55109",
+		}
+
+		c := NewCrawler(WithProxyPool(ips), WithTimeout(300*time.Millisecond))
+
+		c.Get(u)
+	})
 
 	// Convey("测试删除代理池中某个或某些无效代理", t, func() {
 	// 	ips := []string{

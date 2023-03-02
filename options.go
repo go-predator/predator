@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   options.go
  * @Created At:  2021-07-23 08:58:31
- * @Modified At: 2023-03-01 11:41:06
+ * @Modified At: 2023-03-02 09:38:43
  * @Modified By: thepoy
  */
 
@@ -132,7 +132,14 @@ func WithProxyPool(proxyURLs []string) CrawlerOption {
 	}
 }
 
-// WithTimeout 使用超时控制
+// WithTimeout 使用超时控制。
+//
+// 此处的超时时间将作用于整个 request 请求，如果你使用了代理，
+// 客户端与代理服务器建立连接的时间也会被算在内，这是 http 标准
+// 库的问题。
+//
+// 同时，这也意味着，一旦发生超时错误，无法判断这个错误是由代理
+// 引发还是由代理向服务器发送请求引发的，需要用户自行判断。
 func WithTimeout(timeout time.Duration) CrawlerOption {
 	return func(c *Crawler) {
 		c.timeout = timeout

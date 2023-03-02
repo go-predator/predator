@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-01 17:12:27
+ * @Modified At: 2023-03-02 11:53:51
  * @Modified By: thepoy
  */
 
@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -31,7 +32,6 @@ import (
 	"github.com/go-predator/predator/html"
 	"github.com/go-predator/predator/json"
 	"github.com/go-predator/predator/proxy"
-	"github.com/valyala/fasthttp"
 )
 
 // HandleRequest is used to patch the request
@@ -81,13 +81,14 @@ type Crawler struct {
 	rawCookies string
 	cookies    map[string]string
 
-	goPool                *Pool
+	goPool *Pool
+
 	proxyURLPool          []string
 	proxyInvalidCondition ProxyInvalidCondition
-	proxyInUse            string
-	complementProxyPool   ComplementProxyPool
-	requestCount          uint32
-	responseCount         uint32
+
+	complementProxyPool ComplementProxyPool
+	requestCount        uint32
+	responseCount       uint32
 	// TODO: 在多协程中这个上下文管理可以用来退出或取消多个协程
 	Context context.Context
 
@@ -500,14 +501,44 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 	return resp, nil
 }
 
-func (c *Crawler) proxy() proxy.ProxyFunc {
+func (c *Crawler) proxy(req *Request) proxy.ProxyFunc {
 	f, addr := proxy.Proxy(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))])
-	c.proxyInUse = addr
+	req.proxyUsed = addr
 
 	return f
 }
 
-func (c *Crawler) processResponseError(err error) error {
+func (c *Crawler) processProxyError(req *Request, err error) error {
+	if _, ok := proxy.IsProxyError(err); !ok {
+		return err
+	}
+
+	pe := err.(proxy.ProxyErr)
+
+	c.Warning("proxy is invalid",
+		log.Arg{Key: "proxy", Value: req.proxyUsed},
+		log.Arg{Key: "proxy_pool", Value: c.proxyURLPool},
+		log.Arg{Key: "error", Value: pe.Err},
+	)
+
+	err = c.removeInvalidProxy(req.proxyUsed)
+	if err != nil {
+		c.FatalOrPanic(err)
+	}
+
+	c.Info("removed invalid proxy",
+		log.Arg{Key: "invalid_proxy", Value: req.proxyUsed},
+		log.Arg{Key: "new_proxy_pool", Value: c.proxyURLPool},
+	)
+
+	return nil
+}
+
+func (c *Crawler) preprocessResponseError(req *Request, err error) error {
+	if err == nil {
+		return nil
+	}
+
 	c.Debug("raw error", log.Arg{Key: "error", Value: err})
 
 	e := &url.Error{}
@@ -527,15 +558,22 @@ func (c *Crawler) processResponseError(err error) error {
 	}
 
 	if strings.HasPrefix(opErr.Op, "socks") {
-		return proxy.UnexpectedProtocol(c.proxyInUse, proxy.SOCKS5)
+		return proxy.UnexpectedProtocol(req.proxyUsed, proxy.SOCKS5)
 	}
 
 	if strings.HasPrefix(opErr.Op, "proxyconnect") {
 		re := tls.RecordHeaderError{}
 		if errors.As(opErr.Err, &re) {
 			if re.Msg == "first record does not look like a TLS handshake" {
-				return proxy.UnexpectedProtocol(c.proxyInUse, proxy.HTTPS)
+				return proxy.UnexpectedProtocol(req.proxyUsed, proxy.HTTPS)
 			}
+		}
+
+		scErr := &os.SyscallError{}
+		if errors.As(opErr.Err, &scErr) {
+			// no := scErr.Err.(syscall.Errno)
+			// return scErr
+			return proxy.NewProxyError(req.proxyUsed, scErr)
 		}
 	}
 
@@ -551,10 +589,10 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 
 		c.lock.Lock()
 		c.client.Transport = &http.Transport{
-			Proxy: c.proxy(),
+			Proxy: c.proxy(request),
 		}
 		c.lock.Unlock()
-		c.Debug("request infomation", log.Arg{Key: "header", Value: request.Header()}, log.Arg{Key: "proxy", Value: c.ProxyInUse()})
+		c.Debug("request infomation", log.Arg{Key: "header", Value: request.Header()}, log.Arg{Key: "proxy", Value: request.proxyUsed})
 	} else {
 		c.Debug("request infomation", log.Arg{Key: "header", Value: request.Header()})
 	}
@@ -575,12 +613,45 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 
 	resp, err := c.client.Do(request.req)
 	if err != nil {
-		e := c.processResponseError(err)
+		e := c.preprocessResponseError(request, err)
+
+		// TODO: 重写 Tranport.Dial，对 proxy 请求的错误进行封装。
+		if errors.Is(e, ErrTimeout) {
+			if request.proxyUsed != "" {
+				c.Warning("the connection timed out, but it was not possible to determine if the error was caused by a timeout with the proxy server or a timeout between the proxy server and the target server")
+			}
+
+			// re-request if the request timed out.
+			// re-request 3 times by default when the request times out.
+
+			// if you are using a proxy, the timeout error is probably
+			// because the proxy is invalid, and it is recommended
+			// to try a new proxy
+			if c.retryCount == 0 {
+				c.retryCount = 3
+			}
+
+			c.Error(err, log.Arg{Key: "timeout", Value: request.timeout.String()}, log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)})
+
+			if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
+				c.retryPrepare(request)
+				return c.do(request)
+			}
+
+			ReleaseRequest(request)
+
+			return nil, nil, e
+		}
+
+		e = c.processProxyError(request, e)
+
+		if e == nil {
+			return c.do(request)
+		}
 
 		c.Error(e)
 		return nil, nil, e
 	}
-
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
@@ -597,88 +668,9 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 	response.header = resp.Header.Clone()
 	response.clientIP = request.req.RemoteAddr
 
-	if response.StatusCode == StatusOK && len(response.Body) == 0 {
-		response.StatusCode = 0
-	}
-
-	if x, ok := err.(interface{ Timeout() bool }); ok && x.Timeout() {
-		response.timeout = true
-		err = ErrTimeout
-	}
-
-	if err == nil || err == ErrTimeout || err == http.ErrHandlerTimeout {
-		if c.ProxyPoolAmount() > 0 && c.proxyInvalidCondition != nil {
-			e := c.proxyInvalidCondition(response)
-			if e != nil {
-				err = e
-			}
-		}
-	}
-
-	if err != nil {
-		if p, ok := proxy.IsProxyError(err); ok {
-			c.Warning("proxy is invalid",
-				log.Arg{Key: "proxy", Value: p},
-				log.Arg{Key: "proxy_pool", Value: c.proxyURLPool},
-				log.Arg{Key: "msg", Value: err},
-			)
-
-			err = c.removeInvalidProxy(p)
-			if err != nil {
-				c.FatalOrPanic(err)
-			}
-
-			c.Info("removed invalid proxy",
-				log.Arg{Key: "invalid_proxy", Value: p},
-				log.Arg{Key: "new_proxy_pool", Value: c.proxyURLPool},
-			)
-
-			ReleaseRequest(request)
-			releaseResponse(resp)
-
-			return c.do(request)
-		} else {
-			if err == ErrTimeout || err == http.ErrHandlerTimeout {
-				// re-request if the request timed out.
-				// re-request 3 times by default when the request times out.
-
-				// if you are using a proxy, the timeout error is probably
-				// because the proxy is invalid, and it is recommended
-				// to try a new proxy
-				if c.retryCount == 0 {
-					c.retryCount = 3
-				}
-
-				c.Error(err, log.Arg{Key: "timeout", Value: request.timeout.String()}, log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)})
-
-				if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
-					c.retryPrepare(request, response)
-					return c.do(request)
-				}
-				ReleaseRequest(request)
-				releaseResponse(resp)
-				ReleaseResponse(response, true)
-
-				return nil, nil, ErrTimeout
-			} else {
-				if err == fasthttp.ErrConnectionClosed {
-					// Feature error of fasthttp, there is no solution yet, only try again if c.retryCount > 0 or panic
-					c.Error(err, log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)})
-
-					if c.retryCount == 0 {
-						c.retryCount = 1
-					}
-
-					if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
-						c.retryPrepare(request, response)
-						return c.do(request)
-					}
-				}
-				c.FatalOrPanic(err)
-				return nil, nil, err
-			}
-		}
-	}
+	// if response.StatusCode == StatusOK && len(response.Body) == 0 {
+	// 	response.StatusCode = 0
+	// }
 
 	c.Debug("response header", log.Arg{Key: "header", Value: resp.Header})
 
@@ -688,7 +680,7 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 	if c.retryCount > 0 && atomic.LoadUint32(&request.retryCounter) < c.retryCount {
 		if c.retryCondition != nil && c.retryCondition(response) {
 			c.Warning("the response meets the retry condition and will be retried soon")
-			c.retryPrepare(request, response)
+			c.retryPrepare(request)
 			return c.do(request)
 		}
 	}
@@ -696,7 +688,7 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 	return response, resp, nil
 }
 
-func (c *Crawler) retryPrepare(request *Request, resp *Response) {
+func (c *Crawler) retryPrepare(request *Request) {
 	atomic.AddUint32(&request.retryCounter, 1)
 	c.Info(
 		"retrying",
@@ -705,8 +697,6 @@ func (c *Crawler) retryPrepare(request *Request, resp *Response) {
 		log.Arg{Key: "url", Value: request.URL()},
 		log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
 	)
-	ReleaseRequest(request)
-	ReleaseResponse(resp, false)
 }
 
 func createBody(requestData map[string]string) []byte {
@@ -988,16 +978,6 @@ func (c *Crawler) ClearCache() error {
 		c.Warning("clear all cache")
 	}
 	return c.cache.Clear()
-}
-
-func (c Crawler) ProxyInUse() string {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-
-	if strings.Contains(c.proxyInUse, "//") {
-		return strings.Split(c.proxyInUse, "//")[1]
-	}
-	return c.proxyInUse
 }
 
 func (c *Crawler) ConcurrencyState() bool {
@@ -1299,8 +1279,7 @@ func (c *Crawler) removeInvalidProxy(proxyAddr string) error {
 
 	targetIndex := -1
 	for i, p := range c.proxyURLPool {
-		addr := strings.Split(p, "//")[1]
-		if addr == proxyAddr {
+		if p == proxyAddr {
 			targetIndex = i
 			break
 		}

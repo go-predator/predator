@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-03-01 12:23:58
+ * @Modified At: 2023-03-02 09:25:28
  * @Modified By: thepoy
  */
 
@@ -48,6 +48,9 @@ type Request struct {
 	// 仅对一个　Request 实例有效的超时控制
 	timeout time.Duration
 	cancel  context.CancelFunc
+
+	// 发送请求时使用的代理
+	proxyUsed string
 }
 
 func (r Request) IsCached() (bool, error) {

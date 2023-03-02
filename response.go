@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   response.go
  * @Created At:  2021-07-24 13:34:44
- * @Modified At: 2023-02-27 13:58:06
+ * @Modified At: 2023-03-02 11:43:26
  * @Modified By: thepoy
  */
 
@@ -221,6 +221,10 @@ func acquireResponse() *http.Response {
 }
 
 func resetResponse(resp *http.Response) {
+	if resp == nil {
+		return
+	}
+
 	resp.Status = ""
 	resp.StatusCode = 0
 	resp.Proto = ""

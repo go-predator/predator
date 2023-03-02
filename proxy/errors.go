@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   errors.go
  * @Created At:  2023-02-25 19:55:12
- * @Modified At: 2023-02-28 14:49:55
+ * @Modified At: 2023-03-02 11:39:00
  * @Modified By: thepoy
  */
 
@@ -53,6 +53,13 @@ func (pe ProxyErr) Error() string {
 	s.WriteString(pe.Err.Error())
 
 	return s.String()
+}
+
+func NewProxyError(proxy string, err error) ProxyErr {
+	return ProxyErr{
+		Proxy: proxy,
+		Err:   err,
+	}
 }
 
 func IsProxyError(err error) (string, bool) {
