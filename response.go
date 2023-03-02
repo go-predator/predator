@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   response.go
  * @Created At:  2021-07-24 13:34:44
- * @Modified At: 2023-03-02 15:15:27
+ * @Modified At: 2023-03-02 15:57:23
  * @Modified By: thepoy
  */
 
@@ -67,9 +67,19 @@ func (r *Response) ContentType() string {
 
 func (r *Response) ContentLength() uint64 {
 	cl := r.header.Get("Content-Length")
-	length, err := strconv.ParseUint(cl, 10, 64)
-	if err != nil {
-		panic(err)
+
+	var (
+		length uint64
+		err    error
+	)
+
+	if cl != "" {
+		length, err = strconv.ParseUint(cl, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		length = uint64(len(r.Body))
 	}
 
 	return length
@@ -97,7 +107,7 @@ func (r *Response) Reset(releaseCtx bool) {
 	}
 
 	ReleaseRequest(r.Request)
-	ResetMap(r.resp.Header)
+	ResetMap(r.header)
 
 	r.FromCache = false
 	r.invalid = false
@@ -107,7 +117,7 @@ func (r *Response) Reset(releaseCtx bool) {
 type cachedHeaders struct {
 	StatusCode    StatusCode
 	ContentType   string // this is the most important field
-	ContentLength int64
+	ContentLength uint64
 	Server        []byte
 	Location      []byte
 }
@@ -121,7 +131,7 @@ func (r *Response) convertHeaders() (*cachedHeaders, error) {
 	ch := &cachedHeaders{}
 	ch.StatusCode = r.StatusCode
 	ch.ContentType = r.ContentType()
-	ch.ContentLength = r.resp.ContentLength
+	ch.ContentLength = r.ContentLength()
 	ch.Server = []byte(r.ClientIP())
 
 	if ch.StatusCode == StatusFound {
@@ -160,6 +170,7 @@ func (r *Response) Unmarshal(cachedBody []byte) error {
 		cr  cachedResponse
 		err error
 	)
+
 	err = json.Unmarshal(cachedBody, &cr)
 	if err != nil {
 		return err
@@ -169,12 +180,12 @@ func (r *Response) Unmarshal(cachedBody []byte) error {
 	r.StatusCode = cr.Headers.StatusCode
 	r.clientIP = string(cr.Headers.Server)
 
-	if r.resp == nil {
-		r.resp = acquireResponse()
+	if r.header == nil {
+		r.header = make(http.Header)
 	}
 
-	r.resp.Header.Set("Content-Type", cr.Headers.ContentType)
-	r.resp.Header.Set("Content-Length", strconv.FormatInt(cr.Headers.ContentLength, 10))
+	r.header.Set("Content-Type", cr.Headers.ContentType)
+	r.header.Set("Content-Length", strconv.FormatUint(cr.Headers.ContentLength, 10))
 
 	return nil
 }
@@ -200,6 +211,7 @@ var (
 		New: func() any {
 			resp := new(Response)
 			resp.resp = acquireResponse()
+			resp.header = make(http.Header)
 
 			return resp
 		},
