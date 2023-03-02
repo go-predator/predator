@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   response.go
  * @Created At:  2021-07-24 13:34:44
- * @Modified At: 2023-03-02 11:43:26
+ * @Modified At: 2023-03-02 15:15:27
  * @Modified By: thepoy
  */
 
@@ -168,6 +168,11 @@ func (r *Response) Unmarshal(cachedBody []byte) error {
 	r.Body = cr.Body
 	r.StatusCode = cr.Headers.StatusCode
 	r.clientIP = string(cr.Headers.Server)
+
+	if r.resp == nil {
+		r.resp = acquireResponse()
+	}
+
 	r.resp.Header.Set("Content-Type", cr.Headers.ContentType)
 	r.resp.Header.Set("Content-Length", strconv.FormatInt(cr.Headers.ContentLength, 10))
 
@@ -185,7 +190,10 @@ func (r *Response) IsTimeout() bool {
 var (
 	rawResponsePool = &sync.Pool{
 		New: func() any {
-			return new(http.Response)
+			r := new(http.Response)
+			r.Header = make(http.Header)
+
+			return r
 		},
 	}
 	responsePool = &sync.Pool{
