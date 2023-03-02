@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-02 11:53:51
+ * @Modified At: 2023-03-02 14:27:01
  * @Modified By: thepoy
  */
 
@@ -136,20 +136,12 @@ func NewCrawler(opts ...CrawlerOption) *Crawler {
 
 	// If there is `DEBUG` in the environment variable and `c.log` is nil,
 	// create a logger with a level of `DEBUG`
-	if c.log == nil {
-		if log.IsDebug() {
-			c.log = log.NewLogger(
-				log.DEBUG,
-				log.ToConsole(),
-				2,
-			)
-		} else {
-			c.log = log.NewLogger(
-				log.WARNING,
-				log.MustToFile("predator.log", -1),
-				2,
-			)
-		}
+	if c.log == nil && log.IsDebug() {
+		c.log = log.NewLogger(
+			log.DEBUG,
+			log.ToConsole(),
+			2,
+		)
 	}
 
 	c.lock = &sync.RWMutex{}
@@ -587,11 +579,10 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 	if len(c.proxyURLPool) > 0 {
 		rand.Seed(time.Now().UnixMicro())
 
-		c.lock.Lock()
 		c.client.Transport = &http.Transport{
 			Proxy: c.proxy(request),
 		}
-		c.lock.Unlock()
+
 		c.Debug("request infomation", log.Arg{Key: "header", Value: request.Header()}, log.Arg{Key: "proxy", Value: request.proxyUsed})
 	} else {
 		c.Debug("request infomation", log.Arg{Key: "header", Value: request.Header()})
@@ -631,7 +622,11 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 				c.retryCount = 3
 			}
 
-			c.Error(err, log.Arg{Key: "timeout", Value: request.timeout.String()}, log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)})
+			c.Error(err,
+				log.Arg{Key: "timeout", Value: request.timeout.String()},
+				log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
+				log.Arg{Key: "proxy", Value: request.proxyUsed},
+			)
 
 			if atomic.LoadUint32(&request.retryCounter) < c.retryCount {
 				c.retryPrepare(request)

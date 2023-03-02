@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-03-02 10:48:50
+ * @Modified At: 2023-03-02 14:25:53
  * @Modified By: thepoy
  */
 
@@ -490,54 +490,70 @@ func TestHTTPProxy(t *testing.T) {
 	})
 }
 
+func getEnvProxy() []string {
+	all_ps := []string{
+		os.Getenv("http_proxy"),
+		os.Getenv("https_proxy"),
+		os.Getenv("socks5_proxy"),
+	}
+
+	ps := make([]string, 0)
+
+	for _, p := range all_ps {
+		if p != "" {
+			ps = append(ps, p)
+		}
+	}
+
+	return ps
+}
+
 func TestProxyPool(t *testing.T) {
 	u := "https://api.bilibili.com/x/web-interface/zone?jsonp=jsonp"
 
-	Convey("测试代理池为空时 panic", t, func() {
-		// defer func() {
-		// 	if err := recover(); err != nil {
-		// 		ShouldBeTrue(errors.Is(err.(error), ErrEmptyProxyPool))
-		// 	}
-		// }()
+	unreachableIPs := []string{
+		"https://119.41.192.236:55113",
+		"https://111.127.99.83:55109",
+	}
 
-		ips := []string{
-			// "https://14.134.203.22:45104",
-			// "http://14.134.204.22:45105",
-			// "http://14.134.205.22:45106",
-			// "http://14.134.206.22:45107",
-			// "http://14.134.207.22:45108",
-			// "http://14.134.208.22:45109",
-			"https://119.41.192.236:55113",
-			"https://111.127.99.83:55109",
+	Convey("测试代理池为空时 panic", t, func() {
+		ips := make([]string, len(unreachableIPs))
+		copy(ips, unreachableIPs)
+
+		run := func() {
+			c := NewCrawler(WithProxyPool(ips[:1]), WithTimeout(300*time.Millisecond))
+
+			c.Get(u)
 		}
+
+		So(run, ShouldPanic)
+	})
+
+	Convey("测试删除代理池中某个或某些无效代理", t, func() {
+		ips := getEnvProxy()
+
+		if len(ips) >= 1 {
+			ips = ips[:1]
+		} else {
+			t.Fatal("代理环境变量 [ http_proxy|https_proxy|socks5_proxy ] 不能为空，请先添加一个有效的代理")
+		}
+
+		validIP := ips[0]
+
+		ips = append(unreachableIPs, validIP)
 
 		c := NewCrawler(WithProxyPool(ips), WithTimeout(300*time.Millisecond))
 
+		c.AfterResponse(func(r *Response) error {
+			ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
+			So(c.ProxyPoolAmount(), ShouldBeLessThanOrEqualTo, len(ips))
+			So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
+
+			return nil
+		})
+
 		c.Get(u)
 	})
-
-	// Convey("测试删除代理池中某个或某些无效代理", t, func() {
-	// 	ips := []string{
-	// 		"http://14.134.204.22:45105",
-	// 		validIP,
-	// 		"http://14.134.205.22:45106",
-	// 		"http://14.134.206.22:45107",
-	// 		"http://27.29.155.141:45118",
-	// 		"http://14.134.208.22:45109",
-	// 	}
-	// 	c := NewCrawler(WithProxyPool(ips), WithLogger(nil))
-
-	// 	c.AfterResponse(func(r *Response) error {
-	// 		ip := gjson.ParseBytes(r.Body).Get("data.addr").String()
-	// 		So(c.ProxyPoolAmount(), ShouldBeLessThanOrEqualTo, len(ips))
-	// 		So(ip, ShouldEqual, strings.Split(strings.Split(validIP, "//")[1], ":")[0])
-
-	// 		return nil
-	// 	})
-
-	// 	err := c.Get(u)
-	// 	So(err, ShouldBeNil)
-	// })
 
 	// Convey("测试多个有效代理的随机选择", t, func() {
 	// 	count := 5
