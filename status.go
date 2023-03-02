@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   status.go
  * @Created At:  2022-03-01 12:48:11
- * @Modified At: 2023-02-18 22:26:37
+ * @Modified At: 2023-03-02 14:38:42
  * @Modified By: thepoy
  */
 
@@ -154,3 +154,7 @@ const (
 	StatusNotExtended                   StatusCode = 510 // RFC 2774, 7
 	StatusNetworkAuthenticationRequired StatusCode = 511 // RFC 6585, 6
 )
+
+func StatusMessage(sc StatusCode) string {
+	return sc.String()
+}
