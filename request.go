@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-03-02 09:25:28
+ * @Modified At: 2023-03-03 11:00:17
  * @Modified By: thepoy
  */
 
@@ -21,7 +21,6 @@ import (
 	"net/textproto"
 	"sort"
 	"strings"
-	"sync"
 
 	pctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/json"
@@ -304,72 +303,9 @@ func (r Request) Hash() (string, error) {
 	return fmt.Sprintf("%x", sha1.Sum(cacheBody)), nil
 }
 
-func resetRequest(req *http.Request) {
-	ReleaseURL(req.URL)
-
-	req.Method = ""
-	req.Proto = "HTTP/1.0"
-	req.ProtoMajor = 1
-	req.ProtoMinor = 0
-
-	req.Body = nil
-	req.GetBody = nil
-	req.ContentLength = 0
-	req.TransferEncoding = req.TransferEncoding[:0]
-	req.Close = false
-	req.Host = ""
-
-	ResetMap(req.Form)
-	ResetMap(req.PostForm)
-
-	req.MultipartForm = nil
-
-	ResetMap(req.Trailer)
-
-	req.RemoteAddr = ""
-	req.RequestURI = ""
-	req.TLS = nil
-
-	req.Header = nil
-
-	// TODO: 释放 Response
-	req.Response = nil
-}
-
-func (r *Request) Reset() {
-	if r.body != nil {
-		r.body = r.body[:0]
-	}
-	ResetMap(r.cachedMap)
-	r.ID = 0
-	r.abort = false
-	r.crawler = nil
-	r.retryCounter = 0
-	r.checkRedirect = nil
-	r.timeout = 0
-}
-
-var (
-	rawRequestPool = &sync.Pool{
-		New: func() any {
-			r := new(http.Request)
-			r.Header = make(http.Header)
-
-			return r
-		},
-	}
-	requestPool sync.Pool
-)
-
-func acquireRequest(timeout time.Duration) (*http.Request, context.CancelFunc) {
-	var req *http.Request
-
-	if r := rawRequestPool.Get(); r != nil {
-		req = r.(*http.Request)
-	} else {
-		req := new(http.Request)
-		req.Header = make(http.Header)
-	}
+func newRawRequest(timeout time.Duration) (*http.Request, context.CancelFunc) {
+	req := new(http.Request)
+	req.Header = make(http.Header)
 
 	if timeout <= 0 {
 		return req, nil
@@ -381,48 +317,16 @@ func acquireRequest(timeout time.Duration) (*http.Request, context.CancelFunc) {
 	return newReq, cancel
 }
 
-func releaseRequest(req *http.Request) {
-	resetRequest(req)
-	rawRequestPool.Put(req)
-}
+func NewRequestWithTimeout(timeout time.Duration) *Request {
+	req := new(Request)
 
-// AcquireRequest returns an empty Request instance from request pool.
-//
-// The returned Request instance may be passed to ReleaseRequest when it is
-// no longer needed. This allows Request recycling, reduces GC pressure
-// and usually improves performance.
-func AcquireRequest() *Request {
-	return AcquireRequestWithTimeout(0)
-}
-
-// AcquireRequest returns an empty Request instance from request pool.
-//
-// The returned Request instance may be passed to ReleaseRequest when it is
-// no longer needed. This allows Request recycling, reduces GC pressure
-// and usually improves performance.
-func AcquireRequestWithTimeout(timeout time.Duration) *Request {
-	var req *Request
-
-	if r := requestPool.Get(); r != nil {
-		req = r.(*Request)
-	} else {
-		req = new(Request)
-	}
-
-	req.req, req.cancel = acquireRequest(timeout)
+	req.req, req.cancel = newRawRequest(timeout)
 
 	req.timeout = timeout
 
 	return req
 }
 
-// ReleaseRequest returns req acquired via AcquireRequest to request pool.
-//
-// It is forbidden accessing req and/or its' members after returning
-// it to request pool.
-func ReleaseRequest(req *Request) {
-	req.Reset()
-	releaseRequest(req.req)
-
-	requestPool.Put(req)
+func NewRequest() *Request {
+	return NewRequestWithTimeout(0)
 }

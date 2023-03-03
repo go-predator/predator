@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   response.go
  * @Created At:  2021-07-24 13:34:44
- * @Modified At: 2023-03-02 15:57:23
+ * @Modified At: 2023-03-03 10:59:56
  * @Modified By: thepoy
  */
 
@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"sync"
 
 	ctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/json"
@@ -91,27 +90,6 @@ func (r *Response) GetSetCookie() string {
 
 func (r *Response) String() string {
 	return string(r.Body)
-}
-
-func (r *Response) Reset(releaseCtx bool) {
-	r.StatusCode = 0
-	if r.Body != nil {
-		// 将 body 长度截为 0，这样不会删除引用关系，GC 不会回收，
-		// 可以实现 body 的复用
-		r.Body = r.Body[:0]
-	}
-
-	// 为了在链式请求中传递上下文，不能每次响应后都释放上下文。
-	if releaseCtx {
-		ctx.ReleaseCtx(r.Ctx)
-	}
-
-	ReleaseRequest(r.Request)
-	ResetMap(r.header)
-
-	r.FromCache = false
-	r.invalid = false
-	r.clientIP = ""
 }
 
 type cachedHeaders struct {
@@ -196,81 +174,4 @@ func (r *Response) ClientIP() string {
 
 func (r *Response) IsTimeout() bool {
 	return r.timeout
-}
-
-var (
-	rawResponsePool = &sync.Pool{
-		New: func() any {
-			r := new(http.Response)
-			r.Header = make(http.Header)
-
-			return r
-		},
-	}
-	responsePool = &sync.Pool{
-		New: func() any {
-			resp := new(Response)
-			resp.resp = acquireResponse()
-			resp.header = make(http.Header)
-
-			return resp
-		},
-	}
-)
-
-// AcquireResponse returns an empty Response instance from response pool.
-//
-// The returned Response instance may be passed to ReleaseResponse when it is
-// no longer needed. This allows Response recycling, reduces GC pressure
-// and usually improves performance.
-func AcquireResponse() *Response {
-	return responsePool.Get().(*Response)
-}
-
-// ReleaseResponse returns resp acquired via AcquireResponse to response pool.
-//
-// It is forbidden accessing resp and/or its' members after returning
-// it to response pool.
-func ReleaseResponse(resp *Response, releaseCtx bool) {
-	resp.Reset(releaseCtx)
-	responsePool.Put(resp)
-}
-
-func acquireResponse() *http.Response {
-	return rawResponsePool.Get().(*http.Response)
-}
-
-func resetResponse(resp *http.Response) {
-	if resp == nil {
-		return
-	}
-
-	resp.Status = ""
-	resp.StatusCode = 0
-	resp.Proto = ""
-	resp.ProtoMajor = 0
-	resp.ProtoMinor = 0
-
-	ResetMap(resp.Header)
-
-	resp.Body = nil
-	resp.ContentLength = 0
-
-	if resp.TransferEncoding != nil {
-		resp.TransferEncoding = resp.TransferEncoding[:0]
-	}
-
-	resp.Close = false
-	resp.Uncompressed = false
-
-	ResetMap(resp.Trailer)
-
-	releaseRequest(resp.Request)
-
-	resp.TLS = nil
-}
-
-func releaseResponse(resp *http.Response) {
-	resetResponse(resp)
-	rawResponsePool.Put(resp)
 }

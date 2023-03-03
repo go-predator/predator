@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-02 14:27:01
+ * @Modified At: 2023-03-03 10:59:20
  * @Modified By: thepoy
  */
 
@@ -232,9 +232,9 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 
 	var request *Request
 	if c.timeout <= 0 {
-		request = AcquireRequest()
+		request = NewRequest()
 	} else {
-		request = AcquireRequestWithTimeout(c.timeout)
+		request = NewRequestWithTimeout(c.timeout)
 	}
 
 	if reqHeader == nil {
@@ -271,6 +271,16 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 		if c.log != nil {
 			c.Debug("cookies is set", log.Arg{Key: "cookies", Value: c.rawCookies})
 		}
+	}
+
+	if c.log != nil {
+		c.Info(
+			"requesting",
+			log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
+			log.Arg{Key: "method", Value: request.Method()},
+			log.Arg{Key: "url", Value: request.URL()},
+			log.Arg{Key: "timeout", Value: request.timeout.String()},
+		)
 	}
 
 	if c.goPool != nil {
@@ -318,14 +328,8 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		return
 	}
 
-	if c.log != nil {
-		c.Info(
-			"requesting",
-			log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
-			log.Arg{Key: "method", Value: request.Method()},
-			log.Arg{Key: "url", Value: request.URL()},
-			log.Arg{Key: "timeout", Value: request.timeout.String()},
-		)
+	if request.Method() == "" {
+		c.Fatal("请求不正确", log.Arg{Key: "id", Value: atomic.LoadUint32(&request.ID)})
 	}
 
 	if request.Ctx.Length() > 0 {
@@ -368,11 +372,10 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		}
 	}
 
-	var rawResp *http.Response
 	// A new request is issued when there
 	// is no response from the cache
 	if response == nil {
-		response, rawResp, err = c.do(request)
+		response, err = c.do(request)
 		if err != nil {
 			return
 		}
@@ -453,15 +456,6 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			return
 		}
 	}
-
-	ReleaseResponse(response, !isChained)
-	if rawResp != nil {
-		// 原始响应应该在自定义响应之后释放，不然一些字段的值会出错
-		releaseResponse(rawResp)
-	}
-
-	// release req
-	// ReleaseRequest(request)
 
 	return
 }
@@ -572,7 +566,7 @@ func (c *Crawler) preprocessResponseError(req *Request, err error) error {
 	return err
 }
 
-func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
+func (c *Crawler) do(request *Request) (*Response, error) {
 	c.client.Timeout = request.timeout
 	c.client.CheckRedirect = request.checkRedirect
 
@@ -633,9 +627,7 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 				return c.do(request)
 			}
 
-			ReleaseRequest(request)
-
-			return nil, nil, e
+			return nil, e
 		}
 
 		e = c.processProxyError(request, e)
@@ -645,17 +637,17 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 		}
 
 		c.Error(e)
-		return nil, nil, e
+		return nil, e
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		c.Error(err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	response := AcquireResponse()
+	response := new(Response)
 	response.StatusCode = StatusCode(resp.StatusCode)
 	response.Body = append(response.Body, body...)
 	response.Ctx = request.Ctx
@@ -680,7 +672,7 @@ func (c *Crawler) do(request *Request) (*Response, *http.Response, error) {
 		}
 	}
 
-	return response, resp, nil
+	return response, nil
 }
 
 func (c *Crawler) retryPrepare(request *Request) {
