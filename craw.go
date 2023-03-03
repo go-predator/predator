@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-03 10:59:20
+ * @Modified At: 2023-03-03 12:11:43
  * @Modified By: thepoy
  */
 
@@ -414,6 +414,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			c.Info("response",
 				log.Arg{Key: "method", Value: request.Method()},
 				log.Arg{Key: "status_code", Value: response.StatusCode},
+				log.Arg{Key: "content_length", Value: response.ContentLength()},
 				log.Arg{Key: "location", Value: location},
 				log.Arg{Key: "request_id", Value: atomic.LoadUint32(&request.ID)},
 			)
@@ -422,7 +423,8 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		if c.log != nil {
 			l := c.log.L.Info().
 				Str("method", request.Method()).
-				Int("status_code", int(response.StatusCode))
+				Int("status_code", int(response.StatusCode)).
+				Uint64("content_length", response.ContentLength())
 
 			if !response.FromCache {
 				if c.ProxyPoolAmount() > 0 {
