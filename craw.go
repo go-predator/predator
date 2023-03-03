@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-03 20:54:28
+ * @Modified At: 2023-03-03 21:04:37
  * @Modified By: thepoy
  */
 
@@ -826,11 +826,17 @@ func (c *Crawler) PostWithCtx(URL string, requestData map[string]string, ctx pct
 }
 
 // PostWithCreateBodyFunc is used to send POST requests with a createBodyFunc
+//
+// Why was this method added?
+//
+// Because there are many request bodies constructed by JavaScript that are
+// not legal request bodies, which is very common in China.
 func (c *Crawler) PostWithCreateBodyFunc(URL string, requestData map[string]string, createBodyFunc createPostBody) error {
 	return c.post(URL, requestData, nil, nil, false, createBodyFunc, c.cacheFields...)
 }
 
-// PostWithCtxAndCreateBodyFunc is used to send POST requests with a context and a createBodyFunc
+// PostWithCtxAndCreateBodyFunc is used to send POST requests with a context
+// and a createBodyFunc
 func (c *Crawler) PostWithCtxAndCreateBodyFunc(URL string, requestData map[string]string, ctx pctx.Context, createBodyFunc createPostBody) error {
 	return c.post(URL, requestData, nil, ctx, false, createBodyFunc, c.cacheFields...)
 }
