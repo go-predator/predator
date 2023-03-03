@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-03-03 20:55:16
+ * @Modified At: 2023-03-03 22:19:06
  * @Modified By: thepoy
  */
 
@@ -762,7 +762,7 @@ func TestJSON(t *testing.T) {
 
 	Convey("测试带缓存的完整 JSON 请求和响应", t, func() {
 		c := NewCrawler(
-			WithCache(nil, false, nil, CacheField{requestBodyParam, "cid"}, CacheField{requestBodyParam, "user.name"}, CacheField{requestBodyParam, "user.age"}),
+			WithCache(nil, false, nil, CacheField{requestBodyParam, "cid", nil}, CacheField{requestBodyParam, "user.name", nil}, CacheField{requestBodyParam, "user.age", nil}),
 		)
 
 		c.AfterResponse(func(r *Response) error {
@@ -792,7 +792,7 @@ func TestJSON(t *testing.T) {
 
 func TestJSONWithInvalidCacheField(t *testing.T) {
 	c := NewCrawler(
-		WithCache(nil, false, nil, CacheField{requestBodyParam, "id"}, CacheField{requestBodyParam, "user.name"}, CacheField{requestBodyParam, "user.age"}),
+		WithCache(nil, false, nil, CacheField{requestBodyParam, "id", nil}, CacheField{requestBodyParam, "user.name", nil}, CacheField{requestBodyParam, "user.age", nil}),
 		WithLogger(nil),
 	)
 

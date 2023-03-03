@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   cache.go
  * @Created At:  2021-11-24 20:39:11
- * @Modified At: 2023-02-18 22:35:13
+ * @Modified At: 2023-03-03 22:18:14
  * @Modified By: thepoy
  */
 
@@ -49,8 +49,9 @@ const (
 )
 
 type CacheField struct {
-	code  cacheFieldType
-	Field string
+	code    cacheFieldType
+	Field   string
+	prepare func(string) string
 }
 
 func (cf CacheField) String() string {
@@ -67,9 +68,17 @@ func addQueryParamCacheField(params url.Values, field CacheField) (string, strin
 }
 
 func NewQueryParamField(field string) CacheField {
-	return CacheField{queryParam, field}
+	return CacheField{queryParam, field, nil}
+}
+
+func NewQueryParamFieldWithPrepare(field string, prepare func(string) string) CacheField {
+	return CacheField{queryParam, field, prepare}
 }
 
 func NewRequestBodyParamField(field string) CacheField {
-	return CacheField{requestBodyParam, field}
+	return CacheField{requestBodyParam, field, nil}
+}
+
+func NewRequestBodyParamFieldWithPrepare(field string, prepare func(string) string) CacheField {
+	return CacheField{requestBodyParam, field, prepare}
 }

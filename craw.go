@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-03 21:04:37
+ * @Modified At: 2023-03-03 22:22:12
  * @Modified By: thepoy
  */
 
@@ -732,6 +732,10 @@ func (c *Crawler) get(URL string, header http.Header, ctx pctx.Context, isChaine
 				c.FatalOrPanic(err)
 			}
 
+			if field.prepare != nil {
+				value = field.prepare(value)
+			}
+
 			cachedMap[key] = value
 		}
 
@@ -775,9 +779,15 @@ func (c *Crawler) post(URL string, requestData map[string]string, header http.He
 				}
 
 				key, value, err = addQueryParamCacheField(queryParams, field)
+				if field.prepare != nil {
+					value = field.prepare(value)
+				}
 			case requestBodyParam:
 				if val, ok := requestData[field.Field]; ok {
 					key, value = field.String(), val
+					if field.prepare != nil {
+						value = field.prepare(value)
+					}
 				} else {
 					keys := make([]string, 0, len(requestData))
 					for k := range requestData {
@@ -880,6 +890,9 @@ func (c *Crawler) postJSON(URL string, requestData map[string]any, header http.H
 				}
 
 				key, value, err = addQueryParamCacheField(queryParams, field)
+				if field.prepare != nil {
+					value = field.prepare(value)
+				}
 			case requestBodyParam:
 				if !bodyJson.Get(field.Field).Exists() {
 					m := bodyJson.Map()
@@ -890,6 +903,9 @@ func (c *Crawler) postJSON(URL string, requestData map[string]any, header http.H
 					err = fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys)
 				} else {
 					key, value = field.String(), bodyJson.Get(field.Field).String()
+					if field.prepare != nil {
+						value = field.prepare(value)
+					}
 				}
 			default:
 				err = ErrInvalidCacheTypeCode
@@ -943,9 +959,15 @@ func (c *Crawler) postMultipart(URL string, mfw *MultipartFormWriter, header htt
 				}
 
 				key, value, err = addQueryParamCacheField(queryParams, field)
+				if field.prepare != nil {
+					value = field.prepare(value)
+				}
 			case requestBodyParam:
 				if val, ok := mfw.cachedMap[field.Field]; ok {
 					key, value = field.String(), val
+					if field.prepare != nil {
+						value = field.prepare(value)
+					}
 				} else {
 					var keys = make([]string, 0, len(mfw.cachedMap))
 					for k := range mfw.cachedMap {
