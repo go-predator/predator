@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   response.go
  * @Created At:  2021-07-24 13:34:44
- * @Modified At: 2023-03-03 10:59:56
+ * @Modified At: 2023-03-03 20:33:08
  * @Modified By: thepoy
  */
 
@@ -44,6 +44,9 @@ type Response struct {
 	// Whether the response is valid,
 	// html for invalid responses will not be parsed
 	invalid bool
+
+	isJSON bool
+	json   *json.JSONResult
 }
 
 // Save writes response body to disk
@@ -86,6 +89,10 @@ func (r *Response) ContentLength() uint64 {
 
 func (r *Response) GetSetCookie() string {
 	return r.resp.Header.Get("Set-Cookie")
+}
+
+func (r *Response) JSON() json.JSONResult {
+	return *r.json
 }
 
 func (r *Response) String() string {

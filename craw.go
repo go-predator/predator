@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-03 20:08:41
+ * @Modified At: 2023-03-03 20:32:44
  * @Modified By: thepoy
  */
 
@@ -659,6 +659,12 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 	response.Request = request
 	response.header = resp.Header.Clone()
 	response.clientIP = request.req.RemoteAddr
+	response.isJSON = strings.Contains(strings.ToLower(response.ContentType()), "application/json")
+
+	if response.isJSON {
+		result := json.ParseBytesToJSON(body)
+		response.json = &result
+	}
 
 	// if response.StatusCode == StatusOK && len(response.Body) == 0 {
 	// 	response.StatusCode = 0
@@ -1188,7 +1194,13 @@ func (c *Crawler) processJSONHandler(r *Response) error {
 
 	var err error
 
-	result := json.ParseBytesToJSON(r.Body)
+	var result json.JSONResult
+	if r.isJSON {
+		result = *r.json
+	} else {
+		result = json.ParseBytesToJSON(r.Body)
+	}
+
 	for _, parser := range c.jsonHandler {
 		if parser.strict {
 			if !strings.Contains(strings.ToLower(r.ContentType()), "application/json") {
