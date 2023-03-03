@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-03 20:32:44
+ * @Modified At: 2023-03-03 20:54:28
  * @Modified By: thepoy
  */
 
@@ -697,6 +697,8 @@ func (c *Crawler) retryPrepare(request *Request) {
 	)
 }
 
+type createPostBody func(requestData map[string]string) []byte
+
 func createBody(requestData map[string]string) []byte {
 	if requestData == nil {
 		return nil
@@ -749,7 +751,7 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 	return c.get(URL, nil, ctx, false, c.cacheFields...)
 }
 
-func (c *Crawler) post(URL string, requestData map[string]string, header http.Header, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) post(URL string, requestData map[string]string, header http.Header, ctx pctx.Context, isChained bool, createBodyFunc createPostBody, cacheFields ...CacheField) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
@@ -806,12 +808,31 @@ func (c *Crawler) post(URL string, requestData map[string]string, header http.He
 		header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	return c.request(MethodPost, URL, createBody(requestData), cachedMap, header, ctx, isChained)
+	if createBodyFunc == nil {
+		createBodyFunc = createBody
+	}
+
+	return c.request(MethodPost, URL, createBodyFunc(requestData), cachedMap, header, ctx, isChained)
 }
 
 // Post is used to send POST requests
-func (c *Crawler) Post(URL string, requestData map[string]string, ctx pctx.Context) error {
-	return c.post(URL, requestData, nil, ctx, false, c.cacheFields...)
+func (c *Crawler) Post(URL string, requestData map[string]string) error {
+	return c.post(URL, requestData, nil, nil, false, nil, c.cacheFields...)
+}
+
+// PostWithCtx is used to send POST requests with a context
+func (c *Crawler) PostWithCtx(URL string, requestData map[string]string, ctx pctx.Context) error {
+	return c.post(URL, requestData, nil, ctx, false, nil, c.cacheFields...)
+}
+
+// PostWithCreateBodyFunc is used to send POST requests with a createBodyFunc
+func (c *Crawler) PostWithCreateBodyFunc(URL string, requestData map[string]string, createBodyFunc createPostBody) error {
+	return c.post(URL, requestData, nil, nil, false, createBodyFunc, c.cacheFields...)
+}
+
+// PostWithCtxAndCreateBodyFunc is used to send POST requests with a context and a createBodyFunc
+func (c *Crawler) PostWithCtxAndCreateBodyFunc(URL string, requestData map[string]string, ctx pctx.Context, createBodyFunc createPostBody) error {
+	return c.post(URL, requestData, nil, ctx, false, createBodyFunc, c.cacheFields...)
 }
 
 func (c *Crawler) createJSONBody(requestData map[string]any) []byte {

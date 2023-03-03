@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw_test.go
  * @Created At:  2021-07-23 09:22:36
- * @Modified At: 2023-03-02 14:25:53
+ * @Modified At: 2023-03-03 20:55:16
  * @Modified By: thepoy
  */
 
@@ -281,7 +281,7 @@ func TestRequest(t *testing.T) {
 			return nil
 		})
 
-		c.Post(ts.URL+"/login", requestData, nil)
+		c.Post(ts.URL+"/login", requestData)
 	})
 
 	// 想运行此示例，需要自行更新 cookie 和 auth_token
@@ -706,7 +706,7 @@ func TestJSON(t *testing.T) {
 				return nil
 			})
 
-			c.Post(ts.URL+"/json", nil, nil)
+			c.Post(ts.URL+"/json", nil)
 		})
 	})
 
@@ -730,7 +730,7 @@ func TestJSON(t *testing.T) {
 			return nil
 		})
 
-		c.Post(ts.URL+"/json", nil, nil)
+		c.Post(ts.URL+"/json", nil)
 	})
 
 	Convey("测试完整 JSON 请求和响应", t, func() {
@@ -919,7 +919,7 @@ func TestConcurrency(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				err := c.Post(ts.URL+"/post", map[string]string{
 					"id": fmt.Sprint(i + 1),
-				}, nil)
+				})
 				So(err, ShouldBeNil)
 			}
 
@@ -934,7 +934,7 @@ func TestConcurrency(t *testing.T) {
 			for i := 0; i < 10; i++ {
 				err := c.Post(ts.URL+"/post", map[string]string{
 					"id": fmt.Sprint(i + 1),
-				}, nil)
+				})
 				So(err, ShouldBeNil)
 			}
 
@@ -1039,7 +1039,7 @@ func getRawCookie(c *Crawler, ts *httptest.Server) string {
 		return nil
 	})
 
-	c.Post(ts.URL+"/redirect", map[string]string{"username": "test", "password": "test"}, nil)
+	c.Post(ts.URL+"/redirect", map[string]string{"username": "test", "password": "test"})
 	return rawCookie
 }
 

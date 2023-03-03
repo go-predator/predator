@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-03-03 19:58:23
+ * @Modified At: 2023-03-03 20:57:12
  * @Modified By: thepoy
  */
 
@@ -204,12 +204,21 @@ func (r Request) GetWithCache(URL string, cacheFields ...CacheField) error {
 }
 
 func (r Request) Post(URL string, requestData map[string]string) error {
-	return r.crawler.post(URL, requestData, r.Header(), r.Ctx, true)
+	return r.crawler.post(URL, requestData, r.Header(), r.Ctx, true, nil)
 }
 
-func (r Request) PostWithCache(URL string, requestData map[string]string, cacheFields ...CacheField) error {
-	return r.crawler.post(URL, requestData, r.Header(), r.Ctx, true, cacheFields...)
+func (r Request) PostWithCreateBodyFunc(URL string, requestData map[string]string, createBodyFunc createPostBody) error {
+	return r.crawler.post(URL, requestData, r.Header(), r.Ctx, true, createBodyFunc)
 }
+
+func (r Request) PostWithCacheFields(URL string, requestData map[string]string, cacheFields ...CacheField) error {
+	return r.crawler.post(URL, requestData, r.Header(), r.Ctx, true, nil, cacheFields...)
+}
+
+func (r Request) PostWithCacheFieldsAndCreateBodyFunc(URL string, requestData map[string]string, createBodyFunc createPostBody, cacheFields ...CacheField) error {
+	return r.crawler.post(URL, requestData, r.Header(), r.Ctx, true, createBodyFunc, cacheFields...)
+}
+
 func (r Request) PostJSON(URL string, requestData map[string]any) error {
 	return r.crawler.postJSON(URL, requestData, r.Header(), r.Ctx, true)
 }
