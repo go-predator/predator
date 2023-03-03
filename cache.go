@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   cache.go
  * @Created At:  2021-11-24 20:39:11
- * @Modified At: 2023-03-03 22:18:14
+ * @Modified At: 2023-03-03 22:28:09
  * @Modified By: thepoy
  */
 
@@ -51,7 +51,7 @@ const (
 type CacheField struct {
 	code    cacheFieldType
 	Field   string
-	prepare func(string) string
+	prepare func(val string) string
 }
 
 func (cf CacheField) String() string {

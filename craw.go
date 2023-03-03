@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-03 22:22:12
+ * @Modified At: 2023-03-03 22:39:09
  * @Modified By: thepoy
  */
 
@@ -1144,7 +1144,7 @@ func (c *Crawler) SetRetry(count uint32, cond RetryCondition) {
 	c.retryCondition = cond
 }
 
-func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFileds ...CacheField) {
+func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFields ...CacheField) {
 	cc.Compressed(compressed)
 	err := cc.Init()
 	if err != nil {
@@ -1157,11 +1157,18 @@ func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondit
 		}
 	}
 	c.cacheCondition = cacheCondition
-	if len(cacheFileds) > 0 {
-		c.cacheFields = cacheFileds
+	if len(cacheFields) > 0 {
+		c.cacheFields = cacheFields
 	} else {
 		c.cacheFields = nil
 	}
+}
+
+// ResetCacheFields 重新设置缓存字段。
+//
+// 通常在 c.Clone() 之后调用，以便在发送另一种请求时缓存响应。
+func (c *Crawler) ResetCacheFields(cacheFields ...CacheField) {
+	c.cacheFields = cacheFields
 }
 
 // 有时发出的请求不能缓存，可以用此方法关闭特定的 Crawler 实例的缓存。
