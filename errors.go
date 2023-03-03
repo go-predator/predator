@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   errors.go
  * @Created At:  2022-02-17 15:30:54
- * @Modified At: 2023-02-25 20:19:28
+ * @Modified At: 2023-03-03 19:54:10
  * @Modified By: thepoy
  */
 
@@ -21,4 +21,6 @@ var (
 	ErrNoCache                  = errors.New("no cache configured")
 	ErrInvalidResponseStatus    = errors.New("if the http status code is `302`, there must be a valid `Location` field in the response header")
 	ErrEmptyProxyPool           = errors.New("the proxy pool is empty")
+
+	ErrEmptyString = errors.New("can not be empty")
 )

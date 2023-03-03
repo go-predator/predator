@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-03-03 11:00:17
+ * @Modified At: 2023-03-03 19:58:23
  * @Modified By: thepoy
  */
 
@@ -126,17 +126,7 @@ func (r *Request) SetNewHeaders(headers http.Header) {
 
 func (r *Request) AddRookies(cookies map[string]string) {
 	for k, v := range cookies {
-		v, ok := parseCookieValue(v, true)
-		if !ok {
-			continue
-		}
-
-		s := fmt.Sprintf("%s=%s", k, v)
-		if c := r.req.Header.Get("Cookie"); c != "" {
-			r.req.Header.Set("Cookie", c+"; "+s)
-		} else {
-			r.req.Header.Set("Cookie", s)
-		}
+		r.AddCookie(k, v)
 	}
 }
 
@@ -168,6 +158,29 @@ func (r *Request) ParseRawCookie(rawCookie string) {
 
 		r.req.AddCookie(&http.Cookie{Name: name, Value: val})
 	}
+}
+
+func (r *Request) AddCookie(key, value string) {
+	key = textproto.TrimString(key)
+	if key == "" {
+		panic(fmt.Errorf("key %w", ErrEmptyString))
+	}
+
+	value = textproto.TrimString(value)
+	if value == "" {
+		panic(fmt.Errorf("value %w", ErrEmptyString))
+	}
+
+	if !isCookieNameValid(key) {
+		panic(fmt.Errorf("not a valid cookie name: %s", key))
+	}
+
+	val, ok := parseCookieValue(value, true)
+	if !ok {
+		panic(fmt.Errorf("not a valid cookie value: %s", value))
+	}
+
+	r.req.AddCookie(&http.Cookie{Name: key, Value: val})
 }
 
 func (r Request) URL() string {

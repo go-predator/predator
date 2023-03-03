@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-03 12:11:43
+ * @Modified At: 2023-03-03 20:08:41
  * @Modified By: thepoy
  */
 
@@ -271,6 +271,10 @@ func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]
 		if c.log != nil {
 			c.Debug("cookies is set", log.Arg{Key: "cookies", Value: c.rawCookies})
 		}
+	} else {
+		if c.cookies != nil {
+			request.AddRookies(c.cookies)
+		}
 	}
 
 	if c.log != nil {
@@ -490,6 +494,7 @@ func (c *Crawler) checkCache(key string) (*Response, error) {
 }
 
 func (c *Crawler) proxy(req *Request) proxy.ProxyFunc {
+	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	f, addr := proxy.Proxy(c.proxyURLPool[rand.Intn(len(c.proxyURLPool))])
 	req.proxyUsed = addr
 
@@ -573,8 +578,6 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 	c.client.CheckRedirect = request.checkRedirect
 
 	if len(c.proxyURLPool) > 0 {
-		rand.Seed(time.Now().UnixMicro())
-
 		c.client.Transport = &http.Transport{
 			Proxy: c.proxy(request),
 		}
