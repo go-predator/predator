@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-03-03 20:57:12
+ * @Modified At: 2023-03-04 10:46:30
  * @Modified By: thepoy
  */
 
@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -86,13 +87,13 @@ func (r *Request) SetContentType(contentType string) {
 	r.req.Header.Set("Content-Type", contentType)
 }
 
-// func defaultCheckRedirect(req *http.Request, via []*http.Request) error {
-// 	if len(via) >= 10 {
-// 		return errors.New("stopped after 10 redirects")
-// 	}
+func defaultCheckRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
 
-// 	return nil
-// }
+	return nil
+}
 
 func doNotFollowRedirect(req *http.Request, via []*http.Request) error {
 	return http.ErrUseLastResponse

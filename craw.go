@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-03 22:39:09
+ * @Modified At: 2023-03-04 10:46:25
  * @Modified By: thepoy
  */
 
@@ -575,7 +575,11 @@ func (c *Crawler) preprocessResponseError(req *Request, err error) error {
 
 func (c *Crawler) do(request *Request) (*Response, error) {
 	c.client.Timeout = request.timeout
-	c.client.CheckRedirect = request.checkRedirect
+	if request.checkRedirect != nil {
+		c.client.CheckRedirect = request.checkRedirect
+	} else {
+		c.client.CheckRedirect = defaultCheckRedirect
+	}
 
 	if len(c.proxyURLPool) > 0 {
 		c.client.Transport = &http.Transport{
