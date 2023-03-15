@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   cache.go
  * @Created At:  2021-11-24 20:39:11
- * @Modified At: 2023-03-03 22:28:09
+ * @Modified At: 2023-03-15 17:53:39
  * @Modified By: thepoy
  */
 
@@ -39,15 +39,18 @@ func (CacheModel) TableName() string {
 	return "predator-cache"
 }
 
+// cacheFieldType is an enum type that defines the possible types of cache fields
 type cacheFieldType uint8
 
 const (
-	// A key or field from URL query parameters
+	// queryParam represents a key or field from URL query parameters
 	queryParam cacheFieldType = iota
-	// A key or field from request body parameters
+	// requestBodyParam represents a key or field from request body parameters
 	requestBodyParam
 )
 
+// CacheField is a struct that holds the information of a cache field,
+// including its type, name and an optional prepare function to modify its value before caching
 type CacheField struct {
 	code    cacheFieldType
 	Field   string
