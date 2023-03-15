@@ -8,6 +8,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/go-predator/log v0.0.0-20230213114848-b168f4bf3c26 h1:DtXuSIQC6FpnTaRIymvpKWX4G1schVVHispgUtGn3N8=
 github.com/go-predator/log v0.0.0-20230213114848-b168f4bf3c26/go.mod h1:tXPFUtDvAvqOkoI0+8m7BF0xx+KrRjaFEGb9bfQVt0c=
+github.com/go-predator/log v0.0.0-20230315080541-84df3958971c h1:yql1YPAkxQ8y189kV8b+LtZxWZejx7k6WCYiMaX8WkM=
+github.com/go-predator/log v0.0.0-20230315080541-84df3958971c/go.mod h1:tXPFUtDvAvqOkoI0+8m7BF0xx+KrRjaFEGb9bfQVt0c=
 github.com/go-predator/tools v0.0.0-20220524022058-ce749e9bf77b h1:MMUBfyosVuLCa4k0iDpq+3mOHIQAsBSZt/fJ/nN++js=
 github.com/go-predator/tools v0.0.0-20220524022058-ce749e9bf77b/go.mod h1:xG4JX2Eyw5NgKkSXVmKu6u90nPklN0M4fv7jLbzP3TY=
 github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=

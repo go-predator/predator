@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/go-predator/log v0.0.0-20230213114848-b168f4bf3c26
+	github.com/go-predator/log v0.0.0-20230315080541-84df3958971c
 	github.com/go-predator/tools v0.0.0-20220524022058-ce749e9bf77b
 	github.com/json-iterator/go v1.1.12
 	github.com/smartystreets/goconvey v1.7.2
