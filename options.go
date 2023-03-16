@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   options.go
  * @Created At:  2021-07-23 08:58:31
- * @Modified At: 2023-03-02 09:38:43
+ * @Modified At: 2023-03-16 10:21:13
  * @Modified By: thepoy
  */
 
@@ -19,16 +19,17 @@ import (
 	"github.com/go-predator/log"
 )
 
+// CrawlerOption is a function type that takes a pointer to Crawler and configures it.
 type CrawlerOption func(*Crawler)
 
-// SkipVerification will skip verifying the certificate when
-// you access the `https` protocol
+// SkipVerification returns a CrawlerOption that skips TLS verification.
 func SkipVerification() CrawlerOption {
 	return func(c *Crawler) {
 		c.client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 }
 
+// WithLogger returns a CrawlerOption that sets the logger for Crawler.
 func WithLogger(logger *log.Logger) CrawlerOption {
 	if logger == nil {
 		logger = log.NewLogger(log.WARNING, log.ToConsole(), 2)
@@ -39,46 +40,54 @@ func WithLogger(logger *log.Logger) CrawlerOption {
 	}
 }
 
+// WithConsoleLogger returns a CrawlerOption that sets the logger to output to console.
 func WithConsoleLogger(level log.Level) CrawlerOption {
 	return func(c *Crawler) {
 		c.log = log.NewLogger(level, log.ToConsole(), 2)
 	}
 }
 
+// WithFileLogger returns a CrawlerOption that sets the logger to output to a file.
 func WithFileLogger(level log.Level, filename string) CrawlerOption {
 	return func(c *Crawler) {
 		c.log = log.NewLogger(level, log.MustToFile(filename, -1), 2)
 	}
 }
 
+// WithConsoleAndFileLogger returns a CrawlerOption that sets the logger to output to both console and file.
 func WithConsoleAndFileLogger(level log.Level, filename string) CrawlerOption {
 	return func(c *Crawler) {
 		c.log = log.NewLogger(level, log.MustToConsoleAndFile(filename, -1), 2)
 	}
 }
 
+// WithDefaultLogger returns a CrawlerOption that sets the logger to default (console, level WARNING).
 func WithDefaultLogger() CrawlerOption {
 	return WithLogger(nil)
 }
 
+// WithUserAgent returns a CrawlerOption that sets the User-Agent for Crawler.
 func WithUserAgent(ua string) CrawlerOption {
 	return func(c *Crawler) {
 		c.UserAgent = ua
 	}
 }
 
+// RecordRemoteAddr returns a CrawlerOption that records remote addresses.
 func RecordRemoteAddr() CrawlerOption {
 	return func(c *Crawler) {
 		c.recordRemoteAddr = true
 	}
 }
 
+// WithRawCookie returns a CrawlerOption that sets the raw cookies for Crawler.
 func WithRawCookie(cookies string) CrawlerOption {
 	return func(c *Crawler) {
 		c.rawCookies = cookies
 	}
 }
 
+// WithCookies returns a CrawlerOption that sets the cookies for Crawler.
 func WithCookies(cookies map[string]string) CrawlerOption {
 	return func(c *Crawler) {
 		for k, v := range cookies {
@@ -94,7 +103,7 @@ func WithCookies(cookies map[string]string) CrawlerOption {
 	}
 }
 
-// WithConcurrency 使用并发，参数为要创建的协程池数量
+// WithConcurrency returns a CrawlerOption that sets the concurrency for Crawler.
 func WithConcurrency(count uint64, blockPanic bool) CrawlerOption {
 	return func(c *Crawler) {
 		p, err := NewPool(count)
@@ -108,9 +117,14 @@ func WithConcurrency(count uint64, blockPanic bool) CrawlerOption {
 	}
 }
 
+// RetryCondition is a function type that takes a response object and returns a boolean value.
+//
+// It is used as a condition to decide whether to retry a request or not.
 type RetryCondition func(r *Response) bool
 
-// WithRetry 请求失败时重试多少次，什么条件的响应是请求失败
+// WithRetry returns a CrawlerOption function that sets the retry count and condition.
+//
+// The count parameter specifies the maximum number of times to retry the request, and cond is a function that decides whether to retry the request or not.
 func WithRetry(count uint32, cond RetryCondition) CrawlerOption {
 	return func(c *Crawler) {
 		c.retryCount = count
@@ -118,49 +132,48 @@ func WithRetry(count uint32, cond RetryCondition) CrawlerOption {
 	}
 }
 
-// WithProxy 使用一个代理
+// WithProxy returns a CrawlerOption function that sets the proxy URL for the crawler.
+//
+// The proxyURL parameter specifies the URL of the proxy to use.
 func WithProxy(proxyURL string) CrawlerOption {
 	return func(c *Crawler) {
 		c.proxyURLPool = []string{proxyURL}
 	}
 }
 
-// WithProxyPool 使用一个代理池
+// WithProxyPool returns a CrawlerOption function that sets a pool of proxy URLs for the crawler.
+//
+// The proxyURLs parameter specifies the pool of proxy URLs to use.
 func WithProxyPool(proxyURLs []string) CrawlerOption {
 	return func(c *Crawler) {
 		c.proxyURLPool = proxyURLs
 	}
 }
 
-// WithTimeout 使用超时控制。
+// WithTimeout returns a CrawlerOption function that sets the timeout duration for the crawler.
 //
-// 此处的超时时间将作用于整个 request 请求，如果你使用了代理，
-// 客户端与代理服务器建立连接的时间也会被算在内，这是 http 标准
-// 库的问题。
-//
-// 同时，这也意味着，一旦发生超时错误，无法判断这个错误是由代理
-// 引发还是由代理向服务器发送请求引发的，需要用户自行判断。
+// The timeout parameter specifies the duration of the timeout.
 func WithTimeout(timeout time.Duration) CrawlerOption {
 	return func(c *Crawler) {
 		c.timeout = timeout
 	}
 }
 
-// WithComplementProxyPool replenishes the proxy pool when the proxy pool is empty
+// WithComplementProxyPool returns a CrawlerOption function that sets a function to complement the proxy pool.
+//
+// The f parameter is a function that takes the current proxy pool and returns a new pool of proxy URLs.
 func WithComplementProxyPool(f ComplementProxyPool) CrawlerOption {
 	return func(c *Crawler) {
 		c.complementProxyPool = f
 	}
 }
 
-// WithCache 使用缓存，可以选择是否压缩缓存的响应。
-// 使用缓存时，如果发出的是 POST 请求，最好传入能
-// 代表请求体的唯一性的缓存字段，可以是零个、一个或多个。
+// WithCache returns a CrawlerOption function that sets the cache for the crawler.
 //
-// 注意：当不传入缓存字段时，将会默认采用整个请求体作为
-// 缓存标识，但由于 map 无序，同一个请求体生成的 key 很
-// 难保证相同，所以可能会有同一个请求缓存多次，或者无法
-// 从缓存中读取已请求过的请求的响应的情况出现。
+// The cc parameter specifies the cache implementation to use.
+// The compressed parameter specifies whether to compress the cache data or not.
+// The cacheCondition parameter is a function that decides whether to cache the response or not.
+// The cacheFields parameter specifies the fields of the response to cache.
 func WithCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFileds ...CacheField) CrawlerOption {
 	return func(c *Crawler) {
 		cc.Compressed(compressed)
@@ -181,6 +194,9 @@ func WithCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFi
 	}
 }
 
+// DisableIPv6 returns a CrawlerOption function that disables IPv6.
+//
+// It sets the dial context of the crawler's HTTP transport to a new Dialer with Timeout, KeepAlive, and FallbackDelay values.
 func DisableIPv6() CrawlerOption {
 	return func(c *Crawler) {
 		c.client.Transport.(*http.Transport).DialContext = (&net.Dialer{

@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   status.go
  * @Created At:  2022-03-01 12:48:11
- * @Modified At: 2023-03-02 14:38:42
+ * @Modified At: 2023-03-16 10:51:36
  * @Modified By: thepoy
  */
 
@@ -11,6 +11,7 @@ package predator
 
 type StatusCode uint
 
+// String returns the corresponding status message for the status code.
 func (sc StatusCode) String() string {
 	return statusMessages[sc]
 }
@@ -155,6 +156,7 @@ const (
 	StatusNetworkAuthenticationRequired StatusCode = 511 // RFC 6585, 6
 )
 
+// StatusMessage returns the status message for the given status code.
 func StatusMessage(sc StatusCode) string {
 	return sc.String()
 }
