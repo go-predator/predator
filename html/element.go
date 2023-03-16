@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   element.go
  * @Created At:  2021-07-27 20:35:31
- * @Modified At: 2023-02-18 22:29:23
+ * @Modified At: 2023-03-16 15:18:52
  * @Modified By: thepoy
  */
 
@@ -48,12 +48,14 @@ func (he HTMLElement) String() string {
 		s.WriteByte(' ')
 		s.WriteString(attr.Key)
 
-		if len(attr.Val) > 0 {
-			s.WriteByte('=')
-			s.WriteByte('"')
-			s.WriteString(attr.Val)
-			s.WriteByte('"')
+		if len(attr.Val) == 0 {
+			continue
 		}
+
+		s.WriteByte('=')
+		s.WriteByte('"')
+		s.WriteString(attr.Val)
+		s.WriteByte('"')
 	}
 
 	s.WriteByte('>')
@@ -62,13 +64,21 @@ func (he HTMLElement) String() string {
 		if fc.Type == html.TextNode {
 			text := strings.TrimSpace(fc.Data)
 			runes := []rune(text)
-			if len(runes) == 0 {
+			n := len(runes)
+			if n == 0 {
 				s.WriteString("...")
-			} else if len(runes) > 10 {
-				s.WriteString(string(runes[:10]))
+			} else if n > 10 {
+				s.WriteRune(runes[0])
+				s.WriteRune(runes[1])
+				s.WriteRune(runes[2])
 				s.WriteString("...")
+				s.WriteRune(runes[n-3])
+				s.WriteRune(runes[n-2])
+				s.WriteRune(runes[n-1])
 			} else {
-				s.WriteString(text)
+				for i := 0; i < n; i++ {
+					s.WriteRune(runes[i])
+				}
 			}
 		} else {
 			s.WriteString("...")
@@ -124,6 +134,48 @@ func (he *HTMLElement) Text() string {
 
 // Texts Gets all child text elements in the current element and returns a []string
 func (he *HTMLElement) Texts() []string {
+	if he == nil {
+		return nil
+	}
+
+	var texts []string
+
+	// Slightly optimized vs calling Each: no single selection object created
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.TextNode {
+			text := tools.Strip(n.Data)
+			if text != "" {
+				// 当使用 Selection.ReplaceWithHtml 将原节点替换成了一个 TextNode 时
+				// 很可能会出现多个文本节点连接，这在现实 DOM 结构是不可能存在的，但 ReplaceWithHtml
+				// 方法的不完备却可能出现此情况，故只能在此判断前面的节点是否为文本节点，如果是则将两个文本
+				// 节点的文本合并。
+				if n.PrevSibling != nil && n.PrevSibling.Type == html.TextNode {
+					if len(texts) > 0 {
+						texts[len(texts)-1] += text
+					} else {
+						texts = append(texts, text)
+					}
+				} else {
+					texts = append(texts, text)
+				}
+			}
+		}
+		if n.FirstChild != nil {
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				f(c)
+			}
+		}
+	}
+	for _, n := range he.DOM.Nodes {
+		f(n)
+	}
+
+	return texts
+}
+
+// Texts Gets all child text elements in the current element and returns a []string
+func (he *HTMLElement) TextsWithoutTextElements(elementNames []string) []string {
 	if he == nil {
 		return nil
 	}
