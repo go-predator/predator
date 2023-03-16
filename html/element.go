@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   element.go
  * @Created At:  2021-07-27 20:35:31
- * @Modified At: 2023-03-16 15:18:52
+ * @Modified At: 2023-03-16 17:55:29
  * @Modified By: thepoy
  */
 
@@ -174,7 +174,106 @@ func (he *HTMLElement) Texts() []string {
 	return texts
 }
 
-// Texts Gets all child text elements in the current element and returns a []string
+// BlockTexts returns the texts of all block-level elements in the the current.
+//
+// If an inline element is found inside a block-level element, its text is also included as part of the block-level element's text.
+//
+// If the parent of an inline element is not a block-level element, its text is included as a separate element in the slice.
+func (h *HTMLElement) BlockTexts() []string {
+	// A slice to store the texts
+	texts := []string{}
+
+	// A stack to store the nodes to visit
+	stack := []*html.Node{h.Node}
+
+	// A variable to store the current text
+	currentText := ""
+
+	// Loop until the stack is empty
+	for len(stack) > 0 {
+		// Pop a node from the stack
+		node := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		// If the node is a text node, append its data to the current text
+		if node.Type == html.TextNode {
+			if text := tools.Strip(node.Data); text != "" {
+				currentText += tools.Strip(node.Data)
+			}
+			// currentText += tools.Strip(node.Data)
+		}
+
+		// If the node is an element node and it is a block-level element, append the current text to the texts slice and reset it
+		if node.Type == html.ElementNode && (isBlockElement(node) || node.Parent == nil || node.Parent.Data == "body") {
+			if text := tools.Strip(currentText); text != "" {
+				texts = append(texts, text)
+				currentText = ""
+			}
+		}
+
+		// Push the child nodes to the stack in reverse order
+		for c := node.LastChild; c != nil; c = c.PrevSibling {
+			stack = append(stack, c)
+		}
+	}
+
+	// Append any remaining text to the texts slice
+	if currentText != "" {
+		texts = append(texts, currentText)
+	}
+
+	return texts
+}
+
+func isBlock(n *html.Node) bool {
+	switch n.Data {
+	case "audio", "canvas", "embed", "iframe", "img", "math", "object", "picture", "svg", "video":
+		// These are replaced elements and should be treated as block elements.
+		fallthrough
+	case "address", "article", "aside", "blockquote", "details", "dialog", "dd", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main", "nav", "ol", "p", "pre", "section", "table", "ul":
+		return true
+	default:
+		return false
+	}
+}
+
+// isBlockElement returns true if the given node is a block-level element
+func isBlockElement(n *html.Node) bool {
+	blockElements := []string{"address", "article", "aside", "blockquote", "canvas", "dd", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main", "nav", "noscript", "ol", "p", "pre", "section", "table", "tfoot", "ul"}
+	for _, block := range blockElements {
+		if block == n.Data {
+			return true
+		}
+	}
+	return false
+}
+
+// isInlineElement returns true if the given node is an inline element
+func isInlineElement(n *html.Node) bool {
+	inlineElements := []string{"a", "abbr", "acronym", "audio", "b", "bdo", "big", "br", "button", "canvas", "cite", "code", "dfn", "em", "i", "img", "input", "kbd", "label", "map", "object", "output", "q", "samp", "script", "select", "small", "span", "strong", "sub", "sup", "textarea", "time", "tt", "var", "video"}
+	for _, inline := range inlineElements {
+		if inline == n.Data {
+			return true
+		}
+	}
+	return false
+}
+
+// getParentBlockElement returns the closest ancestor of the given node that is a block-level element
+func getParentBlockElement(n *html.Node) *html.Node {
+	for n != nil {
+		n = n.Parent
+		if isBlockElement(n) {
+			return n
+		}
+	}
+	return nil
+}
+
+// 获取当前元素的所有子元素的文字，返回所有块状元素的文字切片。
+//
+// 如果块状元素中有行内元素，行内元素的文字也会作为块状元素的文字。
+// 如果行内元素的父元素不是块状元素，则其文字作为文字切片的一部分。
 func (he *HTMLElement) TextsWithoutTextElements(elementNames []string) []string {
 	if he == nil {
 		return nil

@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   html_test.go
  * @Created At:  2021-10-10 14:59:49
- * @Modified At: 2023-03-16 15:26:46
+ * @Modified At: 2023-03-16 17:56:13
  * @Modified By: thepoy
  */
 
@@ -14,31 +14,47 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+	"golang.org/x/net/html"
 )
 
-var body = []byte(`<body><div id="barrierfree_container">
-<div class="top_box">
-  <div class="cf top">
-  <ul class="fl top_l">
-  <li class="hide fl top_l01"><a href="" target="_blank">login</a></li>
-  <li class="hide fl top_separte"></li>
-  <li class="fl top_l02"><a href="#" target="_blank">email</a></li>
-  <li class="fl top_separte"></li>
-  <li class="fl top_l03"><a href="#" target="_blank">tg</a></li>
-  <li class="fl top_separte"></li>
-  <li id="showImg01" class="fl" style="position:relative;"><img id="showImg02" src="#"></li>
-  </ul>
-  </div>
-  </div>
-  <div id="content">
-	<p>it is a P
-		<span>it is a SPAN
-			<a>it is a A</a>
-		</span>
-	</p>
-	<p>this is a P element with a long length text, and it should work in TestHtmlString</p>
-  </div>
-</body>`)
+var body = []byte(`
+<html>
+<body>
+    <div id="barrierfree_container">
+        <div class="top_box">
+            <div class="cf top">
+                <ul class="fl top_l">
+                    <li class="hide fl top_l01"><a href="" target="_blank">login</a></li>
+                    <li class="hide fl top_separte"></li>
+                    <li class="fl top_l02"><a href="#" target="_blank">email</a></li>
+                    <li class="fl top_separte"></li>
+                    <li class="fl top_l03"><a href="#" target="_blank">tg</a></li>
+                    <li class="fl top_separte"></li>
+                    <li id="showImg01" class="fl" style="position:relative;"><img id="showImg02" src="#"></li>
+                </ul>
+            </div>
+        </div>
+        <div id="content">
+            <p>it is a P
+                <span>it is a SPAN
+                    <a>it is a A</a>
+                </span>
+            </p>
+            <p>this is a P element with a long length text, and it should work in TestHtmlString</p>
+        </div>
+    </div>
+	<div>
+		<p>Some text</p>
+		<div>More text</div>
+	</div>
+	<span>is a block span
+		<span>it is a span in the block span</span>
+	</span>
+	<a>is a block a
+		<span>it is a span in the block a</span>
+	</a>
+</body>
+</html>`)
 
 func TestGetParent(t *testing.T) {
 	Convey("test to find the parent element", t, func() {
@@ -64,6 +80,39 @@ func TestGetParent(t *testing.T) {
 	})
 }
 
+func BlockTexts(n *html.Node) []string {
+	var texts []string
+	var stack []*html.Node
+	stack = append(stack, n)
+
+	for len(stack) > 0 {
+		curr := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		switch curr.Type {
+		case html.ElementNode:
+			if isBlock(curr) {
+				for c := curr.FirstChild; c != nil; c = c.NextSibling {
+					stack = append(stack, c)
+				}
+			} else {
+				stack = append(stack, curr.FirstChild)
+			}
+		case html.TextNode:
+			text := strings.TrimSpace(curr.Data)
+			if text != "" {
+				texts = append(texts, text)
+			}
+		case html.DocumentNode, html.DoctypeNode:
+			// Do nothing.
+		default:
+			// Ignore all other node types.
+		}
+	}
+
+	return texts
+}
+
 func TestHtmlText(t *testing.T) {
 	Convey("test to parse texts of a element", t, func() {
 		doc, err := ParseHTML(body)
@@ -78,7 +127,14 @@ email
 tg
 it is a P
 it is a SPAN
-it is a A`
+it is a A
+this is a P element with a long length text, and it should work in TestHtmlString
+Some text
+More text
+is a block span
+it is a span in the block span
+is a block a
+it is a span in the block a`
 
 		So(strings.Join(e.Texts(), "\n"), ShouldEqual, excepted)
 	})
@@ -94,11 +150,14 @@ it is a A`
 		excepted := `login
 email
 tg
-it is a P
-it is a SPAN
-it is a A`
+it is a Pit is a SPANit is a A
+this is a P element with a long length text, and it should work in TestHtmlString
+Some text
+More text
+is a block spanit is a span in the block span
+is a block ait is a span in the block a`
 
-		So(strings.Join(e.Texts(), "\n"), ShouldEqual, excepted)
+		So(strings.Join(e.BlockTexts(), "\n"), ShouldEqual, excepted)
 	})
 }
 
