@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   html_test.go
  * @Created At:  2021-10-10 14:59:49
- * @Modified At: 2023-03-16 17:56:13
+ * @Modified At: 2023-03-17 11:40:17
  * @Modified By: thepoy
  */
 
@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"golang.org/x/net/html"
 )
 
 var body = []byte(`
@@ -48,7 +47,11 @@ var body = []byte(`
 		<div>More text</div>
 	</div>
 	<span>is a block span
-		<span>it is a span in the block span</span>
+		<span>1: it is a span in the block span</span>
+		<br />
+		<span>2: it is a span in the block span</span>
+		<br />
+		<span>3: it is a span in the block span</span>
 	</span>
 	<a>is a block a
 		<span>it is a span in the block a</span>
@@ -80,39 +83,6 @@ func TestGetParent(t *testing.T) {
 	})
 }
 
-func BlockTexts(n *html.Node) []string {
-	var texts []string
-	var stack []*html.Node
-	stack = append(stack, n)
-
-	for len(stack) > 0 {
-		curr := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-
-		switch curr.Type {
-		case html.ElementNode:
-			if isBlock(curr) {
-				for c := curr.FirstChild; c != nil; c = c.NextSibling {
-					stack = append(stack, c)
-				}
-			} else {
-				stack = append(stack, curr.FirstChild)
-			}
-		case html.TextNode:
-			text := strings.TrimSpace(curr.Data)
-			if text != "" {
-				texts = append(texts, text)
-			}
-		case html.DocumentNode, html.DoctypeNode:
-			// Do nothing.
-		default:
-			// Ignore all other node types.
-		}
-	}
-
-	return texts
-}
-
 func TestHtmlText(t *testing.T) {
 	Convey("test to parse texts of a element", t, func() {
 		doc, err := ParseHTML(body)
@@ -132,7 +102,11 @@ this is a P element with a long length text, and it should work in TestHtmlStrin
 Some text
 More text
 is a block span
-it is a span in the block span
+1: it is a span in the block span
+
+2: it is a span in the block span
+
+3: it is a span in the block span
 is a block a
 it is a span in the block a`
 
@@ -154,7 +128,9 @@ it is a Pit is a SPANit is a A
 this is a P element with a long length text, and it should work in TestHtmlString
 Some text
 More text
-is a block spanit is a span in the block span
+is a block span1: it is a span in the block span
+2: it is a span in the block span
+3: it is a span in the block span
 is a block ait is a span in the block a`
 
 		So(strings.Join(e.BlockTexts(), "\n"), ShouldEqual, excepted)

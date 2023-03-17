@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   element.go
  * @Created At:  2021-07-27 20:35:31
- * @Modified At: 2023-03-16 17:55:29
+ * @Modified At: 2023-03-17 11:39:15
  * @Modified By: thepoy
  */
 
@@ -12,6 +12,7 @@ package html
 import (
 	"errors"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-predator/tools"
@@ -19,25 +20,27 @@ import (
 )
 
 var (
+	// ErrNilElement is returned when a nil element is passed to a function
 	ErrNilElement = errors.New("the current element is nil")
 )
 
-// HTMLElement is the representation of a HTML tag.
+// HTMLElement is a struct representing an HTML element.
 type HTMLElement struct {
-	// Name is the name of the tag
+	// Name is the name of the tag.
 	Name string
 
 	// DOM is the goquery parsed DOM object of the page. DOM is relative
-	// to the current HTMLElement
+	// to the current HTMLElement.
 	DOM *goquery.Selection
 
 	// Index stores the position of the current element within
-	// all the elements matched by an OnHTML callback
+	// all the elements matched by an OnHTML callback.
 	Index int
 
 	Node *html.Node
 }
 
+// String returns the HTML representation of the HTMLElement.
 func (he HTMLElement) String() string {
 	var s strings.Builder
 
@@ -138,40 +141,58 @@ func (he *HTMLElement) Texts() []string {
 		return nil
 	}
 
+	// A stack to store the nodes to visit
+	stack := []*html.Node{he.Node}
+
+	// A slice to store the texts
 	var texts []string
 
-	// Slightly optimized vs calling Each: no single selection object created
-	var f func(*html.Node)
-	f = func(n *html.Node) {
-		if n.Type == html.TextNode {
-			text := tools.Strip(n.Data)
+	// Loop until the stack is empty
+	for len(stack) > 0 {
+		// Pop a node from the stack
+		node := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		// If the node is a text node, append its data to the texts slice
+		if node.Type == html.TextNode {
+			text := strings.TrimSpace(node.Data)
 			if text != "" {
-				// 当使用 Selection.ReplaceWithHtml 将原节点替换成了一个 TextNode 时
-				// 很可能会出现多个文本节点连接，这在现实 DOM 结构是不可能存在的，但 ReplaceWithHtml
-				// 方法的不完备却可能出现此情况，故只能在此判断前面的节点是否为文本节点，如果是则将两个文本
-				// 节点的文本合并。
-				if n.PrevSibling != nil && n.PrevSibling.Type == html.TextNode {
-					if len(texts) > 0 {
-						texts[len(texts)-1] += text
-					} else {
-						texts = append(texts, text)
-					}
-				} else {
-					texts = append(texts, text)
-				}
+				texts = append(texts, text)
 			}
+			continue
 		}
-		if n.FirstChild != nil {
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				f(c)
-			}
+
+		// If the node is a <br> tag, append a newline character to the texts slice
+		if node.Type == html.ElementNode && node.Data == "br" {
+			texts = append(texts, "")
+			continue
 		}
-	}
-	for _, n := range he.DOM.Nodes {
-		f(n)
+
+		// Add the node's children to the stack
+		for c := node.LastChild; c != nil; c = c.PrevSibling {
+			stack = append(stack, c)
+		}
 	}
 
 	return texts
+}
+
+const (
+	defaultBlockElements  = "audio canvas embed iframe img math object picture svg video address article aside blockquote details dialog dd div dl dt fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 header hr li main nav ol p pre section table ul"
+	defaultInlineElements = "a abbr acronym audio b bdo big br button canvas cite code dfn em i img input kbd label map object output q samp script select small span strong sub sup textarea time tt var video"
+)
+
+var (
+	defaultBlockElementSet  = createElementsSet(strings.Fields(defaultBlockElements))
+	defaultInlineElementSet = createElementsSet(strings.Fields(defaultInlineElements))
+)
+
+func createElementsSet(elements []string) *sync.Map {
+	elementSet := &sync.Map{}
+	for _, e := range elements {
+		elementSet.Store(e, struct{}{})
+	}
+	return elementSet
 }
 
 // BlockTexts returns the texts of all block-level elements in the the current.
@@ -180,139 +201,93 @@ func (he *HTMLElement) Texts() []string {
 //
 // If the parent of an inline element is not a block-level element, its text is included as a separate element in the slice.
 func (h *HTMLElement) BlockTexts() []string {
-	// A slice to store the texts
+	if h == nil {
+		return nil
+	}
+
 	texts := []string{}
 
-	// A stack to store the nodes to visit
 	stack := []*html.Node{h.Node}
 
-	// A variable to store the current text
-	currentText := ""
-
-	// Loop until the stack is empty
+	// Iterate over the stack until it is empty
 	for len(stack) > 0 {
-		// Pop a node from the stack
+		// Pop the last node from the stack
 		node := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 
-		// If the node is a text node, append its data to the current text
+		// If the node is a text node, add its text to the current element
 		if node.Type == html.TextNode {
 			if text := tools.Strip(node.Data); text != "" {
-				currentText += tools.Strip(node.Data)
+				// Append to the last element of texts
+				if len(texts) > 0 && isInlineElement(node.Parent) {
+					texts[len(texts)-1] += text
+				} else {
+					texts = append(texts, text)
+				}
 			}
-			// currentText += tools.Strip(node.Data)
+			continue
 		}
 
-		// If the node is an element node and it is a block-level element, append the current text to the texts slice and reset it
-		if node.Type == html.ElementNode && (isBlockElement(node) || node.Parent == nil || node.Parent.Data == "body") {
-			if text := tools.Strip(currentText); text != "" {
-				texts = append(texts, text)
-				currentText = ""
-			}
+		// If the node is an element node, handle it appropriately
+		if node.Type == html.ElementNode {
+			texts = handleElementNode(node, texts)
 		}
 
-		// Push the child nodes to the stack in reverse order
+		// Add the node's children to the stack in reverse order
 		for c := node.LastChild; c != nil; c = c.PrevSibling {
 			stack = append(stack, c)
 		}
 	}
 
-	// Append any remaining text to the texts slice
-	if currentText != "" {
-		texts = append(texts, currentText)
+	// Remove any empty elements from the slice
+	for i := len(texts) - 1; i >= 0; i-- {
+		texts[i] = tools.Strip(texts[i])
+		if texts[i] == "" {
+			texts = append(texts[:i], texts[i+1:]...)
+		}
 	}
 
 	return texts
 }
 
-func isBlock(n *html.Node) bool {
-	switch n.Data {
-	case "audio", "canvas", "embed", "iframe", "img", "math", "object", "picture", "svg", "video":
-		// These are replaced elements and should be treated as block elements.
-		fallthrough
-	case "address", "article", "aside", "blockquote", "details", "dialog", "dd", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main", "nav", "ol", "p", "pre", "section", "table", "ul":
-		return true
-	default:
-		return false
-	}
-}
-
-// isBlockElement returns true if the given node is a block-level element
-func isBlockElement(n *html.Node) bool {
-	blockElements := []string{"address", "article", "aside", "blockquote", "canvas", "dd", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main", "nav", "noscript", "ol", "p", "pre", "section", "table", "tfoot", "ul"}
-	for _, block := range blockElements {
-		if block == n.Data {
-			return true
+func handleElementNode(node *html.Node, texts []string) []string {
+	if isBlockElement(node) || node.Parent == nil || node.Parent.Data == "body" {
+		if len(texts) > 0 && isInlineElement(node.Parent) {
+			texts[len(texts)-1] = tools.Strip(texts[len(texts)-1])
+		}
+		texts = append(texts, "")
+	} else {
+		if node.Data == "br" {
+			texts = append(texts, "\n")
 		}
 	}
-	return false
-}
-
-// isInlineElement returns true if the given node is an inline element
-func isInlineElement(n *html.Node) bool {
-	inlineElements := []string{"a", "abbr", "acronym", "audio", "b", "bdo", "big", "br", "button", "canvas", "cite", "code", "dfn", "em", "i", "img", "input", "kbd", "label", "map", "object", "output", "q", "samp", "script", "select", "small", "span", "strong", "sub", "sup", "textarea", "time", "tt", "var", "video"}
-	for _, inline := range inlineElements {
-		if inline == n.Data {
-			return true
-		}
-	}
-	return false
-}
-
-// getParentBlockElement returns the closest ancestor of the given node that is a block-level element
-func getParentBlockElement(n *html.Node) *html.Node {
-	for n != nil {
-		n = n.Parent
-		if isBlockElement(n) {
-			return n
-		}
-	}
-	return nil
-}
-
-// 获取当前元素的所有子元素的文字，返回所有块状元素的文字切片。
-//
-// 如果块状元素中有行内元素，行内元素的文字也会作为块状元素的文字。
-// 如果行内元素的父元素不是块状元素，则其文字作为文字切片的一部分。
-func (he *HTMLElement) TextsWithoutTextElements(elementNames []string) []string {
-	if he == nil {
-		return nil
-	}
-
-	var texts []string
-
-	// Slightly optimized vs calling Each: no single selection object created
-	var f func(*html.Node)
-	f = func(n *html.Node) {
-		if n.Type == html.TextNode {
-			text := tools.Strip(n.Data)
-			if text != "" {
-				// 当使用 Selection.ReplaceWithHtml 将原节点替换成了一个 TextNode 时
-				// 很可能会出现多个文本节点连接，这在现实 DOM 结构是不可能存在的，但 ReplaceWithHtml
-				// 方法的不完备却可能出现此情况，故只能在此判断前面的节点是否为文本节点，如果是则将两个文本
-				// 节点的文本合并。
-				if n.PrevSibling != nil && n.PrevSibling.Type == html.TextNode {
-					if len(texts) > 0 {
-						texts[len(texts)-1] += text
-					} else {
-						texts = append(texts, text)
-					}
-				} else {
-					texts = append(texts, text)
-				}
-			}
-		}
-		if n.FirstChild != nil {
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				f(c)
-			}
-		}
-	}
-	for _, n := range he.DOM.Nodes {
-		f(n)
-	}
-
 	return texts
+}
+
+func isBlockElement(n *html.Node, blockElements ...string) bool {
+	var blockElementsSet *sync.Map
+
+	if len(blockElements) == 0 {
+		blockElementsSet = defaultBlockElementSet
+	} else {
+		blockElementsSet = createElementsSet(blockElements)
+	}
+
+	_, ok := blockElementsSet.Load(n.Data)
+	return ok
+}
+
+func isInlineElement(n *html.Node, inlineElements ...string) bool {
+	var inlineElementSet *sync.Map
+
+	if len(inlineElements) == 0 {
+		inlineElementSet = defaultInlineElementSet
+	} else {
+		inlineElementSet = createElementsSet(inlineElements)
+	}
+
+	_, ok := inlineElementSet.Load(n.Data)
+	return ok
 }
 
 // ChildText returns the concatenated and stripped text content of the matching
