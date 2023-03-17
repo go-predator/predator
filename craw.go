@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-17 20:59:38
+ * @Modified At: 2023-03-17 21:06:12
  * @Modified By: thepoy
  */
 
@@ -205,7 +205,7 @@ func (c *Crawler) Clone() *Crawler {
 		}
 	}
 
-	var proxyPool []string
+	proxyPool := make([]string, len(c.proxyURLPool))
 	copy(proxyPool, c.proxyURLPool)
 
 	return &Crawler{
