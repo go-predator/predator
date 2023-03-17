@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-17 11:58:42
+ * @Modified At: 2023-03-17 12:03:45
  * @Modified By: thepoy
  */
 
@@ -447,7 +447,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		response.Ctx = request.Ctx
 	}
 
-	cost := response.recievedTime.Sub(request.sendingTime)
+	cost := response.recievedTime.Sub(request.sendingTime).String()
 	if response.StatusCode == StatusFound {
 		location := response.resp.Header.Get("Location")
 
@@ -467,7 +467,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 				Str("method", request.Method()).
 				Int("status_code", int(response.StatusCode)).
 				Uint64("content_length", response.ContentLength()).
-				Dur("cost", cost)
+				Str("cost", cost)
 
 			if !response.FromCache {
 				if c.ProxyPoolAmount() > 0 {
