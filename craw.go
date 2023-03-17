@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-17 19:05:14
+ * @Modified At: 2023-03-17 19:19:16
  * @Modified By: thepoy
  */
 
@@ -808,7 +808,13 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 	response.Ctx = request.Ctx
 	response.Request = request
 	response.header = resp.Header.Clone()
-	response.clientIP = request.req.RemoteAddr
+
+	if request.proxyUsed != "" {
+		response.clientIP = request.proxyUsed
+	} else {
+		response.clientIP = request.req.RemoteAddr
+	}
+
 	response.isJSON = strings.Contains(strings.ToLower(response.ContentType()), "application/json")
 	response.recievedTime = recievedTime
 
