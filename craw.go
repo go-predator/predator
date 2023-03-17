@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-17 19:19:16
+ * @Modified At: 2023-03-17 20:46:30
  * @Modified By: thepoy
  */
 
@@ -664,6 +664,10 @@ func (c *Crawler) preprocessResponseError(req *Request, err error) error {
 
 	c.Debug("raw error", log.NewArg("error", err))
 
+	if ne, ok := err.(net.Error); ok && ne.Timeout() && req.proxyUsed != "" {
+		return proxy.NewProxyError(req.proxyUsed, ErrTimeout)
+	}
+
 	e := &url.Error{}
 
 	if !errors.As(err, &e) {
@@ -696,6 +700,13 @@ func (c *Crawler) preprocessResponseError(req *Request, err error) error {
 		if errors.As(opErr.Err, &scErr) {
 			// no := scErr.Err.(syscall.Errno)
 			// return scErr
+			return proxy.NewProxyError(req.proxyUsed, scErr)
+		}
+	}
+
+	if req.proxyUsed != "" {
+		scErr := &os.SyscallError{}
+		if errors.As(err, &scErr) {
 			return proxy.NewProxyError(req.proxyUsed, scErr)
 		}
 	}
