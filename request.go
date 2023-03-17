@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   request.go
  * @Created At:  2021-07-24 13:29:11
- * @Modified At: 2023-03-16 11:08:50
+ * @Modified At: 2023-03-17 11:51:42
  * @Modified By: thepoy
  */
 
@@ -52,6 +52,8 @@ type Request struct {
 	cancel  context.CancelFunc
 	// The proxy used when sending the request.
 	proxyUsed string
+	// When this request was sent.
+	sendingTime time.Time
 }
 
 // IsCached checks if the cache exists for this request.

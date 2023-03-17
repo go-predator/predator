@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   response.go
  * @Created At:  2021-07-24 13:34:44
- * @Modified At: 2023-03-16 11:04:57
+ * @Modified At: 2023-03-17 11:54:50
  * @Modified By: thepoy
  */
 
@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	ctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/json"
@@ -39,8 +40,9 @@ type Response struct {
 	timeout   bool        // timeout indicates whether the response was caused by a timeout error
 	invalid   bool        // invalid indicates whether the response is valid; html for invalid responses will not be parsed
 
-	isJSON bool             // isJSON indicates whether the response body is a valid JSON
-	json   *json.JSONResult // json stores the JSON result of the response body if it is a valid JSON
+	isJSON       bool             // isJSON indicates whether the response body is a valid JSON
+	json         *json.JSONResult // json stores the JSON result of the response body if it is a valid JSON
+	recievedTime time.Time        // recievedTime records when this response was received
 }
 
 // Save writes response body to disk with given file name and permission mode 0644

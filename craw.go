@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-15 18:36:20
+ * @Modified At: 2023-03-17 11:58:42
  * @Modified By: thepoy
  */
 
@@ -447,6 +447,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 		response.Ctx = request.Ctx
 	}
 
+	cost := response.recievedTime.Sub(request.sendingTime)
 	if response.StatusCode == StatusFound {
 		location := response.resp.Header.Get("Location")
 
@@ -457,6 +458,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 				log.NewArg("content_length", response.ContentLength()),
 				log.NewArg("location", location),
 				log.NewArg("request_id", atomic.LoadUint32(&request.ID)),
+				log.NewArg("cost", cost),
 			)
 		}
 	} else {
@@ -464,7 +466,8 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			l := c.log.L.Info().
 				Str("method", request.Method()).
 				Int("status_code", int(response.StatusCode)).
-				Uint64("content_length", response.ContentLength())
+				Uint64("content_length", response.ContentLength()).
+				Dur("cost", cost)
 
 			if !response.FromCache {
 				if c.ProxyPoolAmount() > 0 {
@@ -737,6 +740,8 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 	// Add request body and send the request
 	request.WithBody()
 
+	request.sendingTime = time.Now()
+
 	var err error
 	resp, err := c.client.Do(request.req)
 	if err != nil {
@@ -779,6 +784,8 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 	}
 	defer resp.Body.Close()
 
+	recievedTime := time.Now()
+
 	// Read response body and create a Response object
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -794,6 +801,7 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 	response.header = resp.Header.Clone()
 	response.clientIP = request.req.RemoteAddr
 	response.isJSON = strings.Contains(strings.ToLower(response.ContentType()), "application/json")
+	response.recievedTime = recievedTime
 
 	// Parse JSON response if necessary
 	if response.isJSON {
