@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-17 18:36:36
+ * @Modified At: 2023-03-17 19:05:14
  * @Modified By: thepoy
  */
 
@@ -794,6 +794,9 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 		}
 
 		err = c.processProxyError(request, err)
+		if err == nil {
+			return c.do(request)
+		}
 
 		c.Error(err)
 		return nil, err
