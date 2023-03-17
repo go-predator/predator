@@ -3,7 +3,7 @@
  * @Email:       thepoy@163.com
  * @File Name:   craw.go
  * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-17 20:46:30
+ * @Modified At: 2023-03-17 20:59:38
  * @Modified By: thepoy
  */
 
@@ -204,28 +204,33 @@ func (c *Crawler) Clone() *Crawler {
 			c.FatalOrPanic(err)
 		}
 	}
+
+	var proxyPool []string
+	copy(proxyPool, c.proxyURLPool)
+
 	return &Crawler{
-		lock:             c.lock,
-		UserAgent:        c.UserAgent,
-		retryCount:       c.retryCount,
-		retryCondition:   c.retryCondition,
-		client:           c.client,
-		cookies:          c.cookies,
-		rawCookies:       c.rawCookies,
-		goPool:           pool,
-		proxyURLPool:     c.proxyURLPool,
-		Context:          c.Context,
-		cache:            c.cache,
-		cacheCondition:   c.cacheCondition,
-		cacheFields:      c.cacheFields,
-		requestHandler:   make([]HandleRequest, 0, 5),
-		responseHandler:  make([]HandleResponse, 0, 5),
-		htmlHandler:      make([]*HTMLParser, 0, 5),
-		jsonHandler:      make([]*JSONParser, 0, 1),
-		recordRemoteAddr: c.recordRemoteAddr,
-		wg:               &sync.WaitGroup{},
-		log:              c.log,
-		timeout:          c.timeout,
+		lock:                c.lock,
+		UserAgent:           c.UserAgent,
+		retryCount:          c.retryCount,
+		retryCondition:      c.retryCondition,
+		client:              c.client,
+		cookies:             c.cookies,
+		rawCookies:          c.rawCookies,
+		goPool:              pool,
+		proxyURLPool:        proxyPool,
+		Context:             c.Context,
+		cache:               c.cache,
+		cacheCondition:      c.cacheCondition,
+		complementProxyPool: c.complementProxyPool,
+		cacheFields:         c.cacheFields,
+		requestHandler:      make([]HandleRequest, 0, 5),
+		responseHandler:     make([]HandleResponse, 0, 5),
+		htmlHandler:         make([]*HTMLParser, 0, 5),
+		jsonHandler:         make([]*JSONParser, 0, 1),
+		recordRemoteAddr:    c.recordRemoteAddr,
+		wg:                  &sync.WaitGroup{},
+		log:                 c.log,
+		timeout:             c.timeout,
 	}
 }
 
