@@ -1,12 +1,3 @@
-/**
- * @Author:      thepoy
- * @Email:       thepoy@163.com
- * @File Name:   craw.go
- * @Created At:  2021-07-23 08:52:17
- * @Modified At: 2023-03-18 11:35:20
- * @Modified By: thepoy
- */
-
 package predator
 
 import (
@@ -28,6 +19,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-predator/log"
+
 	pctx "github.com/go-predator/predator/context"
 	"github.com/go-predator/predator/html"
 	"github.com/go-predator/predator/json"
@@ -243,7 +235,14 @@ func (c *Crawler) Clone() *Crawler {
 // will be followed by another request.
 //
 // The function returns an error if any errors occur during the request.
-func (c *Crawler) request(method, URL string, body []byte, cachedMap map[string]string, reqHeader http.Header, ctx pctx.Context, isChained bool) error {
+func (c *Crawler) request(
+	method, URL string,
+	body []byte,
+	cachedMap map[string]string,
+	reqHeader http.Header,
+	ctx pctx.Context,
+	isChained bool,
+) error {
 	// Recover from any panics that occur in the worker pool.
 	defer func() {
 		if c.goPool != nil {
@@ -368,7 +367,10 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 	if request.abort {
 		if c.log != nil {
-			c.Debug("the request is aborted", log.NewArg("request_id", atomic.LoadUint32(&request.ID)))
+			c.Debug(
+				"the request is aborted",
+				log.NewArg("request_id", atomic.LoadUint32(&request.ID)),
+			)
 		}
 		return
 	}
@@ -454,9 +456,8 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 
 	cost := response.recievedTime.Sub(request.sendingTime).String()
 	if response.StatusCode == StatusFound {
-		location := response.resp.Header.Get("Location")
-
 		if c.log != nil {
+			location := response.resp.Header.Get("Location")
 			c.Info("response",
 				log.NewArg("method", request.Method()),
 				log.NewArg("status_code", response.StatusCode),
@@ -747,7 +748,9 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 			},
 		}
 
-		request.req = request.req.WithContext(httptrace.WithClientTrace(request.req.Context(), trace))
+		request.req = request.req.WithContext(
+			httptrace.WithClientTrace(request.req.Context(), trace),
+		)
 	}
 
 	// Add request body and send the request
@@ -764,7 +767,9 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 		// Retry if the error is a timeout
 		if errors.Is(e, ErrTimeout) {
 			if request.proxyUsed != "" {
-				c.Warning("the connection timed out, but it was not possible to determine if the error was caused by a timeout with the proxy server or a timeout between the proxy server and the target server")
+				c.Warning(
+					"the connection timed out, but it was not possible to determine if the error was caused by a timeout with the proxy server or a timeout between the proxy server and the target server",
+				)
 			}
 
 			if c.retryCount == 0 {
@@ -898,7 +903,13 @@ func createBody(requestData map[string]string) []byte {
 // and a variadic argument of CacheField type to specify which query parameters to use for caching the response.
 //
 // It returns an error if any occurs during the request or parsing the URL.
-func (c *Crawler) get(URL string, header http.Header, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) get(
+	URL string,
+	header http.Header,
+	ctx pctx.Context,
+	isChained bool,
+	cacheFields ...CacheField,
+) error {
 	// Parse the query parameters from the URL and create a map to store them
 	u, err := url.Parse(URL)
 	if err != nil {
@@ -964,7 +975,15 @@ func (c *Crawler) GetWithCtx(URL string, ctx pctx.Context) error {
 // an optional function argument to create the request body from the request data,
 // and a variadic argument of CacheField type to specify which query or body parameters to use for caching the response.
 // It returns an error if any occurs during the request or parsing the URL.
-func (c *Crawler) post(URL string, requestData map[string]string, header http.Header, ctx pctx.Context, isChained bool, createBodyFunc createPostBody, cacheFields ...CacheField) error {
+func (c *Crawler) post(
+	URL string,
+	requestData map[string]string,
+	header http.Header,
+	ctx pctx.Context,
+	isChained bool,
+	createBodyFunc createPostBody,
+	cacheFields ...CacheField,
+) error {
 	// Create a map to store the cache fields and their values
 	var cachedMap map[string]string
 	// If cacheFields are provided, iterate over them and add them to the cachedMap with their values
@@ -1039,7 +1058,15 @@ func (c *Crawler) post(URL string, requestData map[string]string, header http.He
 	}
 
 	// Perform POST request with given URL (including added query parameters), created body (from given request data), cachedMap (for caching logic), header and context. Return any error.
-	return c.request(MethodPost, URL, createBodyFunc(requestData), cachedMap, header, ctx, isChained)
+	return c.request(
+		MethodPost,
+		URL,
+		createBodyFunc(requestData),
+		cachedMap,
+		header,
+		ctx,
+		isChained,
+	)
 }
 
 // Post is a method of the Crawler type that performs a POST request to the given URL with the given request data and the default header and context.
@@ -1063,7 +1090,11 @@ func (c *Crawler) PostWithCtx(URL string, requestData map[string]string, ctx pct
 // It calls the post method with nil header, nil context, false isChained, createBodyFunc and c.cacheFields as arguments.
 // It returns an error if any occurs during the request or parsing the URL.
 // This method was added because some websites use JavaScript to construct illegal request bodies that cannot be handled by the default createBody function. This is very common in China.
-func (c *Crawler) PostWithCreateBodyFunc(URL string, requestData map[string]string, createBodyFunc createPostBody) error {
+func (c *Crawler) PostWithCreateBodyFunc(
+	URL string,
+	requestData map[string]string,
+	createBodyFunc createPostBody,
+) error {
 	return c.post(URL, requestData, nil, nil, false, createBodyFunc, c.cacheFields...)
 }
 
@@ -1071,7 +1102,12 @@ func (c *Crawler) PostWithCreateBodyFunc(URL string, requestData map[string]stri
 //
 // It calls the post method with nil header, ctx context, false isChained, createBodyFunc and c.cacheFields as arguments.
 // It returns an error if any occurs during the request or parsing the URL.
-func (c *Crawler) PostWithCtxAndCreateBodyFunc(URL string, requestData map[string]string, ctx pctx.Context, createBodyFunc createPostBody) error {
+func (c *Crawler) PostWithCtxAndCreateBodyFunc(
+	URL string,
+	requestData map[string]string,
+	ctx pctx.Context,
+	createBodyFunc createPostBody,
+) error {
 	return c.post(URL, requestData, nil, ctx, false, createBodyFunc, c.cacheFields...)
 }
 
@@ -1096,15 +1132,26 @@ func (c *Crawler) createJSONBody(requestData map[string]any) []byte {
 // It also accepts an optional boolean argument to indicate if the request is chained from another one,
 // and a variadic argument of CacheField type to specify which query or body parameters to use for caching the response.
 // It returns an error if any occurs during the request or parsing the URL.
-func (c *Crawler) postJSON(URL string, requestData map[string]any, header http.Header, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
-	body := c.createJSONBody(requestData) // Create a JSON-encoded byte slice from the request data map
+func (c *Crawler) postJSON(
+	URL string,
+	requestData map[string]any,
+	header http.Header,
+	ctx pctx.Context,
+	isChained bool,
+	cacheFields ...CacheField,
+) error {
+	body := c.createJSONBody(
+		requestData,
+	) // Create a JSON-encoded byte slice from the request data map
 
 	// Create a map to store the cache fields and their values
 	var cachedMap map[string]string
 	// If cacheFields are provided, iterate over them and add them to the cachedMap with their values
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
-		bodyJson := json.ParseBytesToJSON(body) // Parse the JSON-encoded byte slice into a JSON object
+		bodyJson := json.ParseBytesToJSON(
+			body,
+		) // Parse the JSON-encoded byte slice into a JSON object
 
 		var queryParams url.Values // A variable to store the query parameters from the URL
 
@@ -1132,13 +1179,18 @@ func (c *Crawler) postJSON(URL string, requestData map[string]any, header http.H
 					value = field.prepare(value)
 				}
 			case requestBodyParam: // If the field type is requestBodyParam
-				if !bodyJson.Get(field.Field).Exists() { // If there is no such key in bodyJson object
+				if !bodyJson.Get(field.Field).
+					Exists() { // If there is no such key in bodyJson object
 					m := bodyJson.Map()
-					var keys = make([]string, 0, len(m))
+					keys := make([]string, 0, len(m))
 					for k := range m {
 						keys = append(keys, k)
 					}
-					err = fmt.Errorf("there is no such field [%s] in the request body: %v", field, keys) // Report an error that there is no such key in bodyJson object
+					err = fmt.Errorf(
+						"there is no such field [%s] in the request body: %v",
+						field,
+						keys,
+					) // Report an error that there is no such key in bodyJson object
 				} else {
 					key, value = field.String(), bodyJson.Get(field.Field).String() // Use it as key and value for caching
 					if field.prepare != nil {                                       // If a prepare function is provided for the field, apply it to th e value before storing it in cachedMap
@@ -1185,7 +1237,14 @@ func (c *Crawler) PostJSON(URL string, requestData map[string]interface{}, ctx p
 // URL is the target URL, mfw is a MultipartFormWriter containing the request body,
 // header is the HTTP header, ctx is the context, isChained is a flag indicating whether this request is chained,
 // and cacheFields specifies the fields to cache.
-func (c *Crawler) postMultipart(URL string, mfw *MultipartFormWriter, header http.Header, ctx pctx.Context, isChained bool, cacheFields ...CacheField) error {
+func (c *Crawler) postMultipart(
+	URL string,
+	mfw *MultipartFormWriter,
+	header http.Header,
+	ctx pctx.Context,
+	isChained bool,
+	cacheFields ...CacheField,
+) error {
 	var cachedMap map[string]string
 	if len(cacheFields) > 0 {
 		cachedMap = make(map[string]string)
@@ -1220,7 +1279,7 @@ func (c *Crawler) postMultipart(URL string, mfw *MultipartFormWriter, header htt
 						value = field.prepare(value)
 					}
 				} else {
-					var keys = make([]string, 0, len(mfw.cachedMap))
+					keys := make([]string, 0, len(mfw.cachedMap))
 					for k := range mfw.cachedMap {
 						keys = append(keys, k)
 					}
@@ -1316,8 +1375,11 @@ func (c *Crawler) ParseHTML(selector string, f HandleHTML) {
 		// and expand it automatically when needed
 		c.htmlHandler = make([]*HTMLParser, 0, 5)
 	}
-	c.htmlHandler = append(c.htmlHandler, &HTMLParser{selector, f}) // Append a new HTMLParser object with the given selector and function to the slice
-	c.lock.Unlock()                                                 // Unlock the Crawler
+	c.htmlHandler = append(
+		c.htmlHandler,
+		&HTMLParser{selector, f},
+	) // Append a new HTMLParser object with the given selector and function to the slice
+	c.lock.Unlock() // Unlock the Crawler
 }
 
 // ParseJSON is a method of the Crawler type that registers a function to be executed for each JSON response that matches a given strictness condition.
@@ -1329,10 +1391,17 @@ func (c *Crawler) ParseHTML(selector string, f HandleHTML) {
 func (c *Crawler) ParseJSON(strict bool, f HandleJSON) {
 	c.lock.Lock() // Lock the Crawler to prevent data race
 	if c.jsonHandler == nil {
-		c.jsonHandler = make([]*JSONParser, 0, 1) // Initialize the JSON handler slice with a capacity of 1 ,  assuming that most Crawlers only need one JSON handler ,  and expand it automatically when needed
+		c.jsonHandler = make(
+			[]*JSONParser,
+			0,
+			1,
+		) // Initialize the JSON handler slice with a capacity of 1 ,  assuming that most Crawlers only need one JSON handler ,  and expand it automatically when needed
 	}
-	c.jsonHandler = append(c.jsonHandler, &JSONParser{strict, f}) // Appenda new JSONParser object with th e given strictness condition and function to th e slice
-	c.lock.Unlock()                                               // Unlock the Crawler
+	c.jsonHandler = append(
+		c.jsonHandler,
+		&JSONParser{strict, f},
+	) // Appenda new JSONParser object with th e given strictness condition and function to th e slice
+	c.lock.Unlock() // Unlock the Crawler
 }
 
 // AfterResponse is a method of the Crawler type that registers a function to be executed after each response.
@@ -1388,7 +1457,11 @@ func (c *Crawler) AddProxy(newProxy string) {
 func (c *Crawler) AddCookie(key, val string) {
 	c.lock.Lock() // Lock the Crawler to prevent data race
 
-	c.rawCookies += fmt.Sprintf("; %s=%s", key, val) // Append the new cookie key-value pair to c.rawCookies with semicolon
+	c.rawCookies += fmt.Sprintf(
+		"; %s=%s",
+		key,
+		val,
+	) // Append the new cookie key-value pair to c.rawCookies with semicolon
 
 	c.lock.Unlock() // Unlock the Crawler
 }
@@ -1418,7 +1491,12 @@ func (c *Crawler) SetRetry(count uint32, cond RetryCondition) {
 }
 
 // SetCache sets the cache for the crawler.
-func (c *Crawler) SetCache(cc Cache, compressed bool, cacheCondition CacheCondition, cacheFields ...CacheField) {
+func (c *Crawler) SetCache(
+	cc Cache,
+	compressed bool,
+	cacheCondition CacheCondition,
+	cacheFields ...CacheField,
+) {
 	cc.Compressed(compressed)
 	err := cc.Init()
 	if err != nil {
@@ -1529,7 +1607,9 @@ func (c *Crawler) processJSONHandler(r *Response) error {
 
 	if len(c.jsonHandler) > 1 {
 		if c.log != nil {
-			c.Warning("it is recommended to do full processing of the json response in one call to `ParseJSON` instead of multiple calls to `ParseJSON`")
+			c.Warning(
+				"it is recommended to do full processing of the json response in one call to `ParseJSON` instead of multiple calls to `ParseJSON`",
+			)
 		}
 	}
 
