@@ -457,7 +457,7 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 	cost := response.recievedTime.Sub(request.sendingTime).String()
 	if response.StatusCode == StatusFound {
 		if c.log != nil {
-			location := response.resp.Header.Get("Location")
+			location := response.header.Get("Location")
 			c.Info("response",
 				log.NewArg("method", request.Method()),
 				log.NewArg("status_code", response.StatusCode),
