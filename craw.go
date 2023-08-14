@@ -1,6 +1,7 @@
 package predator
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -502,6 +503,12 @@ func (c *Crawler) prepare(request *Request, isChained bool) (err error) {
 			return
 		}
 
+		// Parse JSON response if necessary
+		if response.isJSON {
+			result := json.ParseBytesToJSON(response.Body)
+			response.json = &result
+		}
+
 		err = c.processJSONHandler(response)
 		if err != nil {
 			return
@@ -804,20 +811,35 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 
 	recievedTime := time.Now()
 
+	contentEncoding := resp.Header.Get("Content-Encoding")
+
 	// Read response body and create a Response object
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		if errors.Is(err, io.ErrUnexpectedEOF) && request.proxyUsed != "" {
-			err = proxy.NewProxyError(request.proxyUsed, err)
+	var body []byte
+	if contentEncoding == "gzip" {
+		reader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
 		}
 
-		err = c.processProxyError(request, err)
-		if err == nil {
-			return c.do(request)
+		body, err = io.ReadAll(reader)
+		if err != nil {
+			return nil, err
 		}
+	} else {
+		body, err = io.ReadAll(resp.Body)
+		if err != nil {
+			if errors.Is(err, io.ErrUnexpectedEOF) && request.proxyUsed != "" {
+				err = proxy.NewProxyError(request.proxyUsed, err)
+			}
 
-		c.Error(err)
-		return nil, err
+			err = c.processProxyError(request, err)
+			if err == nil {
+				return c.do(request)
+			}
+
+			c.Error(err)
+			return nil, err
+		}
 	}
 
 	response := new(Response)
@@ -835,12 +857,6 @@ func (c *Crawler) do(request *Request) (*Response, error) {
 
 	response.isJSON = strings.Contains(strings.ToLower(response.ContentType()), "application/json")
 	response.recievedTime = recievedTime
-
-	// Parse JSON response if necessary
-	if response.isJSON {
-		result := json.ParseBytesToJSON(body)
-		response.json = &result
-	}
 
 	// Debug response header
 	c.Debug("response header", log.NewArg("header", resp.Header))
