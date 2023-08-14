@@ -1626,7 +1626,7 @@ func (c *Crawler) processJSONHandler(r *Response) error {
 		if parser.strict {
 			if !strings.Contains(strings.ToLower(r.ContentType()), "application/json") {
 				if c.log != nil {
-					c.Debug(
+					c.Warning(
 						`the "Content-Type" of the response header is not of the "json" type`,
 						log.NewArg("Content-Type", r.ContentType()),
 					)
