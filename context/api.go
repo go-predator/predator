@@ -19,6 +19,11 @@ type Context interface {
 	Get(key string) string
 	// GetAny 通过 key 在上下文中获取一个任意类型
 	GetAny(key string) any
+	GetInt(key string) int
+	GetInt64(key string) int64
+	GetUint(key string) uint
+	GetUint64(key string) uint64
+	GetFloat(key string) float64
 	// Put 向上下文中传入一个 key: value
 	Put(key string, val any)
 	// GetAndDelete 获取并删除一个 key
@@ -58,7 +63,10 @@ var ctxPool sync.Pool
 // and usually improves performance.
 func AcquireCtx(ops ...CtxOp) (Context, error) {
 	if len(ops) > 1 {
-		return nil, fmt.Errorf("only 1 op can be passed in as most, but you passed %d ops", len(ops))
+		return nil, fmt.Errorf(
+			"only 1 op can be passed in as most, but you passed %d ops",
+			len(ops),
+		)
 	}
 	v := ctxPool.Get()
 	if v == nil {
@@ -79,7 +87,10 @@ func ReleaseCtx(ctx Context) {
 // NewContext returns a new Context instance
 func NewContext(ops ...CtxOp) (Context, error) {
 	if len(ops) > 1 {
-		return nil, fmt.Errorf("only 1 op can be passed in as most, but you passed %d ops", len(ops))
+		return nil, fmt.Errorf(
+			"only 1 op can be passed in as most, but you passed %d ops",
+			len(ops),
+		)
 	}
 
 	var op CtxOp

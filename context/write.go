@@ -31,6 +31,56 @@ func (w *wcontext) GetAny(key string) any {
 	return nil
 }
 
+func (w *wcontext) GetInt(key string) int {
+	val := w.GetAny(key)
+
+	if val == nil {
+		return 0
+	}
+
+	return val.(int)
+}
+
+func (w *wcontext) GetInt64(key string) int64 {
+	val := w.GetAny(key)
+
+	if val == nil {
+		return 0
+	}
+
+	return val.(int64)
+}
+
+func (w *wcontext) GetUint(key string) uint {
+	val := w.GetAny(key)
+
+	if val == nil {
+		return 0
+	}
+
+	return val.(uint)
+}
+
+func (w *wcontext) GetUint64(key string) uint64 {
+	val := w.GetAny(key)
+
+	if val == nil {
+		return 0
+	}
+
+	return val.(uint64)
+}
+
+func (w *wcontext) GetFloat(key string) float64 {
+	val := w.GetAny(key)
+
+	if val == nil {
+		return 0.0
+	}
+
+	return val.(float64)
+}
+
 func (w *wcontext) Get(key string) string {
 	val := w.GetAny(key)
 	if val == nil {

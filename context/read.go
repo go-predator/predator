@@ -28,6 +28,56 @@ func (r *rcontext) GetAny(key string) any {
 	return nil
 }
 
+func (r *rcontext) GetInt(key string) int {
+	val := r.GetAny(key)
+
+	if val == nil {
+		return 0
+	}
+
+	return val.(int)
+}
+
+func (r *rcontext) GetInt64(key string) int64 {
+	val := r.GetAny(key)
+
+	if val == nil {
+		return 0
+	}
+
+	return val.(int64)
+}
+
+func (r *rcontext) GetUint(key string) uint {
+	val := r.GetAny(key)
+
+	if val == nil {
+		return 0
+	}
+
+	return val.(uint)
+}
+
+func (r *rcontext) GetUint64(key string) uint64 {
+	val := r.GetAny(key)
+
+	if val == nil {
+		return 0
+	}
+
+	return val.(uint64)
+}
+
+func (r *rcontext) GetFloat(key string) float64 {
+	val := r.GetAny(key)
+
+	if val == nil {
+		return 0.0
+	}
+
+	return val.(float64)
+}
+
 func (r *rcontext) Get(key string) string {
 	val := r.GetAny(key)
 	if val == nil {
